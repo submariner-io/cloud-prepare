@@ -13,3 +13,8 @@ func (e *notFoundError) Error() string {
 func newNotFoundError(msg string, args ...interface{}) error {
 	return &notFoundError{fmt.Sprintf(msg, args...)}
 }
+
+func isNotFoundError(err error) bool {
+	_, ok := err.(*notFoundError)
+	return ok
+}

@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -19,6 +20,10 @@ func ec2Tag(key string, value string) *ec2.Tag {
 		Key:   aws.String(key),
 		Value: aws.String(value),
 	}
+}
+
+func ec2FilterByTag(tag *ec2.Tag) *ec2.Filter {
+	return ec2Filter(fmt.Sprintf("tag:%s", *tag.Key), *tag.Value)
 }
 
 func extractName(tags []*ec2.Tag) string {

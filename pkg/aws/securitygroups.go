@@ -113,8 +113,8 @@ func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol st
 func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string, error) {
 	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
 	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
-	if gatewayGroupID == nil {
-		if _, ok := err.(*notFoundError); !ok {
+	if err != nil {
+		if !isNotFoundError(err) {
 			return "", err
 		}
 
