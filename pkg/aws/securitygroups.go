@@ -2,16 +2,29 @@ package aws
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 )
 
 const internalTraffic = "Internal Submariner traffic"
 
 func (ac *awsCloud) getSecurityGroupID(vpcID string, name string) (*string, error) {
+	group, err := ac.getSecurityGroup(vpcID, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return group.GroupId, nil
+}
+
+func (ac *awsCloud) getSecurityGroup(vpcID string, name string) (*ec2.SecurityGroup, error) {
 	filters := []*ec2.Filter{
 		ec2Filter("vpc-id", vpcID),
 		ac.filterByName(name),
@@ -30,7 +43,7 @@ func (ac *awsCloud) getSecurityGroupID(vpcID string, name string) (*string, erro
 		return nil, newNotFoundError("security group %s", name)
 	}
 
-	return result.SecurityGroups[0].GroupId, nil
+	return result.SecurityGroups[0], nil
 }
 
 func (ac *awsCloud) authorizeSecurityGroupIngress(groupID *string, ipPermissions []*ec2.IpPermission) error {
@@ -149,4 +162,85 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 	}
 
 	return groupName, nil
+}
+
+func gatewayDeletionRetriable(err error) bool {
+	if awsErr, ok := err.(awserr.Error); ok {
+		return awsErr.Code() == "DependencyViolation"
+	}
+	return false
+}
+
+func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
+	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
+	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
+	if err != nil {
+		if isNotFoundError(err) {
+			return nil
+		}
+		return err
+	}
+
+	backoff := wait.Backoff{
+		Steps:    30,
+		Duration: 500 * time.Millisecond,
+		Factor:   1.2,
+		Cap:      10 * time.Minute,
+	}
+	retry.OnError(backoff, gatewayDeletionRetriable, func() error {
+		_, err = ac.client.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
+			GroupId: gatewayGroupID,
+		})
+		return err
+	})
+
+	if awsErr, ok := err.(awserr.Error); ok {
+		// Has to be hardcoded, see https://github.com/aws/aws-sdk-go/issues/3235
+		if awsErr.Code() == "InvalidPermission.NotFound" {
+			return nil
+		}
+	}
+	return err
+}
+
+func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
+	workerGroup, err := ac.getSecurityGroup(vpcID, "{infraID}-worker-sg")
+	if err != nil {
+		return err
+	}
+
+	masterGroup, err := ac.getSecurityGroup(vpcID, "{infraID}-master-sg")
+	if err != nil {
+		return err
+	}
+
+	err = ac.revokePortsFromGroup(workerGroup)
+	if err != nil {
+		return err
+	}
+
+	return ac.revokePortsFromGroup(masterGroup)
+}
+
+func (ac *awsCloud) revokePortsFromGroup(group *ec2.SecurityGroup) error {
+	var permissionsToRevoke []*ec2.IpPermission
+	for _, permission := range group.IpPermissions {
+		for _, groupPair := range permission.UserIdGroupPairs {
+			if groupPair.Description != nil && strings.Contains(*groupPair.Description, internalTraffic) {
+				permissionsToRevoke = append(permissionsToRevoke, permission)
+				break
+			}
+		}
+	}
+
+	if len(permissionsToRevoke) == 0 {
+		return nil
+	}
+
+	input := &ec2.RevokeSecurityGroupIngressInput{
+		GroupId:       group.GroupId,
+		IpPermissions: permissionsToRevoke,
+	}
+	_, err := ac.client.RevokeSecurityGroupIngress(input)
+	return err
 }

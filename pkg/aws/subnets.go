@@ -53,3 +53,15 @@ func (ac *awsCloud) tagPublicSubnet(subnetID *string) error {
 
 	return err
 }
+
+func (ac *awsCloud) untagPublicSubnet(subnetID *string) error {
+	_, err := ac.client.DeleteTags(&ec2.DeleteTagsInput{
+		Resources: []*string{subnetID},
+		Tags: []*ec2.Tag{
+			tagInternalELB,
+			tagSubmarinerGatgeway,
+		},
+	})
+
+	return err
+}

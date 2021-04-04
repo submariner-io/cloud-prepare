@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/submariner-io/admiral/pkg/resource"
 	"github.com/submariner-io/admiral/pkg/util"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/client-go/dynamic"
@@ -47,17 +49,12 @@ func (ac *awsCloud) findAMIID(vpcID string) (string, error) {
 	return *result.Reservations[0].Instances[0].ImageId, nil
 }
 
-func (ac *awsCloud) loadGatewayYAML(vpcID, gatewaySecurityGroup string, publicSubnet *ec2.Subnet) ([]byte, error) {
+func (ac *awsCloud) loadGatewayYAML(vpcID, gatewaySecurityGroup, amiID string, publicSubnet *ec2.Subnet) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// TODO: Not working properly, but we should revisit this as it makes more sense
 	// tpl, err := template.ParseFiles("pkg/aws/gw-machineset.yaml")
 	tpl, err := template.New("").Parse(machineSetYAML)
-	if err != nil {
-		return nil, err
-	}
-
-	amiID, err := ac.findAMIID(vpcID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,38 +77,77 @@ func (ac *awsCloud) loadGatewayYAML(vpcID, gatewaySecurityGroup string, publicSu
 	return buf.Bytes(), nil
 }
 
-func (ac *awsCloud) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet *ec2.Subnet) error {
-	gatewayYAML, err := ac.loadGatewayYAML(vpcID, gatewaySecurityGroup, publicSubnet)
+func (ac *awsCloud) initMachineSet(vpcID, gatewaySecurityGroup, amiID string, publicSubnet *ec2.Subnet) (*unstructured.Unstructured, error) {
+	gatewayYAML, err := ac.loadGatewayYAML(vpcID, gatewaySecurityGroup, amiID, publicSubnet)
 	if err != nil {
-		return err
-	}
-
-	k8sClient, err := dynamic.NewForConfig(ac.k8sConfig)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
 	unstructDecoder := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	machineSet := &unstructured.Unstructured{}
 	_, _, err = unstructDecoder.Decode(gatewayYAML, nil, machineSet)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	return machineSet, nil
+}
+
+func (ac *awsCloud) clientFor(unstruct *unstructured.Unstructured) (resource.Interface, error) {
+	k8sClient, err := dynamic.NewForConfig(ac.k8sConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	restMapper, err := util.BuildRestMapper(ac.k8sConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	machineSet, gvr, err := util.ToUnstructuredResource(machineSet, restMapper)
+	machineSet, gvr, err := util.ToUnstructuredResource(unstruct, restMapper)
+	if err != nil {
+		return nil, err
+	}
+
+	dynamicClient := k8sClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
+	return resource.ForDynamic(dynamicClient), nil
+}
+
+func (ac *awsCloud) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet *ec2.Subnet) error {
+	amiID, err := ac.findAMIID(vpcID)
 	if err != nil {
 		return err
 	}
 
-	dynamicClient := k8sClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
-	machineSetClient := resource.ForDynamic(dynamicClient)
+	machineSet, err := ac.initMachineSet(vpcID, gatewaySecurityGroup, amiID, publicSubnet)
+	if err != nil {
+		return err
+	}
+
+	machineSetClient, err := ac.clientFor(machineSet)
+	if err != nil {
+		return err
+	}
 
 	_, err = util.CreateOrUpdate(machineSetClient, machineSet, util.Replace(machineSet))
 
+	return err
+}
+
+func (ac *awsCloud) deleteGateway(vpcID string, publicSubnet *ec2.Subnet) error {
+	machineSet, err := ac.initMachineSet(vpcID, "", "", publicSubnet)
+	if err != nil {
+		return err
+	}
+
+	machineSetClient, err := ac.clientFor(machineSet)
+	if err != nil {
+		return err
+	}
+
+	err = machineSetClient.Delete(machineSet.GetName(), &metav1.DeleteOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
 	return err
 }
