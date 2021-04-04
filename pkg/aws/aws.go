@@ -53,19 +53,25 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 	}
 	reporter.Succeeded("Created Submariner gateway security group %s", gatewaySG)
 
-	publicSubnet, err := ac.getPublicSubnet(vpcID)
+	publicSubnet, err := ac.getTaggedPublicSubnet(vpcID)
 	if err != nil {
 		return err
 	}
+	if publicSubnet == nil {
+		publicSubnet, err = ac.getPublicSubnet(vpcID)
+		if err != nil {
+			return err
+		}
 
-	publicSubnetName := extractName(publicSubnet.Tags)
-	reporter.Started("Adjusting public subnet %s to support Submariner", publicSubnetName)
-	err = ac.tagPublicSubnet(publicSubnet.SubnetId)
-	if err != nil {
-		reporter.Failed(err)
-		return err
+		publicSubnetName := extractName(publicSubnet.Tags)
+		reporter.Started("Adjusting public subnet %s to support Submariner", publicSubnetName)
+		err = ac.tagPublicSubnet(publicSubnet.SubnetId)
+		if err != nil {
+			reporter.Failed(err)
+			return err
+		}
+		reporter.Succeeded("Adjusted public subnet %s to support Submariner", publicSubnetName)
 	}
-	reporter.Succeeded("Adjusted public subnet %s to support Submariner", publicSubnetName)
 
 	reporter.Started("Deploying gateway node")
 	err = ac.deployGateway(vpcID, gatewaySG, publicSubnet)
