@@ -7,6 +7,11 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	messageRetrieveVPCID  = "Retrieving VPC ID"
+	messageRetrievedVPCID = "Retrieved VPC ID %s"
+)
+
 type awsCloud struct {
 	client         ec2iface.EC2API
 	k8sConfig      *rest.Config
@@ -27,13 +32,13 @@ func NewCloud(k8sConfig *rest.Config, client ec2iface.EC2API, infraID, region, g
 }
 
 func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, reporter api.Reporter) error {
-	reporter.Started("Retrieving VPC ID")
+	reporter.Started(messageRetrieveVPCID)
 	vpcID, err := ac.getVpcID()
 	if err != nil {
 		reporter.Failed(err)
 		return err
 	}
-	reporter.Succeeded("Retrieved VPC ID %s", vpcID)
+	reporter.Succeeded(messageRetrievedVPCID, vpcID)
 
 	for _, port := range input.InternalPorts {
 		reporter.Started("Opening port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
@@ -84,5 +89,52 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 }
 
 func (ac *awsCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
+	reporter.Started(messageRetrieveVPCID)
+	vpcID, err := ac.getVpcID()
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	}
+	reporter.Succeeded(messageRetrievedVPCID, vpcID)
+
+	publicSubnet, err := ac.getTaggedPublicSubnet(vpcID)
+	if err != nil {
+		return err
+	}
+	if publicSubnet != nil {
+		reporter.Started("Removing gateway node")
+		err = ac.deleteGateway(vpcID, publicSubnet)
+		if err != nil {
+			reporter.Failed(err)
+			return err
+		}
+		reporter.Succeeded("Removed gateway node")
+
+		publicSubnetName := extractName(publicSubnet.Tags)
+		reporter.Started("Untagging public subnet %s from supporting Submariner", publicSubnetName)
+		err = ac.untagPublicSubnet(publicSubnet.SubnetId)
+		if err != nil {
+			reporter.Failed(err)
+			return err
+		}
+		reporter.Succeeded("Untagged public subnet %s from supporting Submariner", publicSubnetName)
+	}
+
+	reporter.Started("Revoking intra-cluster communication permissions")
+	err = ac.revokePortsInCluster(vpcID)
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	}
+	reporter.Succeeded("Revoked intra-cluster communication permissions")
+
+	reporter.Started("Deleting Submariner gateway security group")
+	err = ac.deleteGatewaySG(vpcID)
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	}
+	reporter.Succeeded("Deleted Submariner gateway security group")
+
 	return nil
 }
