@@ -7,7 +7,21 @@ var (
 	tagInternalELB        = ec2Tag("kubernetes.io/role/internal-elb", "")
 )
 
-func (ac *awsCloud) findPublicSubnet(vpcID string, filter *ec2.Filter) (*ec2.Subnet, error) {
+func filterTaggedSubnets(subnets []*ec2.Subnet) ([]*ec2.Subnet, []*ec2.Subnet) {
+	var taggedSubnets []*ec2.Subnet
+	var untaggedSubnets []*ec2.Subnet
+	for _, subnet := range subnets {
+		if hasTag(subnet.Tags, tagSubmarinerGatgeway) {
+			taggedSubnets = append(taggedSubnets, subnet)
+		} else {
+			untaggedSubnets = append(untaggedSubnets, subnet)
+		}
+	}
+
+	return taggedSubnets, untaggedSubnets
+}
+
+func (ac *awsCloud) findPublicSubnets(vpcID string, filter *ec2.Filter) ([]*ec2.Subnet, error) {
 	filters := []*ec2.Filter{
 		ec2Filter("vpc-id", vpcID),
 		ac.filterByCurrentCluster(),
@@ -19,27 +33,15 @@ func (ac *awsCloud) findPublicSubnet(vpcID string, filter *ec2.Filter) (*ec2.Sub
 		return nil, err
 	}
 
-	if len(result.Subnets) == 0 {
-		return nil, newNotFoundError("public subnet")
-	}
-
-	return result.Subnets[0], nil
+	return result.Subnets, nil
 }
 
-func (ac *awsCloud) getPublicSubnet(vpcID string) (*ec2.Subnet, error) {
-	return ac.findPublicSubnet(vpcID, ac.filterByName("{infraID}-public-{region}*"))
+func (ac *awsCloud) getPublicSubnets(vpcID string) ([]*ec2.Subnet, error) {
+	return ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}-public-{region}*"))
 }
 
-func (ac *awsCloud) getTaggedPublicSubnet(vpcID string) (*ec2.Subnet, error) {
-	subnet, err := ac.findPublicSubnet(vpcID, ec2FilterByTag(tagSubmarinerGatgeway))
-
-	if err != nil {
-		if isNotFoundError(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return subnet, nil
+func (ac *awsCloud) getTaggedPublicSubnets(vpcID string) ([]*ec2.Subnet, error) {
+	return ac.findPublicSubnets(vpcID, ec2FilterByTag(tagSubmarinerGatgeway))
 }
 
 func (ac *awsCloud) tagPublicSubnet(subnetID *string) error {
