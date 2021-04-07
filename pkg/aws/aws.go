@@ -1,6 +1,9 @@
 package aws
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 
@@ -77,33 +80,47 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 	}
 	reporter.Succeeded("Created Submariner gateway security group %s", gatewaySG)
 
-	publicSubnet, err := ac.getTaggedPublicSubnet(vpcID)
+	subnets, err := ac.getPublicSubnets(vpcID)
 	if err != nil {
 		return err
 	}
-	if publicSubnet == nil {
-		publicSubnet, err = ac.getPublicSubnet(vpcID)
-		if err != nil {
-			return err
+
+	subnetsCount := len(subnets)
+	if subnetsCount == 0 {
+		return errors.New(fmt.Sprintf("Found no public subnets to deploy Submariner gateway(s)"))
+	}
+	if input.Gateways > 0 && len(subnets) < input.Gateways {
+		return errors.New(fmt.Sprintf("Not enough public subnets to deploy %v Submariner gateway(s)", input.Gateways))
+	}
+
+	taggedSubnets, untaggedSubnets := filterTaggedSubnets(subnets)
+	for _, subnet := range untaggedSubnets {
+		if input.Gateways > 0 && len(taggedSubnets) == input.Gateways {
+			break
 		}
 
-		publicSubnetName := extractName(publicSubnet.Tags)
-		reporter.Started("Adjusting public subnet %s to support Submariner", publicSubnetName)
-		err = ac.tagPublicSubnet(publicSubnet.SubnetId)
+		subnetName := extractName(subnet.Tags)
+		reporter.Started("Adjusting public subnet %s to support Submariner", subnetName)
+		err = ac.tagPublicSubnet(subnet.SubnetId)
 		if err != nil {
 			reporter.Failed(err)
 			return err
 		}
-		reporter.Succeeded("Adjusted public subnet %s to support Submariner", publicSubnetName)
+		taggedSubnets = append(taggedSubnets, subnet)
+		reporter.Succeeded("Adjusted public subnet %s to support Submariner", subnetName)
 	}
 
-	reporter.Started("Deploying gateway node")
-	err = ac.deployGateway(vpcID, gatewaySG, publicSubnet)
-	if err != nil {
-		reporter.Failed(err)
-		return err
+	for _, subnet := range taggedSubnets {
+		subnetName := extractName(subnet.Tags)
+
+		reporter.Started("Deploying gateway node for public subnet %s", subnetName)
+		err = ac.deployGateway(vpcID, gatewaySG, subnet)
+		if err != nil {
+			reporter.Failed(err)
+			return err
+		}
+		reporter.Succeeded("Deployed gateway node for public subnet %s", subnetName)
 	}
-	reporter.Succeeded("Deployed gateway node")
 	return nil
 }
 
@@ -116,27 +133,28 @@ func (ac *awsCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 	}
 	reporter.Succeeded(messageRetrievedVPCID, vpcID)
 
-	publicSubnet, err := ac.getTaggedPublicSubnet(vpcID)
+	subnets, err := ac.getTaggedPublicSubnets(vpcID)
 	if err != nil {
 		return err
 	}
-	if publicSubnet != nil {
-		reporter.Started("Removing gateway node")
-		err = ac.deleteGateway(vpcID, publicSubnet)
-		if err != nil {
-			reporter.Failed(err)
-			return err
-		}
-		reporter.Succeeded("Removed gateway node")
 
-		publicSubnetName := extractName(publicSubnet.Tags)
-		reporter.Started("Untagging public subnet %s from supporting Submariner", publicSubnetName)
-		err = ac.untagPublicSubnet(publicSubnet.SubnetId)
+	for _, subnet := range subnets {
+		subnetName := extractName(subnet.Tags)
+		reporter.Started("Removing gateway node for public subnet %s", subnetName)
+		err = ac.deleteGateway(vpcID, subnet)
 		if err != nil {
 			reporter.Failed(err)
 			return err
 		}
-		reporter.Succeeded("Untagged public subnet %s from supporting Submariner", publicSubnetName)
+		reporter.Succeeded("Removed gateway node for public subnet %s", subnetName)
+
+		reporter.Started("Untagging public subnet %s from supporting Submariner", subnetName)
+		err = ac.untagPublicSubnet(subnet.SubnetId)
+		if err != nil {
+			reporter.Failed(err)
+			return err
+		}
+		reporter.Succeeded("Untagged public subnet %s from supporting Submariner", subnetName)
 	}
 
 	reporter.Started("Revoking intra-cluster communication permissions")

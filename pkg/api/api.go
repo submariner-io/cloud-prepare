@@ -32,6 +32,13 @@ type PrepareForSubmarinerInput struct {
 
 	// List of ports to open externally so that Submariner can reach and be reached by other Submariners
 	PublicPorts []PortSpec
+
+	// Amount of gateways that are being deployed
+	//
+	// 0 = Deploy one gateway per public subnet (Default if not specified)
+	//
+	// 1-* = Deploy the amount of gateways requested (May fail if there aren't enough public subnets)
+	Gateways int
 }
 
 // Cloud is a potential cloud for installing Submariner on
