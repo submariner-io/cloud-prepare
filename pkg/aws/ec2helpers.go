@@ -26,6 +26,16 @@ func ec2FilterByTag(tag *ec2.Tag) *ec2.Filter {
 	return ec2Filter(fmt.Sprintf("tag:%s", *tag.Key), *tag.Value)
 }
 
+func hasTag(tags []*ec2.Tag, desired *ec2.Tag) bool {
+	for _, tag := range tags {
+		if *tag.Key == *desired.Key {
+			return true
+		}
+	}
+
+	return false
+}
+
 func extractName(tags []*ec2.Tag) string {
 	for _, tag := range tags {
 		if *tag.Key == "Name" {
