@@ -93,13 +93,36 @@ func (ac *awsCloud) initMachineSet(vpcID, gatewaySecurityGroup, amiID string, pu
 	return machineSet, nil
 }
 
-func (ac *awsCloud) clientFor(unstruct *unstructured.Unstructured) (resource.Interface, error) {
-	k8sClient, err := dynamic.NewForConfig(ac.k8sConfig)
+func (ac *awsCloud) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet *ec2.Subnet) error {
+	amiID, err := ac.findAMIID(vpcID)
+	if err != nil {
+		return err
+	}
+
+	machineSet, err := ac.initMachineSet(vpcID, gatewaySecurityGroup, amiID, publicSubnet)
+	if err != nil {
+		return err
+	}
+
+	return ac.gwDeployer.Deploy(machineSet)
+}
+
+func (ac *awsCloud) deleteGateway(vpcID string, publicSubnet *ec2.Subnet) error {
+	machineSet, err := ac.initMachineSet(vpcID, "", "", publicSubnet)
+	if err != nil {
+		return err
+	}
+
+	return ac.gwDeployer.Delete(machineSet)
+}
+
+func (msd *k8sMachineSetDeployer) clientFor(unstruct *unstructured.Unstructured) (resource.Interface, error) {
+	k8sClient, err := dynamic.NewForConfig(msd.k8sConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	restMapper, err := util.BuildRestMapper(ac.k8sConfig)
+	restMapper, err := util.BuildRestMapper(msd.k8sConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -113,18 +136,8 @@ func (ac *awsCloud) clientFor(unstruct *unstructured.Unstructured) (resource.Int
 	return resource.ForDynamic(dynamicClient), nil
 }
 
-func (ac *awsCloud) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet *ec2.Subnet) error {
-	amiID, err := ac.findAMIID(vpcID)
-	if err != nil {
-		return err
-	}
-
-	machineSet, err := ac.initMachineSet(vpcID, gatewaySecurityGroup, amiID, publicSubnet)
-	if err != nil {
-		return err
-	}
-
-	machineSetClient, err := ac.clientFor(machineSet)
+func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
+	machineSetClient, err := msd.clientFor(machineSet)
 	if err != nil {
 		return err
 	}
@@ -134,13 +147,8 @@ func (ac *awsCloud) deployGateway(vpcID, gatewaySecurityGroup string, publicSubn
 	return err
 }
 
-func (ac *awsCloud) deleteGateway(vpcID string, publicSubnet *ec2.Subnet) error {
-	machineSet, err := ac.initMachineSet(vpcID, "", "", publicSubnet)
-	if err != nil {
-		return err
-	}
-
-	machineSetClient, err := ac.clientFor(machineSet)
+func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) error {
+	machineSetClient, err := msd.clientFor(machineSet)
 	if err != nil {
 		return err
 	}
