@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	messageRetrieveVPCID  = "Retrieving VPC ID"
-	messageRetrievedVPCID = "Retrieved VPC ID %s"
+	messageRetrieveVPCID          = "Retrieving VPC ID"
+	messageRetrievedVPCID         = "Retrieved VPC ID %s"
+	messageValidatePrerequisites  = "Validating pre-requisites"
+	messageValidatedPrerequisites = "Validated pre-requisites"
 )
 
 // MachineSetDeployer can deploy and delete machinesets from OCP
@@ -62,6 +64,14 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 	}
 	reporter.Succeeded(messageRetrievedVPCID, vpcID)
 
+	reporter.Started(messageValidatePrerequisites)
+	err = ac.validatePreparePrerequisites(vpcID, input)
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	}
+	reporter.Succeeded(messageValidatedPrerequisites)
+
 	for _, port := range input.InternalPorts {
 		reporter.Started("Opening port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
 		err = ac.allowPortInCluster(vpcID, port.Port, port.Protocol)
@@ -83,14 +93,6 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 	subnets, err := ac.getPublicSubnets(vpcID)
 	if err != nil {
 		return err
-	}
-
-	subnetsCount := len(subnets)
-	if subnetsCount == 0 {
-		return errors.New(fmt.Sprintf("Found no public subnets to deploy Submariner gateway(s)"))
-	}
-	if input.Gateways > 0 && len(subnets) < input.Gateways {
-		return errors.New(fmt.Sprintf("Not enough public subnets to deploy %v Submariner gateway(s)", input.Gateways))
 	}
 
 	taggedSubnets, untaggedSubnets := filterTaggedSubnets(subnets)
@@ -124,6 +126,34 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 	return nil
 }
 
+func (ac *awsCloud) validatePreparePrerequisites(vpcID string, input api.PrepareForSubmarinerInput) error {
+	var errs []error
+	errs = appendIfError(errs, ac.validateCreateSecGroup(vpcID))
+	errs = appendIfError(errs, ac.validateCreateSecGroupRule(vpcID))
+
+	subnets, err := ac.getPublicSubnets(vpcID)
+	if err != nil {
+		return err
+	}
+
+	subnetsCount := len(subnets)
+	if subnetsCount == 0 {
+		errs = append(errs, errors.New(fmt.Sprintf("Found no public subnets to deploy Submariner gateway(s)")))
+	}
+	if input.Gateways > 0 && len(subnets) < input.Gateways {
+		errs = append(errs, errors.New(fmt.Sprintf("Not enough public subnets to deploy %v Submariner gateway(s)", input.Gateways)))
+	}
+
+	if len(subnets) > 0 {
+		errs = appendIfError(errs, ac.validateCreateTag(subnets[0].SubnetId))
+	}
+
+	if len(errs) > 0 {
+		return newCompositeError(errs...)
+	}
+	return nil
+}
+
 func (ac *awsCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 	reporter.Started(messageRetrieveVPCID)
 	vpcID, err := ac.getVpcID()
@@ -132,6 +162,14 @@ func (ac *awsCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 		return err
 	}
 	reporter.Succeeded(messageRetrievedVPCID, vpcID)
+
+	reporter.Started(messageValidatePrerequisites)
+	err = ac.validateCleanupPrerequisites(vpcID)
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	}
+	reporter.Succeeded(messageValidatedPrerequisites)
 
 	subnets, err := ac.getTaggedPublicSubnets(vpcID)
 	if err != nil {
@@ -173,5 +211,26 @@ func (ac *awsCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 	}
 	reporter.Succeeded("Deleted Submariner gateway security group")
 
+	return nil
+}
+
+func (ac *awsCloud) validateCleanupPrerequisites(vpcID string) error {
+	var errs []error
+
+	errs = appendIfError(errs, ac.validateDeleteSecGroup(vpcID))
+	errs = appendIfError(errs, ac.validateDeleteSecGroupRule(vpcID))
+
+	subnets, err := ac.getTaggedPublicSubnets(vpcID)
+	if err != nil {
+		return err
+	}
+
+	if len(subnets) > 0 {
+		errs = appendIfError(errs, ac.validateRemoveTag(subnets[0].SubnetId))
+	}
+
+	if len(errs) > 0 {
+		return newCompositeError(errs...)
+	}
 	return nil
 }
