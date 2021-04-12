@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -53,11 +52,8 @@ func (ac *awsCloud) authorizeSecurityGroupIngress(groupID *string, ipPermissions
 	}
 
 	_, err := ac.client.AuthorizeSecurityGroupIngress(input)
-	if awsErr, ok := err.(awserr.Error); ok {
-		// Has to be hardcoded, see https://github.com/aws/aws-sdk-go/issues/3235
-		if awsErr.Code() == "InvalidPermission.Duplicate" {
-			return nil
-		}
+	if isAWSError(err, "InvalidPermission.Duplicate") {
+		return nil
 	}
 
 	return err
@@ -165,10 +161,7 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 }
 
 func gatewayDeletionRetriable(err error) bool {
-	if awsErr, ok := err.(awserr.Error); ok {
-		return awsErr.Code() == "DependencyViolation"
-	}
-	return false
+	return isAWSError(err, "DependencyViolation")
 }
 
 func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
@@ -194,11 +187,8 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 		return err
 	})
 
-	if awsErr, ok := err.(awserr.Error); ok {
-		// Has to be hardcoded, see https://github.com/aws/aws-sdk-go/issues/3235
-		if awsErr.Code() == "InvalidPermission.NotFound" {
-			return nil
-		}
+	if isAWSError(err, "InvalidPermission.NotFound") {
+		return nil
 	}
 	return err
 }
