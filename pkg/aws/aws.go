@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 
@@ -117,7 +118,13 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 		return err
 	}
 
-	taggedSubnets, untaggedSubnets := filterTaggedSubnets(subnets)
+	taggedSubnets, _ := filterSubnets(subnets, func(subnet *ec2.Subnet) (bool, error) {
+		return subnetTagged(subnet), nil
+	})
+	untaggedSubnets, _ := filterSubnets(subnets, func(subnet *ec2.Subnet) (bool, error) {
+		return !subnetTagged(subnet), nil
+	})
+
 	for _, subnet := range untaggedSubnets {
 		if input.Gateways > 0 && len(taggedSubnets) == input.Gateways {
 			break
@@ -159,6 +166,12 @@ func (ac *awsCloud) validatePreparePrerequisites(vpcID string, input api.Prepare
 	var errs []error
 	errs = appendIfError(errs, ac.validateCreateSecGroup(vpcID))
 	errs = appendIfError(errs, ac.validateCreateSecGroupRule(vpcID))
+	err := ac.validateDescribeInstanceTypeOfferings()
+	errs = appendIfError(errs, err)
+
+	if err != nil {
+		return newCompositeError(errs...)
+	}
 
 	subnets, err := ac.getPublicSubnets(vpcID)
 	if err != nil {
