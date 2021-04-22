@@ -2,3 +2,4 @@ output/
 vendor/
 .dapper
 Makefile.dapper
+.idea
