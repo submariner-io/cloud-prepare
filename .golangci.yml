@@ -1,0 +1,79 @@
+---
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - opinionated
+      # - performance
+      - style
+    disabled-checks:
+      - ifElseChain
+      - unnamedResult
+  gocyclo:
+    min-complexity: 20
+  lll:
+    line-length: 140
+  maligned:
+    suggest-new: true
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - dogsled
+    # - dupl
+    - errcheck
+    - exportloopref
+    # - funlen
+    # - gochecknoglobals
+    # - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - interfacer
+    - lll
+    - maligned
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - structcheck
+    - stylecheck  # instead of golint
+    # - testpackage
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
+    - wsl
+issues:
+  exclude-rules:
+    # Separating explicit var declarations by blank lines seems excessive.
+    - linters:
+        - wsl
+      text: "declarations should never be cuddled"
+
+    # This rule incorrectly flags code where two logically-related lines are
+    # followed by an if conditional to check their err return.
+    - linters:
+        - wsl
+      text: "only one cuddle assignment allowed before if statement"
+
+    # This rule incorrectly flags code where two logically-related lines are
+    # used to create vars that are consumed in a loop.
+    - linters:
+        - wsl
+      text: "only one cuddle assignment allowed before range statement"
+
+    - linters:
+        - stylecheck
+      text: "ST1001: "
+      path: test

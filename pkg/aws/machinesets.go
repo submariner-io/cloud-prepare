@@ -1,3 +1,18 @@
+/*
+© 2021 Red Hat, Inc. and others.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package aws
 
 import (
@@ -10,6 +25,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/client-go/dynamic"
 )
@@ -40,16 +56,19 @@ func (ac *awsCloud) findAMIID(vpcID string) (string, error) {
 	if len(result.Reservations) == 0 {
 		return "", newNotFoundError("reservations")
 	}
+
 	if len(result.Reservations[0].Instances) == 0 {
 		return "", newNotFoundError("worker instances")
 	}
+
 	if result.Reservations[0].Instances[0].ImageId == nil {
 		return "", newNotFoundError("AMI ID")
 	}
+
 	return *result.Reservations[0].Instances[0].ImageId, nil
 }
 
-func (ac *awsCloud) loadGatewayYAML(vpcID, gatewaySecurityGroup, amiID string, publicSubnet *ec2.Subnet) ([]byte, error) {
+func (ac *awsCloud) loadGatewayYAML(gatewaySecurityGroup, amiID string, publicSubnet *ec2.Subnet) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// TODO: Not working properly, but we should revisit this as it makes more sense
@@ -77,8 +96,8 @@ func (ac *awsCloud) loadGatewayYAML(vpcID, gatewaySecurityGroup, amiID string, p
 	return buf.Bytes(), nil
 }
 
-func (ac *awsCloud) initMachineSet(vpcID, gatewaySecurityGroup, amiID string, publicSubnet *ec2.Subnet) (*unstructured.Unstructured, error) {
-	gatewayYAML, err := ac.loadGatewayYAML(vpcID, gatewaySecurityGroup, amiID, publicSubnet)
+func (ac *awsCloud) initMachineSet(gatewaySecurityGroup, amiID string, publicSubnet *ec2.Subnet) (*unstructured.Unstructured, error) {
+	gatewayYAML, err := ac.loadGatewayYAML(gatewaySecurityGroup, amiID, publicSubnet)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +118,7 @@ func (ac *awsCloud) deployGateway(vpcID, gatewaySecurityGroup string, publicSubn
 		return err
 	}
 
-	machineSet, err := ac.initMachineSet(vpcID, gatewaySecurityGroup, amiID, publicSubnet)
+	machineSet, err := ac.initMachineSet(gatewaySecurityGroup, amiID, publicSubnet)
 	if err != nil {
 		return err
 	}
@@ -107,8 +126,8 @@ func (ac *awsCloud) deployGateway(vpcID, gatewaySecurityGroup string, publicSubn
 	return ac.gwDeployer.Deploy(machineSet)
 }
 
-func (ac *awsCloud) deleteGateway(vpcID string, publicSubnet *ec2.Subnet) error {
-	machineSet, err := ac.initMachineSet(vpcID, "", "", publicSubnet)
+func (ac *awsCloud) deleteGateway(publicSubnet *ec2.Subnet) error {
+	machineSet, err := ac.initMachineSet("", "", publicSubnet)
 	if err != nil {
 		return err
 	}
@@ -116,7 +135,7 @@ func (ac *awsCloud) deleteGateway(vpcID string, publicSubnet *ec2.Subnet) error 
 	return ac.gwDeployer.Delete(machineSet)
 }
 
-func (msd *k8sMachineSetDeployer) clientFor(unstruct *unstructured.Unstructured) (resource.Interface, error) {
+func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (resource.Interface, error) {
 	k8sClient, err := dynamic.NewForConfig(msd.k8sConfig)
 	if err != nil {
 		return nil, err
@@ -127,12 +146,13 @@ func (msd *k8sMachineSetDeployer) clientFor(unstruct *unstructured.Unstructured)
 		return nil, err
 	}
 
-	machineSet, gvr, err := util.ToUnstructuredResource(unstruct, restMapper)
+	machineSet, gvr, err := util.ToUnstructuredResource(obj, restMapper)
 	if err != nil {
 		return nil, err
 	}
 
 	dynamicClient := k8sClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
+
 	return resource.ForDynamic(dynamicClient), nil
 }
 
@@ -157,5 +177,6 @@ func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) 
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
+
 	return err
 }

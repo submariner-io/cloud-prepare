@@ -1,3 +1,18 @@
+/*
+© 2021 Red Hat, Inc. and others.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package aws
 
 import (
@@ -14,7 +29,7 @@ import (
 
 const internalTraffic = "Internal Submariner traffic"
 
-func (ac *awsCloud) getSecurityGroupID(vpcID string, name string) (*string, error) {
+func (ac *awsCloud) getSecurityGroupID(vpcID, name string) (*string, error) {
 	group, err := ac.getSecurityGroup(vpcID, name)
 	if err != nil {
 		return nil, err
@@ -23,7 +38,7 @@ func (ac *awsCloud) getSecurityGroupID(vpcID string, name string) (*string, erro
 	return group.GroupId, nil
 }
 
-func (ac *awsCloud) getSecurityGroup(vpcID string, name string) (*ec2.SecurityGroup, error) {
+func (ac *awsCloud) getSecurityGroup(vpcID, name string) (*ec2.SecurityGroup, error) {
 	filters := []*ec2.Filter{
 		ec2Filter("vpc-id", vpcID),
 		ac.filterByName(name),
@@ -59,7 +74,7 @@ func (ac *awsCloud) authorizeSecurityGroupIngress(groupID *string, ipPermissions
 	return err
 }
 
-func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16, protocol string, description string) error {
+func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16, protocol, description string) error {
 	ipPermissions := []*ec2.IpPermission{
 		{
 			FromPort:   aws.Int64(int64(port)),
@@ -101,7 +116,7 @@ func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol strin
 	return ac.createClusterSGRule(masterGroupID, workerGroupID, port, protocol, fmt.Sprintf("%s from master to worker nodes", internalTraffic))
 }
 
-func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol string, description string) error {
+func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, description string) error {
 	ipPermissions := []*ec2.IpPermission{
 		{
 			FromPort:   aws.Int64(int64(port)),
@@ -171,6 +186,7 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 		if isNotFoundError(err) {
 			return nil
 		}
+
 		return err
 	}
 
@@ -180,16 +196,19 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 		Factor:   1.2,
 		Cap:      10 * time.Minute,
 	}
-	retry.OnError(backoff, gatewayDeletionRetriable, func() error {
+
+	err = retry.OnError(backoff, gatewayDeletionRetriable, func() error {
 		_, err = ac.client.DeleteSecurityGroup(&ec2.DeleteSecurityGroupInput{
 			GroupId: gatewayGroupID,
 		})
+
 		return err
 	})
 
 	if isAWSError(err, "InvalidPermission.NotFound") {
 		return nil
 	}
+
 	return err
 }
 
@@ -214,6 +233,7 @@ func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
 
 func (ac *awsCloud) revokePortsFromGroup(group *ec2.SecurityGroup) error {
 	var permissionsToRevoke []*ec2.IpPermission
+
 	for _, permission := range group.IpPermissions {
 		for _, groupPair := range permission.UserIdGroupPairs {
 			if groupPair.Description != nil && strings.Contains(*groupPair.Description, internalTraffic) {
@@ -231,6 +251,8 @@ func (ac *awsCloud) revokePortsFromGroup(group *ec2.SecurityGroup) error {
 		GroupId:       group.GroupId,
 		IpPermissions: permissionsToRevoke,
 	}
+
 	_, err := ac.client.RevokeSecurityGroupIngress(input)
+
 	return err
 }
