@@ -15,25 +15,35 @@ limitations under the License.
 */
 package aws
 
-import "github.com/aws/aws-sdk-go/service/ec2"
+import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+)
 
 var (
 	tagSubmarinerGatgeway = ec2Tag("submariner.io/gateway", "")
 	tagInternalELB        = ec2Tag("kubernetes.io/role/internal-elb", "")
 )
 
-func filterTaggedSubnets(subnets []*ec2.Subnet) ([]*ec2.Subnet, []*ec2.Subnet) {
-	var taggedSubnets []*ec2.Subnet
-	var untaggedSubnets []*ec2.Subnet
+func filterSubnets(subnets []*ec2.Subnet, filterFunc func(subnet *ec2.Subnet) (bool, error)) ([]*ec2.Subnet, error) {
+	var filteredSubnets []*ec2.Subnet
+
 	for _, subnet := range subnets {
-		if hasTag(subnet.Tags, tagSubmarinerGatgeway) {
-			taggedSubnets = append(taggedSubnets, subnet)
-		} else {
-			untaggedSubnets = append(untaggedSubnets, subnet)
+		filterResult, err := filterFunc(subnet)
+		if err != nil {
+			return nil, err
+		}
+
+		if filterResult {
+			filteredSubnets = append(filteredSubnets, subnet)
 		}
 	}
 
-	return taggedSubnets, untaggedSubnets
+	return filteredSubnets, nil
+}
+
+func subnetTagged(subnet *ec2.Subnet) bool {
+	return hasTag(subnet.Tags, tagSubmarinerGatgeway)
 }
 
 func (ac *awsCloud) findPublicSubnets(vpcID string, filter *ec2.Filter) ([]*ec2.Subnet, error) {
@@ -51,8 +61,28 @@ func (ac *awsCloud) findPublicSubnets(vpcID string, filter *ec2.Filter) ([]*ec2.
 	return result.Subnets, nil
 }
 
+func (ac *awsCloud) subnetSupportsInstanceType(subnet *ec2.Subnet) (bool, error) {
+	output, err := ac.client.DescribeInstanceTypeOfferings(&ec2.DescribeInstanceTypeOfferingsInput{
+		LocationType: aws.String("availability-zone"),
+		Filters: []*ec2.Filter{
+			ec2Filter("location", *subnet.AvailabilityZone),
+			ec2Filter("instance-type", ac.gwInstanceType),
+		},
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return len(output.InstanceTypeOfferings) > 0, nil
+}
+
 func (ac *awsCloud) getPublicSubnets(vpcID string) ([]*ec2.Subnet, error) {
-	return ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}-public-{region}*"))
+	subnets, err := ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}-public-{region}*"))
+	if err != nil {
+		return nil, err
+	}
+
+	return filterSubnets(subnets, ac.subnetSupportsInstanceType)
 }
 
 func (ac *awsCloud) getTaggedPublicSubnets(vpcID string) ([]*ec2.Subnet, error) {

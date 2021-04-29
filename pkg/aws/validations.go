@@ -75,6 +75,14 @@ func (ac *awsCloud) validateCreateTag(subnetID *string) error {
 	return determinePermissionError(err, "create tags on subnets")
 }
 
+func (ac *awsCloud) validateDescribeInstanceTypeOfferings() error {
+	_, err := ac.client.DescribeInstanceTypeOfferings(&ec2.DescribeInstanceTypeOfferingsInput{
+		DryRun: aws.Bool(true),
+	})
+
+	return determinePermissionError(err, "describe instance type offerings")
+}
+
 func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
 	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}-worker-sg")
 	if err != nil {
