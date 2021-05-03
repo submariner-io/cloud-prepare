@@ -20,8 +20,8 @@ The API defines a `Reporter` type which has the capability to report on the late
 
 ### Prepare a cloud for Submariner
 
-Preparing a cloud for Submariner takes in number of gateways, internal ports for intra-cluster communications (Submariner components)
-and public ports for inter-cluster communications (Submariner to Submariner).
+The `PrepareForSubmarinerInput` function takes the number of gateways, the internal ports used for intra-cluster communication between Submariner components,
+and the public ports used for inter-cluster communication between Submariner gateways.
 
 ```go
 	input := api.PrepareForSubmarinerInput{
@@ -41,15 +41,18 @@ and public ports for inter-cluster communications (Submariner to Submariner).
 
 ### Clean up a cloud after Submariner has been uninstalled
 
-Cleanup doesn't take input as it finds all preparation work done by the library and reverses it.
+The `CleanupAfterSubmariner` function reverses all the preparation work previously done by the library.
 
 ```go
-	err := cloud.CleanupAfterSubmariner(repoter)
+	err := cloud.CleanupAfterSubmariner(reporter)
 ```
 
-## AWS
+## Supported Cloud Providers
 
-AWS is supported by the library. In order to prepare an AWS instance, it needs to have OpenShift pre-installed and running.
+### AWS
+
+In order to prepare an AWS instance, it needs to have OpenShift pre-installed and running.
+
 
 ```go
 	// The gwDeployer deploys the gateway and is pluggable.
