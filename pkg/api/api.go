@@ -15,14 +15,6 @@ limitations under the License.
 */
 package api
 
-type ReportingStatus int
-
-const (
-	Started ReportingStatus = iota
-	Succeeded
-	Failed
-)
-
 // Reporter is responsible for reporting back on the progress of the cloud preparation
 type Reporter interface {
 	// Started will report that an operation started on the cloud
