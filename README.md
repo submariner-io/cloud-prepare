@@ -20,8 +20,8 @@ The API defines a `Reporter` type which has the capability to report on the late
 
 ### Prepare a cloud for Submariner
 
-The `PrepareForSubmarinerInput` function takes the number of gateways, the internal ports used for intra-cluster communication between Submariner components,
-and the public ports used for inter-cluster communication between Submariner gateways.
+The `PrepareForSubmarinerInput` function takes the number of gateways, the internal ports used for intra-cluster communication between
+Submariner components, and the public ports used for inter-cluster communication between Submariner gateways.
 
 ```go
 	input := api.PrepareForSubmarinerInput{
@@ -52,7 +52,6 @@ The `CleanupAfterSubmariner` function reverses all the preparation work previous
 ### AWS
 
 In order to prepare an AWS instance, it needs to have OpenShift pre-installed and running.
-
 
 ```go
 	// The gwDeployer deploys the gateway and is pluggable.
