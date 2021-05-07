@@ -17,6 +17,7 @@ package aws
 
 import (
 	"bytes"
+	"context"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -162,7 +163,7 @@ func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) 
 		return err
 	}
 
-	_, err = util.CreateOrUpdate(machineSetClient, machineSet, util.Replace(machineSet))
+	_, err = util.CreateOrUpdate(context.TODO(), machineSetClient, machineSet, util.Replace(machineSet))
 
 	return err
 }
@@ -173,7 +174,7 @@ func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) 
 		return err
 	}
 
-	err = machineSetClient.Delete(machineSet.GetName(), &metav1.DeleteOptions{})
+	err = machineSetClient.Delete(context.TODO(), machineSet.GetName(), metav1.DeleteOptions{})
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
