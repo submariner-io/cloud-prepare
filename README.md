@@ -63,3 +63,33 @@ In order to prepare an AWS instance, it needs to have OpenShift pre-installed an
 	cloud := cloudprepareaws.NewCloud(
 		gwDeployer, ec2.New(awsSession), infraID, region, gwInstanceType)
 ```
+
+### GCP
+
+In order to prepare a GCP instance, it needs to have OpenShift pre-installed and running.
+
+```go
+	import (
+		"golang.org/x/oauth2/google"
+		dns "google.golang.org/api/dns/v1"
+		gcpclient "github.com/submariner-io/cloud-prepare/pkg/gcp/client"
+		cloudpreparegcp "github.com/submariner-io/cloud-prepare/pkg/gcp"
+	)
+
+	// Create Google credentials from a JSON value.
+	// The JSON can represent either a Google Developers Console client_credentials.json file (as in ConfigFromJSON)
+	// or a Google Developers service account key file (as in JWTConfigFromJSON).
+	credentials, err := google.CredentialsFromJSON(context.TODO(), authJSON, dns.CloudPlatformScope)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a GCP client with the credentials.
+	client, err := gcpclient.NewClient([]option.ClientOption{option.WithCredentials(credentials)})
+	if err != nil {
+		return err
+	}
+
+	// Create a new Cloud with the GCP client and the projectID of the credentials, infraID is necessary to properly deploy on GCP.
+	cloud := cloudpreparegcp.NewCloud(credentials.ProjectID, infraID, client)
+```
