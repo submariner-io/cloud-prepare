@@ -1,7 +1,7 @@
 # Submariner cloud-prepare
 
 <!-- markdownlint-disable line-length -->
-[![Linting](https://github.com/submariner-io/cloud-prepare/workflows/Linting/badge.svg)](https://github.com/submariner-io/cloud-prepare/actions?query=workflow%3ALinting)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4865/badge)](https://bestpractices.coreinfrastructure.org/projects/4865)
 <!-- markdownlint-enable line-length -->
 
 Submariner's cloud-prepare is a Go library that provides API and capabilities for setting up cloud infrastructure in order to install
