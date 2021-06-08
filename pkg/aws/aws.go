@@ -105,6 +105,14 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 		reporter.Succeeded("Opened port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
 	}
 
+	if input.Gateways > api.NoGateways {
+		return ac.preparePublicSubnetGateways(input, reporter, vpcID)
+	} else {
+		return nil
+	}
+}
+
+func (ac *awsCloud) preparePublicSubnetGateways(input api.PrepareForSubmarinerInput, reporter api.Reporter, vpcID string) error {
 	reporter.Started("Creating Submariner gateway security group")
 
 	gatewaySG, err := ac.createGatewaySG(vpcID, input.PublicPorts)
