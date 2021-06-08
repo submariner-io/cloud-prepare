@@ -43,12 +43,19 @@ type PrepareForSubmarinerInput struct {
 	PublicPorts []PortSpec
 
 	// Amount of gateways that are being deployed
+	// -1 (NoGateways) = Deploy no dedicated gateways. This is used when creating a Network LoadBalancer
+	//                   to expose the gateway traffic.
 	//
-	// 0 = Deploy one gateway per public subnet (Default if not specified)
+	//  0 (AutoGateways) = Deploy one gateway per public subnet (Default if not specified)
 	//
 	// 1-* = Deploy the amount of gateways requested (May fail if there aren't enough public subnets)
 	Gateways int
 }
+
+const (
+	NoGateways   = -1
+	AutoGateways = 0
+)
 
 // Cloud is a potential cloud for installing Submariner on
 type Cloud interface {
