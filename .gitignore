@@ -2,4 +2,5 @@ output/
 vendor/
 .dapper
 Makefile.dapper
+Dockerfile.*
 .idea
