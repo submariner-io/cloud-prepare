@@ -63,28 +63,26 @@ func (ac *awsCloud) findPublicSubnets(vpcID string, filter *ec2.Filter) ([]*ec2.
 	return result.Subnets, nil
 }
 
-func (ac *awsCloud) subnetSupportsInstanceType(subnet *ec2.Subnet) (bool, error) {
-	output, err := ac.client.DescribeInstanceTypeOfferings(&ec2.DescribeInstanceTypeOfferingsInput{
-		LocationType: aws.String("availability-zone"),
-		Filters: []*ec2.Filter{
-			ec2Filter("location", *subnet.AvailabilityZone),
-			ec2Filter("instance-type", ac.gwInstanceType),
-		},
-	})
-	if err != nil {
-		return false, err
-	}
-
-	return len(output.InstanceTypeOfferings) > 0, nil
-}
-
-func (ac *awsCloud) getPublicSubnets(vpcID string) ([]*ec2.Subnet, error) {
+func (ac *awsCloud) getPublicSubnets(vpcID, instanceType string) ([]*ec2.Subnet, error) {
 	subnets, err := ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}-public-{region}*"))
 	if err != nil {
 		return nil, err
 	}
 
-	return filterSubnets(subnets, ac.subnetSupportsInstanceType)
+	return filterSubnets(subnets, func(subnet *ec2.Subnet) (bool, error) {
+		output, err := ac.client.DescribeInstanceTypeOfferings(&ec2.DescribeInstanceTypeOfferingsInput{
+			LocationType: aws.String("availability-zone"),
+			Filters: []*ec2.Filter{
+				ec2Filter("location", *subnet.AvailabilityZone),
+				ec2Filter("instance-type", instanceType),
+			},
+		})
+		if err != nil {
+			return false, err
+		}
+
+		return len(output.InstanceTypeOfferings) > 0, nil
+	})
 }
 
 func (ac *awsCloud) getTaggedPublicSubnets(vpcID string) ([]*ec2.Subnet, error) {
