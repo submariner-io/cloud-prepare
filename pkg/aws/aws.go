@@ -20,8 +20,6 @@ package aws
 import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -30,24 +28,6 @@ const (
 	messageValidatePrerequisites  = "Validating pre-requisites"
 	messageValidatedPrerequisites = "Validated pre-requisites"
 )
-
-// MachineSetDeployer can deploy and delete machinesets from OCP
-type MachineSetDeployer interface {
-	// Deploy makes sure to deploy the given machine set (creating or updating it)
-	Deploy(machineSet *unstructured.Unstructured) error
-
-	// Delete will remove the given machineset
-	Delete(machineSet *unstructured.Unstructured) error
-}
-
-type k8sMachineSetDeployer struct {
-	k8sConfig *rest.Config
-}
-
-// NewK8sMachinesetDeployer returns a MachineSetDeployer capable deploying directly to Kubernetes
-func NewK8sMachinesetDeployer(k8sConfig *rest.Config) MachineSetDeployer {
-	return &k8sMachineSetDeployer{k8sConfig: k8sConfig}
-}
 
 type awsCloud struct {
 	client  ec2iface.EC2API

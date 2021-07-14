@@ -19,32 +19,26 @@ package aws
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/submariner-io/admiral/pkg/resource"
-	"github.com/submariner-io/admiral/pkg/util"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/client-go/dynamic"
 )
 
 type ocpGatewayDeployer struct {
 	aws          *awsCloud
-	msDeployer   MachineSetDeployer
+	msDeployer   ocp.MachineSetDeployer
 	instanceType string
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP
 // If the supplied cloud is not an awsCloud, an error is returned
-func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer MachineSetDeployer, instanceType string) (api.GatewayDeployer, error) {
+func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType string) (api.GatewayDeployer, error) {
 	aws, ok := cloud.(*awsCloud)
 	if !ok {
 		return nil, errors.New("the cloud must be AWS")
@@ -360,50 +354,4 @@ func (d *ocpGatewayDeployer) deleteGateway(publicSubnet *ec2.Subnet) error {
 	}
 
 	return d.msDeployer.Delete(machineSet)
-}
-
-func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (resource.Interface, error) {
-	k8sClient, err := dynamic.NewForConfig(msd.k8sConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	restMapper, err := util.BuildRestMapper(msd.k8sConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	machineSet, gvr, err := util.ToUnstructuredResource(obj, restMapper)
-	if err != nil {
-		return nil, err
-	}
-
-	dynamicClient := k8sClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
-
-	return resource.ForDynamic(dynamicClient), nil
-}
-
-func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
-	machineSetClient, err := msd.clientFor(machineSet)
-	if err != nil {
-		return err
-	}
-
-	_, err = util.CreateOrUpdate(context.TODO(), machineSetClient, machineSet, util.Replace(machineSet))
-
-	return err
-}
-
-func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) error {
-	machineSetClient, err := msd.clientFor(machineSet)
-	if err != nil {
-		return err
-	}
-
-	err = machineSetClient.Delete(context.TODO(), machineSet.GetName(), metav1.DeleteOptions{})
-	if apierrors.IsNotFound(err) {
-		return nil
-	}
-
-	return err
 }
