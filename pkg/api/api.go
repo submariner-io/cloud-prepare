@@ -38,24 +38,7 @@ type PortSpec struct {
 type PrepareForSubmarinerInput struct {
 	// List of ports to open inside the cluster for proper communication between Submariner services
 	InternalPorts []PortSpec
-
-	// List of ports to open externally so that Submariner can reach and be reached by other Submariners
-	PublicPorts []PortSpec
-
-	// Amount of gateways that are being deployed
-	// -1 (NoGateways) = Deploy no dedicated gateways. This is used when creating a Network LoadBalancer
-	//                   to expose the gateway traffic.
-	//
-	//  0 (AutoGateways) = Deploy one gateway per public subnet (Default if not specified)
-	//
-	// 1-* = Deploy the amount of gateways requested (May fail if there aren't enough public subnets)
-	Gateways int
 }
-
-const (
-	NoGateways   = -1
-	AutoGateways = 0
-)
 
 // Cloud is a potential cloud for installing Submariner on
 type Cloud interface {
@@ -64,4 +47,25 @@ type Cloud interface {
 
 	// CleanupAfterSubmariner will clean up the cloud after Submariner is removed
 	CleanupAfterSubmariner(reporter Reporter) error
+}
+
+type GatewayDeployInput struct {
+	// List of ports to open externally so that Submariner can reach and be reached by other Submariners
+	PublicPorts []PortSpec
+
+	// Amount of gateways that are being deployed
+	//
+	// 0 = Deploy gateways per the default deployer policy (Default if not specified)
+	//
+	// 1-* = Deploy the amount of gateways requested (May fail if there aren't enough public subnets)
+	Gateways int
+}
+
+// GatewayDeployer will deploy and cleanup dedicated gateways according to the requested policy
+type GatewayDeployer interface {
+	// Deploy dedicated gateways as requested
+	Deploy(input GatewayDeployInput, reporter Reporter) error
+
+	// Cleanup any dedicated gateways that were previously deployed
+	Cleanup(reporter Reporter) error
 }
