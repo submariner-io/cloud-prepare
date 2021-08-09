@@ -3,7 +3,7 @@ module github.com/submariner-io/cloud-prepare
 go 1.13
 
 require (
-	github.com/aws/aws-sdk-go v1.40.12
+	github.com/aws/aws-sdk-go v1.40.17
 	github.com/submariner-io/admiral v0.10.0-rc1
 	google.golang.org/api v0.52.0
 	k8s.io/apimachinery v0.21.0
