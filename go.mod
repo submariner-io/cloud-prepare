@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/aws/aws-sdk-go v1.40.17
-	github.com/submariner-io/admiral v0.10.0
+	github.com/submariner-io/admiral v0.10.1
 	google.golang.org/api v0.52.0
 	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v1.5.2
