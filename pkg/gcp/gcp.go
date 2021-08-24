@@ -62,7 +62,7 @@ func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 // CleanupAfterSubmariner clean up submariner cluster environment on GCP
 func (gc *gcpCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 	// delete the inbound and outbound firewall rules to close submariner internal ports
-	internalIngressName, _ := generateRuleNames(gc.infraID, internalPortsRuleName)
+	internalIngressName := generateRuleName(gc.infraID, internalPortsRuleName)
 
 	return gc.deleteFirewallRule(internalIngressName, reporter)
 }
@@ -134,27 +134,23 @@ func NewGCPGatewayDeployer(cloud api.Cloud) (api.GatewayDeployer, error) {
 func (d *gcpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
 	// create the inbound and outbound firewall rules for submariner public ports
 	reporter.Started("Opening public ports %q for cluster communications on GCP", formatPorts(input.PublicPorts))
-	ingress, egress := newExternalFirewallRules(d.gcp.projectID, d.gcp.infraID, input.PublicPorts)
-	if err := d.gcp.openPorts(ingress, egress); err != nil {
+	ingress := newExternalFirewallRules(d.gcp.projectID, d.gcp.infraID, input.PublicPorts)
+	if err := d.gcp.openPorts(ingress); err != nil {
 		reporter.Failed(err)
 		return err
 	}
 
-	reporter.Succeeded("Opened public ports %q with firewall rules %q and %q on GCP",
-		formatPorts(input.PublicPorts), ingress.Name, egress.Name)
+	reporter.Succeeded("Opened public ports %q with firewall rules %q on GCP",
+		formatPorts(input.PublicPorts), ingress.Name)
 
 	return nil
 }
 
 func (d *gcpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	// delete the inbound and outbound firewall rules to close submariner public ports
-	ingressName, egressName := generateRuleNames(d.gcp.infraID, publicPortsRuleName)
+	ingressName := generateRuleName(d.gcp.infraID, publicPortsRuleName)
 
 	if err := d.gcp.deleteFirewallRule(ingressName, reporter); err != nil {
-		return err
-	}
-
-	if err := d.gcp.deleteFirewallRule(egressName, reporter); err != nil {
 		return err
 	}
 
