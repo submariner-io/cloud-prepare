@@ -27,20 +27,18 @@ import (
 
 const (
 	ingressDirection      = "INGRESS"
-	egressDirection       = "EGRESS"
 	publicPortsRuleName   = "submariner-public-ports"
 	internalPortsRuleName = "submariner-internal-ports"
 )
 
-func newExternalFirewallRules(projectID, infraID string, ports []api.PortSpec) (ingress, egress *compute.Firewall) {
-	ingressName, egressName := generateRuleNames(infraID, publicPortsRuleName)
+func newExternalFirewallRules(projectID, infraID string, ports []api.PortSpec) (ingress *compute.Firewall) {
+	ingressName := generateRuleName(infraID, publicPortsRuleName)
 
-	return newFirewallRule(projectID, infraID, ingressName, ingressDirection, ports),
-		newFirewallRule(projectID, infraID, egressName, egressDirection, ports)
+	return newFirewallRule(projectID, infraID, ingressName, ingressDirection, ports)
 }
 
 func newInternalFirewallRule(projectID, infraID string, ports []api.PortSpec) *compute.Firewall {
-	ingressName, _ := generateRuleNames(infraID, internalPortsRuleName)
+	ingressName := generateRuleName(infraID, internalPortsRuleName)
 
 	rule := newFirewallRule(projectID, infraID, ingressName, ingressDirection, ports)
 	rule.TargetTags = []string{
@@ -72,6 +70,6 @@ func newFirewallRule(projectID, infraID, name, direction string, ports []api.Por
 	}
 }
 
-func generateRuleNames(infraID, name string) (ingressName, egressName string) {
-	return fmt.Sprintf("%s-%s-ingress", infraID, name), fmt.Sprintf("%s-%s-egress", infraID, name)
+func generateRuleName(infraID, name string) (ingressName string) {
+	return fmt.Sprintf("%s-%s-ingress", infraID, name)
 }
