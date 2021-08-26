@@ -19,11 +19,10 @@ package gcp
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"strings"
 	"text/template"
 
+	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"google.golang.org/api/compute/v1"
@@ -72,8 +71,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 	zones, err := d.gcp.client.ListZones()
 	if err != nil {
-		reporter.Failed(err)
-		return fmt.Errorf("failed to list the zones in the project %q. %v", d.gcp.projectID, err)
+		return reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.gcp.projectID)
 	}
 
 	reporter.Succeeded(messageRetrievedZones)
@@ -81,21 +79,21 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	reporter.Started(messageValidateCurrentGWCount)
 
 	for _, zone := range zones.Items {
-		if zone.Region != d.gcp.region {
+		region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
+		if region != d.gcp.region {
 			continue
 		}
 
 		instanceList, err := d.gcp.client.ListInstances(zone.Name)
 		if err != nil {
-			reporter.Failed(err)
-			return fmt.Errorf("failed to list instances in zone %q of project project %q. %v", zone.Name, d.gcp.projectID, err)
+			return reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.gcp.projectID)
 		}
 
 		for _, instance := range instanceList.Items {
 			hasPublicIP, err := d.gcp.client.InstanceHasPublicIP(instance)
 			if err != nil {
-				reporter.Failed(err)
-				return fmt.Errorf("failed to verify if instance %q has public-ip or not in project %q. %v", instance.Name, d.gcp.projectID, err)
+				return reportFailure(reporter, err, "failed to verify if instance %q has public-ip or not in project %q",
+					instance.Name, d.gcp.projectID)
 			}
 
 			if hasPublicIP {
@@ -131,6 +129,11 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 				reporter.Succeeded(messageDeployedGatewayNode)
 				return nil
 			}
+		}
+
+		if gatewayNodesToDeploy > 0 {
+			reporter.Succeeded(messageDeployGatewayNodeFailed)
+			return nil
 		}
 	}
 
@@ -216,8 +219,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	reporter.Started(messageDeleteExtFWRules)
 	err := d.deleteExternalFWRules(reporter)
 	if err != nil {
-		reporter.Failed(err)
-		return fmt.Errorf("failed to delete the gateway firewall rules in the project %q. %v", d.gcp.projectID, err)
+		return reportFailure(reporter, err, "failed to delete the gateway firewall rules in the project %q", d.gcp.projectID)
 	}
 
 	reporter.Succeeded(messageDeletedExtFWRules)
@@ -225,8 +227,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 
 	zones, err := d.gcp.client.ListZones()
 	if err != nil {
-		reporter.Failed(err)
-		return fmt.Errorf("failed to list the zones in the project %q. %v", d.gcp.projectID, err)
+		return reportFailure(reporter, err, "failed to list the zones in the project %q", d.gcp.projectID)
 	}
 
 	reporter.Succeeded(messageRetrievedZones)
@@ -240,8 +241,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 
 		instanceList, err := d.gcp.client.ListInstances(zone.Name)
 		if err != nil {
-			reporter.Failed(err)
-			return fmt.Errorf("failed to list instances in zone %q of project project %q. %v", zone.Name, d.gcp.projectID, err)
+			return reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.gcp.projectID)
 		}
 
 		for _, instance := range instanceList.Items {
@@ -249,8 +249,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 				if tag == submarinerGatewayNodeTag {
 					err := d.deleteGateway(zone.Name)
 					if err != nil {
-						reporter.Failed(err)
-						return fmt.Errorf("failed to delete gateway instance %q. %v", instance.Name, err)
+						return reportFailure(reporter, err, "failed to delete gateway instance %q", instance.Name)
 					}
 
 					break
@@ -282,4 +281,11 @@ func (d *ocpGatewayDeployer) deleteExternalFWRules(reporter api.Reporter) error 
 	}
 
 	return nil
+}
+
+func reportFailure(reporter api.Reporter, failure error, format string, args ...string) error {
+	err := errors.WithMessagef(failure, format, args)
+	reporter.Failed(err)
+
+	return err
 }

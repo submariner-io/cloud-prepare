@@ -92,30 +92,15 @@ func IsGCPNotFoundError(err error) bool {
 }
 
 func (g *gcpClient) GetInstance(zone, instance string) (*compute.Instance, error) {
-	resp, err := g.computeClient.Instances.Get(g.projectID, zone, instance).Context(context.TODO()).Do()
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return g.computeClient.Instances.Get(g.projectID, zone, instance).Context(context.TODO()).Do()
 }
 
 func (g *gcpClient) ListInstances(zone string) (*compute.InstanceList, error) {
-	resp, err := g.computeClient.Instances.List(g.projectID, zone).Context(context.TODO()).Do()
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return g.computeClient.Instances.List(g.projectID, zone).Context(context.TODO()).Do()
 }
 
 func (g *gcpClient) ListZones() (*compute.ZoneList, error) {
-	resp, err := g.computeClient.Zones.List(g.projectID).Context(context.TODO()).Do()
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return g.computeClient.Zones.List(g.projectID).Context(context.TODO()).Do()
 }
 
 func (g *gcpClient) InstanceHasPublicIP(instance *compute.Instance) (bool, error) {
@@ -124,11 +109,8 @@ func (g *gcpClient) InstanceHasPublicIP(instance *compute.Instance) (bool, error
 	}
 
 	networkInterface := instance.NetworkInterfaces[0]
-	if len(networkInterface.AccessConfigs) > 0 {
-		return true, nil
-	}
 
-	return false, nil
+	return len(networkInterface.AccessConfigs) > 0, nil
 }
 
 func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) error {
@@ -144,13 +126,11 @@ func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) erro
 		return nil
 	}
 
-	if _, err := g.computeClient.Instances.AddAccessConfig(
-		g.projectID, zone, instance.Name, networkInterface.Name, &compute.AccessConfig{}).
-		Context(context.TODO()).Do(); err != nil {
-		return err
-	}
+	_, err := g.computeClient.Instances.AddAccessConfig(g.projectID, zone, instance.Name,
+		networkInterface.Name, &compute.AccessConfig{}).
+		Context(context.TODO()).Do()
 
-	return nil
+	return err
 }
 
 func (g *gcpClient) DeletePublicIPOnInstance(instance *compute.Instance) error {
@@ -161,11 +141,9 @@ func (g *gcpClient) DeletePublicIPOnInstance(instance *compute.Instance) error {
 	// The zone of an instance is on URL, so we just need the latest value
 	zone := instance.Zone[strings.LastIndex(instance.Zone, "/")+1:]
 	networkInterface := instance.NetworkInterfaces[0]
-	if _, err := g.computeClient.Instances.DeleteAccessConfig(
+	_, err := g.computeClient.Instances.DeleteAccessConfig(
 		g.projectID, zone, instance.Name, "External NAT", networkInterface.Name).
-		Context(context.TODO()).Do(); err != nil {
-		return err
-	}
+		Context(context.TODO()).Do()
 
-	return nil
+	return err
 }
