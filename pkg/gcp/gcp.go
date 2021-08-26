@@ -28,17 +28,33 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
+const (
+	messageRetrieveZones          = "Retrieving zones in the project"
+	messageRetrievedZones         = "Retrieved the zones"
+	messageValidateCurrentGWCount = "Verifying if current gateways match the required number of gateways"
+	messageValidatedCurrentGWs    = "Current gateways match the required number of gateways"
+	messageDeployGatewayNode      = "Deploying gateway node"
+	messageDeployedGatewayNode    = "Successfully deployed gateway node"
+	messageCreateExtFWRules       = "Configuring the required firewall rules for inter-cluster traffic"
+	messageDeleteExtFWRules       = "Deleting the Submariner gateway firewall rules"
+	messageDeletedExtFWRules      = "Successfully deleted the firewall rules"
+	messageVerifyCurrentGWCount   = "Looking for current gateways in the project that need to be deleted"
+	messageVerifiedCurrentGWCount = "Successfully deleted the gateway nodes"
+)
+
 type gcpCloud struct {
 	infraID   string
+	region    string
 	projectID string
 	client    gcpclient.Interface
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare GCP for Submariner to be deployed on it
-func NewCloud(projectID, infraID string, client gcpclient.Interface) api.Cloud {
+func NewCloud(projectID, infraID, region string, client gcpclient.Interface) api.Cloud {
 	return &gcpCloud{
 		infraID:   infraID,
 		projectID: projectID,
+		region:    region,
 		client:    client,
 	}
 }

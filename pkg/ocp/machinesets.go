@@ -20,6 +20,7 @@ package ocp
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/submariner-io/admiral/pkg/resource"
 	"github.com/submariner-io/admiral/pkg/util"
@@ -35,6 +36,9 @@ import (
 type MachineSetDeployer interface {
 	// Deploy makes sure to deploy the given machine set (creating or updating it)
 	Deploy(machineSet *unstructured.Unstructured) error
+
+	// GetWorkerNodeImage returns the image used by OCP worker nodes
+	GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error)
 
 	// Delete will remove the given machineset
 	Delete(machineSet *unstructured.Unstructured) error
@@ -68,6 +72,41 @@ func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (resource.Interf
 	dynamicClient := k8sClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
 
 	return resource.ForDynamic(dynamicClient), nil
+}
+
+func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error) {
+	machineSetClient, err := msd.clientFor(machineSet)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: After implementing a ListAll method in admiral, modify this code accordingly.
+	workerNodeList := []string{infraID + "-worker-b", infraID + "-worker-c", infraID + "-worker-d"}
+
+	for _, nodeName := range workerNodeList {
+		existing, err := machineSetClient.Get(context.TODO(), nodeName, metav1.GetOptions{})
+		if apierrors.IsNotFound(err) || err != nil {
+			continue
+		}
+
+		obj, err := resource.ToUnstructured(existing)
+		if err != nil {
+			continue
+		}
+
+		disks, ok, _ := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
+		if ok && len(disks) > 0 {
+			for _, o := range disks {
+				disk := o.(map[string]interface{})
+				image, _, _ := unstructured.NestedString(disk, "image")
+				if image != "" {
+					return image, nil
+				}
+			}
+		}
+	}
+
+	return "", fmt.Errorf("could not retrieve the image of one of the worker nodes on gcp infra %q", infraID)
 }
 
 func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {

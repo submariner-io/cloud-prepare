@@ -19,7 +19,9 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -34,9 +36,16 @@ type Interface interface {
 	GetFirewallRule(projectID, name string) (*compute.Firewall, error)
 	DeleteFirewallRule(projectID, name string) error
 	UpdateFirewallRule(projectID, name string, rule *compute.Firewall) error
+	GetInstance(zone string, instance string) (*compute.Instance, error)
+	ListInstances(zone string) (*compute.InstanceList, error)
+	ListZones() (*compute.ZoneList, error)
+	InstanceHasPublicIP(instance *compute.Instance) (bool, error)
+	ConfigurePublicIPOnInstance(instance *compute.Instance) error
+	DeletePublicIPOnInstance(instance *compute.Instance) error
 }
 
 type gcpClient struct {
+	projectID     string
 	computeClient *compute.Service
 }
 
@@ -59,7 +68,7 @@ func (g *gcpClient) UpdateFirewallRule(projectID, name string, rule *compute.Fir
 	return err
 }
 
-func NewClient(options []option.ClientOption) (Interface, error) {
+func NewClient(projectID string, options []option.ClientOption) (Interface, error) {
 	ctx := context.TODO()
 
 	computeClient, err := compute.NewService(ctx, options...)
@@ -68,6 +77,7 @@ func NewClient(options []option.ClientOption) (Interface, error) {
 	}
 
 	return &gcpClient{
+		projectID:     projectID,
 		computeClient: computeClient,
 	}, nil
 }
@@ -79,4 +89,83 @@ func IsGCPNotFoundError(err error) bool {
 	}
 
 	return gerr.Code == http.StatusNotFound
+}
+
+func (g *gcpClient) GetInstance(zone, instance string) (*compute.Instance, error) {
+	resp, err := g.computeClient.Instances.Get(g.projectID, zone, instance).Context(context.TODO()).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (g *gcpClient) ListInstances(zone string) (*compute.InstanceList, error) {
+	resp, err := g.computeClient.Instances.List(g.projectID, zone).Context(context.TODO()).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (g *gcpClient) ListZones() (*compute.ZoneList, error) {
+	resp, err := g.computeClient.Zones.List(g.projectID).Context(context.TODO()).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (g *gcpClient) InstanceHasPublicIP(instance *compute.Instance) (bool, error) {
+	if len(instance.NetworkInterfaces) == 0 {
+		return false, fmt.Errorf("there are no network interfaces for instance %s", instance.Name)
+	}
+
+	networkInterface := instance.NetworkInterfaces[0]
+	if len(networkInterface.AccessConfigs) > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) error {
+	if len(instance.NetworkInterfaces) == 0 {
+		return fmt.Errorf("there are no network interfaces for instance %s", instance.Name)
+	}
+
+	// The zone of an instance is on URL, so we just need the latest value
+	zone := instance.Zone[strings.LastIndex(instance.Zone, "/")+1:]
+	networkInterface := instance.NetworkInterfaces[0]
+	// Public IP has already been enabled for this instance
+	if len(networkInterface.AccessConfigs) > 0 {
+		return nil
+	}
+
+	if _, err := g.computeClient.Instances.AddAccessConfig(
+		g.projectID, zone, instance.Name, networkInterface.Name, &compute.AccessConfig{}).
+		Context(context.TODO()).Do(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (g *gcpClient) DeletePublicIPOnInstance(instance *compute.Instance) error {
+	if len(instance.NetworkInterfaces) == 0 {
+		return fmt.Errorf("there are no network interfaces for instance %s", instance.Name)
+	}
+
+	// The zone of an instance is on URL, so we just need the latest value
+	zone := instance.Zone[strings.LastIndex(instance.Zone, "/")+1:]
+	networkInterface := instance.NetworkInterfaces[0]
+	if _, err := g.computeClient.Instances.DeleteAccessConfig(
+		g.projectID, zone, instance.Name, "External NAT", networkInterface.Name).
+		Context(context.TODO()).Do(); err != nil {
+		return err
+	}
+
+	return nil
 }

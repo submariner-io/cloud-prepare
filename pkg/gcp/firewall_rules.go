@@ -26,15 +26,21 @@ import (
 )
 
 const (
-	ingressDirection      = "INGRESS"
-	publicPortsRuleName   = "submariner-public-ports"
-	internalPortsRuleName = "submariner-internal-ports"
+	ingressDirection         = "INGRESS"
+	publicPortsRuleName      = "submariner-public-ports"
+	internalPortsRuleName    = "submariner-internal-ports"
+	submarinerGatewayNodeTag = "submariner-io-gateway-node"
 )
 
 func newExternalFirewallRules(projectID, infraID string, ports []api.PortSpec) (ingress *compute.Firewall) {
 	ingressName := generateRuleName(infraID, publicPortsRuleName)
 
-	return newFirewallRule(projectID, infraID, ingressName, ingressDirection, ports)
+	ingressRule := newFirewallRule(projectID, infraID, ingressName, ingressDirection, ports)
+	ingressRule.TargetTags = []string{
+		submarinerGatewayNodeTag,
+	}
+
+	return ingressRule
 }
 
 func newInternalFirewallRule(projectID, infraID string, ports []api.PortSpec) *compute.Firewall {
@@ -55,11 +61,16 @@ func newInternalFirewallRule(projectID, infraID string, ports []api.PortSpec) *c
 
 func newFirewallRule(projectID, infraID, name, direction string, ports []api.PortSpec) *compute.Firewall {
 	allowedPorts := []*compute.FirewallAllowed{}
+
 	for _, port := range ports {
-		allowedPorts = append(allowedPorts, &compute.FirewallAllowed{
+		fwRule := &compute.FirewallAllowed{
 			IPProtocol: port.Protocol,
-			Ports:      []string{strconv.Itoa(int(port.Port))},
-		})
+		}
+		if port.Port != 0 {
+			fwRule.Ports = []string{strconv.Itoa(int(port.Port))}
+		}
+
+		allowedPorts = append(allowedPorts, fwRule)
 	}
 
 	return &compute.Firewall{
