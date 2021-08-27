@@ -23,6 +23,7 @@ import (
 	"text/template"
 
 	"github.com/pkg/errors"
+	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"google.golang.org/api/compute/v1"
@@ -75,8 +76,9 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	}
 
 	reporter.Succeeded(messageRetrievedZones)
-
 	reporter.Started(messageValidateCurrentGWCount)
+
+	zonesWithSubmarinerGW := stringset.NewSynchronized()
 
 	for _, zone := range zones.Items {
 		region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
@@ -100,6 +102,11 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 				for _, tag := range instance.Tags.Items {
 					if tag == submarinerGatewayNodeTag {
 						currentGWInstanceList = append(currentGWInstanceList, instance)
+
+						if !zonesWithSubmarinerGW.Contains(zone.Name) {
+							zonesWithSubmarinerGW.Add(zone.Name)
+						}
+
 						break
 					}
 				}
@@ -118,6 +125,11 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		reporter.Started(messageDeployGatewayNode)
 
 		for _, zone := range zones.Items {
+			if zonesWithSubmarinerGW.Contains(zone.Name) {
+				// Skip the zone if there is already an existing Gateway in the zone.
+				continue
+			}
+
 			err := d.deployGateway(zone.Name)
 			if err != nil {
 				reporter.Failed(err)
@@ -132,7 +144,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		}
 
 		if gatewayNodesToDeploy > 0 {
-			reporter.Succeeded(messageDeployGatewayNodeFailed)
+			reporter.Succeeded(messageInsufficientZonesForDeploy)
 			return nil
 		}
 	}
