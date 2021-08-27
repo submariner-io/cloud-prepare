@@ -27,6 +27,7 @@ import (
 	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
+	"google.golang.org/api/compute/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
@@ -80,8 +81,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	eligibleZonesForGW := stringset.New()
 
 	for _, zone := range zones.Items {
-		region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
-		if region != d.gcp.region {
+		if d.ignoreZone(zone) {
 			continue
 		}
 
@@ -91,16 +91,15 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		}
 
 		for _, instance := range instanceList.Items {
-			for _, tag := range instance.Tags.Items {
-				if tag == submarinerGatewayNodeTag {
-					zonesWithSubmarinerGW.Add(zone.Name)
-					break
-				}
+			prefix := d.gcp.infraID + "-submariner-gw-" + zone.Name
+			if strings.HasPrefix(instance.Name, prefix) {
+				zonesWithSubmarinerGW.Add(zone.Name)
+				break
 			}
+		}
 
-			if !zonesWithSubmarinerGW.Contains(zone.Name) {
-				eligibleZonesForGW.Add(zone.Name)
-			}
+		if !zonesWithSubmarinerGW.Contains(zone.Name) {
+			eligibleZonesForGW.Add(zone.Name)
 		}
 	}
 
@@ -231,8 +230,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	reporter.Started(messageVerifyCurrentGWCount)
 
 	for _, zone := range zones.Items {
-		region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
-		if region != d.gcp.region {
+		if d.ignoreZone(zone) {
 			continue
 		}
 
@@ -282,4 +280,10 @@ func reportFailure(reporter api.Reporter, failure error, format string, args ...
 	reporter.Failed(err)
 
 	return err
+}
+
+func (d *ocpGatewayDeployer) ignoreZone(zone *compute.Zone) bool {
+	region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
+
+	return region != d.gcp.region
 }
