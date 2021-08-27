@@ -19,6 +19,7 @@ package gcp
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"text/template"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
-	"google.golang.org/api/compute/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
@@ -55,8 +55,6 @@ func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, i
 }
 
 func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
-	var currentGWInstanceList []*compute.Instance
-
 	reporter.Started(messageCreateExtFWRules)
 
 	externalIngress := newExternalFirewallRules(d.gcp.projectID, d.gcp.infraID, input.PublicPorts)
@@ -78,7 +76,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	reporter.Succeeded(messageRetrievedZones)
 	reporter.Started(messageValidateCurrentGWCount)
 
-	zonesWithSubmarinerGW := stringset.NewSynchronized()
+	zonesWithSubmarinerGW := stringset.New()
+	eligibleZonesForGW := stringset.New()
 
 	for _, zone := range zones.Items {
 		region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
@@ -92,45 +91,31 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		}
 
 		for _, instance := range instanceList.Items {
-			hasPublicIP, err := d.gcp.client.InstanceHasPublicIP(instance)
-			if err != nil {
-				return reportFailure(reporter, err, "failed to verify if instance %q has public-ip or not in project %q",
-					instance.Name, d.gcp.projectID)
+			for _, tag := range instance.Tags.Items {
+				if tag == submarinerGatewayNodeTag {
+					zonesWithSubmarinerGW.Add(zone.Name)
+					break
+				}
 			}
 
-			if hasPublicIP {
-				for _, tag := range instance.Tags.Items {
-					if tag == submarinerGatewayNodeTag {
-						currentGWInstanceList = append(currentGWInstanceList, instance)
-
-						if !zonesWithSubmarinerGW.Contains(zone.Name) {
-							zonesWithSubmarinerGW.Add(zone.Name)
-						}
-
-						break
-					}
-				}
+			if !zonesWithSubmarinerGW.Contains(zone.Name) {
+				eligibleZonesForGW.Add(zone.Name)
 			}
 		}
 	}
 
-	if len(currentGWInstanceList) == input.Gateways {
+	if zonesWithSubmarinerGW.Size() == input.Gateways {
 		reporter.Succeeded(messageValidatedCurrentGWs)
 		return nil
 	}
 
-	if len(currentGWInstanceList) < input.Gateways {
-		gatewayNodesToDeploy := input.Gateways - len(currentGWInstanceList)
+	if zonesWithSubmarinerGW.Size() < input.Gateways {
+		gatewayNodesToDeploy := input.Gateways - zonesWithSubmarinerGW.Size()
 
 		reporter.Started(messageDeployGatewayNode)
 
-		for _, zone := range zones.Items {
-			if zonesWithSubmarinerGW.Contains(zone.Name) {
-				// Skip the zone if there is already an existing Gateway in the zone.
-				continue
-			}
-
-			err := d.deployGateway(zone.Name)
+		for _, zone := range eligibleZonesForGW.Elements() {
+			err := d.deployGateway(zone)
 			if err != nil {
 				reporter.Failed(err)
 				return err
@@ -144,7 +129,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		}
 
 		if gatewayNodesToDeploy > 0 {
-			reporter.Succeeded(messageInsufficientZonesForDeploy)
+			reporter.Failed(fmt.Errorf(messageInsufficientZonesForDeploy))
 			return nil
 		}
 	}
@@ -257,14 +242,11 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 		}
 
 		for _, instance := range instanceList.Items {
-			for _, tag := range instance.Tags.Items {
-				if tag == submarinerGatewayNodeTag {
-					err := d.deleteGateway(zone.Name)
-					if err != nil {
-						return reportFailure(reporter, err, "failed to delete gateway instance %q", instance.Name)
-					}
-
-					break
+			prefix := d.gcp.infraID + "-submariner-gw-" + zone.Name
+			if strings.HasPrefix(instance.Name, prefix) {
+				err := d.deleteGateway(zone.Name)
+				if err != nil {
+					return reportFailure(reporter, err, "failed to delete gateway instance %q", instance.Name)
 				}
 			}
 		}

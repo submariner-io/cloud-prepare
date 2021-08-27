@@ -35,7 +35,7 @@ const (
 	messageValidatedCurrentGWs        = "Current gateways match the required number of gateways"
 	messageDeployGatewayNode          = "Deploying gateway node"
 	messageDeployedGatewayNode        = "Successfully deployed gateway node"
-	messageInsufficientZonesForDeploy = "There are insufficient zone instances to deploy the required number of gateways"
+	messageInsufficientZonesForDeploy = "there are insufficient zone instances to deploy the required number of gateways"
 	messageCreateExtFWRules           = "Configuring the required firewall rules for inter-cluster traffic"
 	messageDeleteExtFWRules           = "Deleting the Submariner gateway firewall rules"
 	messageDeletedExtFWRules          = "Successfully deleted the firewall rules"
