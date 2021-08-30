@@ -35,6 +35,9 @@ const (
 func newExternalFirewallRules(projectID, infraID string, ports []api.PortSpec) (ingress *compute.Firewall) {
 	ingressName := generateRuleName(infraID, publicPortsRuleName)
 
+	// We want the external firewall rules to be applied only to Gateway nodes. So, we use the TargetTags
+	// field and include submarinerGatewayNodeTag for selection of Gateway nodes. All the Submariner Gateway
+	// instances will be tagged with submarinerGatewayNodeTag.
 	ingressRule := newFirewallRule(projectID, infraID, ingressName, ingressDirection, ports)
 	ingressRule.TargetTags = []string{
 		submarinerGatewayNodeTag,

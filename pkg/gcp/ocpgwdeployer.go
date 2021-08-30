@@ -81,6 +81,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	eligibleZonesForGW := stringset.New()
 
 	for _, zone := range zones.Items {
+		// The list of zones include zones from all the regions, so filter out the zones that do
+		// not belong to the current region.
 		if d.ignoreZone(zone) {
 			continue
 		}
@@ -91,6 +93,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		}
 
 		for _, instance := range instanceList.Items {
+			// When a new Gateway node is created using the OCPMachineSet API, its named in a certain manner.
+			// We use the name as a search criteria to check the current number of Gateway nodes in the Cluster.
 			prefix := d.gcp.infraID + "-submariner-gw-" + zone.Name
 			if strings.HasPrefix(instance.Name, prefix) {
 				zonesWithSubmarinerGW.Add(zone.Name)
@@ -108,6 +112,9 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		return nil
 	}
 
+	// Currently, we only support increasing the number of Gateway node which could be a valid use-case
+	// to convert an non-HA deployment to an HA deployment. We are not supporting decreasing the Gateway
+	// nodes (for now) as it might impact the datapath if we accidentally delete the active GW node.
 	if zonesWithSubmarinerGW.Size() < input.Gateways {
 		gatewayNodesToDeploy := input.Gateways - zonesWithSubmarinerGW.Size()
 
@@ -127,6 +134,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 			}
 		}
 
+		// We try to deploy a single Gateway node per zone (in the selected region). If the numGateways
+		// is more than the number of Zones, we will return error.
 		if gatewayNodesToDeploy > 0 {
 			reporter.Failed(fmt.Errorf(messageInsufficientZonesForDeploy))
 			return nil
