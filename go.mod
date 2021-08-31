@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.40.27
 	github.com/pkg/errors v0.9.1
 	github.com/submariner-io/admiral v0.10.0-rc1.0.20210824123934-19b8fb8b93bc
-	google.golang.org/api v0.54.0
+	google.golang.org/api v0.55.0
 	k8s.io/apimachinery v0.19.10
 	k8s.io/client-go v0.19.10
 )
