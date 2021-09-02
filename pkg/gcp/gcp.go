@@ -33,14 +33,11 @@ const (
 	messageRetrievedZones             = "Retrieved the zones"
 	messageValidateCurrentGWCount     = "Verifying if current gateways match the required number of gateways"
 	messageValidatedCurrentGWs        = "Current gateways match the required number of gateways"
-	messageDeployGatewayNode          = "Deploying gateway node"
 	messageDeployedGatewayNode        = "Successfully deployed gateway node"
 	messageInsufficientZonesForDeploy = "there are insufficient zone instances to deploy the required number of gateways"
 	messageCreateExtFWRules           = "Configuring the required firewall rules for inter-cluster traffic"
-	messageDeleteExtFWRules           = "Deleting the Submariner gateway firewall rules"
+	messageDeleteExtFWRules           = "Retrieving the Submariner gateway firewall rules"
 	messageDeletedExtFWRules          = "Successfully deleted the firewall rules"
-	messageVerifyCurrentGWCount       = "Looking for current gateways in the project that need to be deleted"
-	messageVerifiedCurrentGWCount     = "Successfully deleted the gateway nodes"
 )
 
 type gcpCloud struct {

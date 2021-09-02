@@ -40,6 +40,7 @@ type Interface interface {
 	ListInstances(zone string) (*compute.InstanceList, error)
 	ListZones() (*compute.ZoneList, error)
 	InstanceHasPublicIP(instance *compute.Instance) (bool, error)
+	UpdateInstanceNetworkTags(project, zone, instance string, tags *compute.Tags) error
 	ConfigurePublicIPOnInstance(instance *compute.Instance) error
 	DeletePublicIPOnInstance(instance *compute.Instance) error
 }
@@ -111,6 +112,12 @@ func (g *gcpClient) InstanceHasPublicIP(instance *compute.Instance) (bool, error
 	networkInterface := instance.NetworkInterfaces[0]
 
 	return len(networkInterface.AccessConfigs) > 0, nil
+}
+
+func (g *gcpClient) UpdateInstanceNetworkTags(project, zone, instance string, tags *compute.Tags) error {
+	_, err := g.computeClient.Instances.SetTags(project, zone, instance, tags).Context(context.TODO()).Do()
+
+	return err
 }
 
 func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) error {

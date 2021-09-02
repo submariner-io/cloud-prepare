@@ -26,32 +26,44 @@ import (
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
+	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"google.golang.org/api/compute/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/client-go/rest"
 )
 
 type ocpGatewayDeployer struct {
-	gcp          *gcpCloud
-	msDeployer   ocp.MachineSetDeployer
-	instanceType string
-	image        string
+	gcp             *gcpCloud
+	msDeployer      ocp.MachineSetDeployer
+	instanceType    string
+	image           string
+	dedicatedGWNode bool
+	k8sClient       k8s.K8sInterface
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP
 // If the supplied cloud is not a gcpCloud, an error is returned
-func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType, image string) (api.GatewayDeployer, error) {
+func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType, image string,
+	dedicatedGWNode bool, k8sConfig *rest.Config) (api.GatewayDeployer, error) {
 	gcp, ok := cloud.(*gcpCloud)
 	if !ok {
 		return nil, errors.New("the cloud must be GCP")
 	}
 
+	k8sClient, err := k8s.NewK8sInterface(k8sConfig)
+	if err != nil {
+		return nil, errors.Errorf("error creating the k8s clientSet %v", err)
+	}
+
 	return &ocpGatewayDeployer{
-		gcp:          gcp,
-		msDeployer:   msDeployer,
-		instanceType: instanceType,
-		image:        image,
+		gcp:             gcp,
+		msDeployer:      msDeployer,
+		instanceType:    instanceType,
+		image:           image,
+		dedicatedGWNode: dedicatedGWNode,
+		k8sClient:       k8sClient,
 	}, nil
 }
 
@@ -67,11 +79,87 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	reporter.Succeeded("Opened External ports %q with firewall rule %q on GCP",
 		formatPorts(input.PublicPorts), externalIngress.Name)
 
+	numGatewayNodes, eligibleZonesForGW, err := d.parseCurrentGatewayInstances(reporter)
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	}
+
+	if numGatewayNodes == input.Gateways {
+		reporter.Succeeded(messageValidatedCurrentGWs)
+		return nil
+	}
+
+	// Currently, we only support increasing the number of Gateway nodes which could be a valid use-case
+	// to convert a non-HA deployment to an HA deployment. We are not supporting decreasing the Gateway
+	// nodes (for now) as it might impact the datapath if we accidentally delete the active GW node.
+	if numGatewayNodes < input.Gateways {
+		gatewayNodesToDeploy := input.Gateways - numGatewayNodes
+
+		if d.dedicatedGWNode {
+			for _, zone := range eligibleZonesForGW.Elements() {
+				reporter.Started(fmt.Sprintf("Deploying dedicated gateway node in zone %q", zone))
+				err = d.deployGateway(zone)
+				if err != nil {
+					reporter.Failed(err)
+					return err
+				}
+
+				gatewayNodesToDeploy--
+				if gatewayNodesToDeploy <= 0 {
+					reporter.Succeeded(messageDeployedGatewayNode)
+					return nil
+				}
+			}
+		} else {
+			// Query the list of instances in the eligibleZones of the current region and if it's a worker node,
+			// configure the instance as Submariner Gateway node.
+			for _, zone := range eligibleZonesForGW.Elements() {
+				workerNodes, err := d.k8sClient.ListWorkerNodes("topology.kubernetes.io/zone=" + zone + ",node-role.kubernetes.io/worker")
+				if err != nil {
+					return reportFailure(reporter, err, "failed to list k8s nodes in zone %q of project %q", zone, d.gcp.projectID)
+				}
+
+				for _, node := range workerNodes.Items {
+					machineSetInfo := node.GetAnnotations()["machine.openshift.io/machine"]
+					if machineSetInfo != "" {
+						gcpInstanceInfo := strings.Split(machineSetInfo, "/")
+						if len(gcpInstanceInfo) > 1 {
+							reporter.Started(fmt.Sprintf("Configuring worker node %q in zone %q as gateway node", node.Name, zone))
+							if err := d.configureExistingNodeAsGW(zone, gcpInstanceInfo[1], node.Name); err != nil {
+								reporter.Failed(err)
+								return err
+							}
+							gatewayNodesToDeploy--
+							break
+						}
+					}
+				}
+
+				if gatewayNodesToDeploy <= 0 {
+					reporter.Succeeded(messageDeployedGatewayNode)
+					return nil
+				}
+			}
+		}
+
+		// We try to deploy a single Gateway node per zone (in the selected region). If the numGateways
+		// is more than the number of Zones, its treated as an error.
+		if gatewayNodesToDeploy > 0 {
+			reporter.Failed(fmt.Errorf(messageInsufficientZonesForDeploy))
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(reporter api.Reporter) (int, stringset.Interface, error) {
 	reporter.Started(messageRetrieveZones)
 
 	zones, err := d.gcp.client.ListZones()
 	if err != nil {
-		return reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.gcp.projectID)
+		return 0, nil, reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.gcp.projectID)
 	}
 
 	reporter.Succeeded(messageRetrievedZones)
@@ -89,14 +177,13 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 		instanceList, err := d.gcp.client.ListInstances(zone.Name)
 		if err != nil {
-			return reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.gcp.projectID)
+			return 0, nil, reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.gcp.projectID)
 		}
 
 		for _, instance := range instanceList.Items {
-			// When a new Gateway node is created using the OCPMachineSet API, its named in a certain manner.
-			// We use the name as a search criteria to check the current number of Gateway nodes in the Cluster.
-			prefix := d.gcp.infraID + "-submariner-gw-" + zone.Name
-			if strings.HasPrefix(instance.Name, prefix) {
+			// A GatewayNode will always be tagged with submarinerGatewayNodeTag when deployed with OCPMachineSet
+			// as well as when an existing worker node is updated as a Gateway node.
+			if d.isInstanceGatewayNode(instance) {
 				zonesWithSubmarinerGW.Add(zone.Name)
 				break
 			}
@@ -107,42 +194,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		}
 	}
 
-	if zonesWithSubmarinerGW.Size() == input.Gateways {
-		reporter.Succeeded(messageValidatedCurrentGWs)
-		return nil
-	}
-
-	// Currently, we only support increasing the number of Gateway node which could be a valid use-case
-	// to convert an non-HA deployment to an HA deployment. We are not supporting decreasing the Gateway
-	// nodes (for now) as it might impact the datapath if we accidentally delete the active GW node.
-	if zonesWithSubmarinerGW.Size() < input.Gateways {
-		gatewayNodesToDeploy := input.Gateways - zonesWithSubmarinerGW.Size()
-
-		reporter.Started(messageDeployGatewayNode)
-
-		for _, zone := range eligibleZonesForGW.Elements() {
-			err := d.deployGateway(zone)
-			if err != nil {
-				reporter.Failed(err)
-				return err
-			}
-
-			gatewayNodesToDeploy--
-			if gatewayNodesToDeploy <= 0 {
-				reporter.Succeeded(messageDeployedGatewayNode)
-				return nil
-			}
-		}
-
-		// We try to deploy a single Gateway node per zone (in the selected region). If the numGateways
-		// is more than the number of Zones, we will return error.
-		if gatewayNodesToDeploy > 0 {
-			reporter.Failed(fmt.Errorf(messageInsufficientZonesForDeploy))
-			return nil
-		}
-	}
-
-	return nil
+	return zonesWithSubmarinerGW.Size(), eligibleZonesForGW, nil
 }
 
 type machineSetConfig struct {
@@ -220,6 +272,37 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 	return d.msDeployer.Deploy(machineSet)
 }
 
+func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, nodeName string) error {
+	instance, err := d.gcp.client.GetInstance(zone, gcpInstanceInfo)
+	if err != nil {
+		return err
+	}
+
+	tags := &compute.Tags{
+		Items:       instance.Tags.Items,
+		Fingerprint: instance.Tags.Fingerprint,
+	}
+
+	tags.Items = append(tags.Items, submarinerGatewayNodeTag)
+
+	err = d.gcp.client.UpdateInstanceNetworkTags(d.gcp.projectID, zone, instance.Name, tags)
+	if err != nil {
+		return err
+	}
+
+	err = d.gcp.client.ConfigurePublicIPOnInstance(instance)
+	if err != nil {
+		return err
+	}
+
+	err = d.k8sClient.AddGWLabelOnNode(nodeName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	reporter.Started(messageDeleteExtFWRules)
 	err := d.deleteExternalFWRules(reporter)
@@ -236,7 +319,6 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	}
 
 	reporter.Succeeded(messageRetrievedZones)
-	reporter.Started(messageVerifyCurrentGWCount)
 
 	for _, zone := range zones.Items {
 		if d.ignoreZone(zone) {
@@ -249,17 +331,41 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 		}
 
 		for _, instance := range instanceList.Items {
+			if !d.isInstanceGatewayNode(instance) {
+				continue
+			}
+
+			// If the instance name matches with d.gcp.infraID + "-submariner-gw-" + zone.Name, it implies that
+			// the gateway node was deployed using the OCPMachineSet API otherwise it's an existing worker node.
 			prefix := d.gcp.infraID + "-submariner-gw-" + zone.Name
 			if strings.HasPrefix(instance.Name, prefix) {
+				reporter.Started(fmt.Sprintf("Deleting the Gateway instance %q", instance.Name))
 				err := d.deleteGateway(zone.Name)
+				if err != nil {
+					return reportFailure(reporter, err, "failed to delete dedicated gateway instance %q", instance.Name)
+				}
+
+				reporter.Succeeded("Successfully deleted the instance")
+			} else {
+				reporter.Started(fmt.Sprintf("Removing the Gateway configuration from instance %q", instance.Name))
+				err = d.resetExistingGWNode(zone.Name, instance)
 				if err != nil {
 					return reportFailure(reporter, err, "failed to delete gateway instance %q", instance.Name)
 				}
+
+				reporter.Succeeded("Successfully reconfigured the instance")
 			}
 		}
 	}
 
-	reporter.Succeeded(messageVerifiedCurrentGWCount)
+	reporter.Started("Removing the Submariner Gateway labels from K8s nodes")
+
+	err = d.k8sClient.RemoveGWLabelFromWorkerNodes()
+	if err != nil {
+		return err
+	}
+
+	reporter.Succeeded("Successfully removed the labels from the nodes")
 
 	return nil
 }
@@ -295,4 +401,39 @@ func (d *ocpGatewayDeployer) ignoreZone(zone *compute.Zone) bool {
 	region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
 
 	return region != d.gcp.region
+}
+
+func (d *ocpGatewayDeployer) isInstanceGatewayNode(instance *compute.Instance) bool {
+	for _, tag := range instance.Tags.Items {
+		if tag == submarinerGatewayNodeTag {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.Instance) error {
+	for i := range instance.Tags.Items {
+		if instance.Tags.Items[i] == submarinerGatewayNodeTag {
+			instance.Tags.Items = append(instance.Tags.Items[:i], instance.Tags.Items[i+1:]...)
+		}
+	}
+
+	tags := &compute.Tags{
+		Items:       instance.Tags.Items,
+		Fingerprint: instance.Tags.Fingerprint,
+	}
+
+	err := d.gcp.client.UpdateInstanceNetworkTags(d.gcp.projectID, zone, instance.Name, tags)
+	if err != nil {
+		return err
+	}
+
+	err = d.gcp.client.DeletePublicIPOnInstance(instance)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
