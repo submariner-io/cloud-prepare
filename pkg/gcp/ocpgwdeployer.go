@@ -304,7 +304,7 @@ func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, no
 }
 
 func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
-	reporter.Started(messageDeleteExtFWRules)
+	reporter.Started(messageRetrieveExtFWRules)
 	err := d.deleteExternalFWRules(reporter)
 	if err != nil {
 		return reportFailure(reporter, err, "failed to delete the gateway firewall rules in the project %q", d.gcp.projectID)
@@ -339,7 +339,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 			// the gateway node was deployed using the OCPMachineSet API otherwise it's an existing worker node.
 			prefix := d.gcp.infraID + "-submariner-gw-" + zone.Name
 			if strings.HasPrefix(instance.Name, prefix) {
-				reporter.Started(fmt.Sprintf("Deleting the Gateway instance %q", instance.Name))
+				reporter.Started(fmt.Sprintf("Deleting the gateway instance %q", instance.Name))
 				err := d.deleteGateway(zone.Name)
 				if err != nil {
 					return reportFailure(reporter, err, "failed to delete dedicated gateway instance %q", instance.Name)
@@ -347,7 +347,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 
 				reporter.Succeeded("Successfully deleted the instance")
 			} else {
-				reporter.Started(fmt.Sprintf("Removing the Gateway configuration from instance %q", instance.Name))
+				reporter.Started(fmt.Sprintf("Removing the gateway configuration from instance %q", instance.Name))
 				err = d.resetExistingGWNode(zone.Name, instance)
 				if err != nil {
 					return reportFailure(reporter, err, "failed to delete gateway instance %q", instance.Name)
@@ -358,7 +358,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 		}
 	}
 
-	reporter.Started("Removing the Submariner Gateway labels from K8s nodes")
+	reporter.Started("Removing the Submariner gateway labels from K8s nodes")
 
 	err = d.k8sClient.RemoveGWLabelFromWorkerNodes()
 	if err != nil {
