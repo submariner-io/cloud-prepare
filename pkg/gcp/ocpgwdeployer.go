@@ -68,7 +68,7 @@ func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, i
 }
 
 func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
-	reporter.Started(messageCreateExtFWRules)
+	reporter.Started("Configuring the required firewall rules for inter-cluster traffic")
 
 	externalIngress := newExternalFirewallRules(d.gcp.projectID, d.gcp.infraID, input.PublicPorts)
 	if err := d.gcp.openPorts(externalIngress); err != nil {
@@ -86,7 +86,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	}
 
 	if numGatewayNodes == input.Gateways {
-		reporter.Succeeded(messageValidatedCurrentGWs)
+		reporter.Succeeded("Current gateways match the required number of gateways")
 		return nil
 	}
 
@@ -107,7 +107,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 				gatewayNodesToDeploy--
 				if gatewayNodesToDeploy <= 0 {
-					reporter.Succeeded(messageDeployedGatewayNode)
+					reporter.Succeeded("Successfully deployed gateway node")
 					return nil
 				}
 			}
@@ -137,7 +137,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 				}
 
 				if gatewayNodesToDeploy <= 0 {
-					reporter.Succeeded(messageDeployedGatewayNode)
+					reporter.Succeeded("Successfully deployed gateway node")
 					return nil
 				}
 			}
@@ -146,7 +146,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		// We try to deploy a single Gateway node per zone (in the selected region). If the numGateways
 		// is more than the number of Zones, its treated as an error.
 		if gatewayNodesToDeploy > 0 {
-			reporter.Failed(fmt.Errorf(messageInsufficientZonesForDeploy))
+			reporter.Failed(fmt.Errorf("there are insufficient zones to deploy the required number of gateways"))
 			return nil
 		}
 	}
@@ -155,15 +155,12 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 }
 
 func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(reporter api.Reporter) (int, stringset.Interface, error) {
-	reporter.Started(messageRetrieveZones)
-
-	zones, err := d.gcp.client.ListZones()
+	zones, err := d.retrieveZones(reporter)
 	if err != nil {
-		return 0, nil, reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.gcp.projectID)
+		return 0, nil, err
 	}
 
-	reporter.Succeeded(messageRetrievedZones)
-	reporter.Started(messageValidateCurrentGWCount)
+	reporter.Started("Verifying if current gateways match the required number of gateways")
 
 	zonesWithSubmarinerGW := stringset.New()
 	eligibleZonesForGW := stringset.New()
@@ -304,21 +301,17 @@ func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, no
 }
 
 func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
-	reporter.Started(messageRetrieveExtFWRules)
+	reporter.Started("Retrieving the Submariner gateway firewall rules")
 	err := d.deleteExternalFWRules(reporter)
 	if err != nil {
 		return reportFailure(reporter, err, "failed to delete the gateway firewall rules in the project %q", d.gcp.projectID)
 	}
 
-	reporter.Succeeded(messageDeletedExtFWRules)
-	reporter.Started(messageRetrieveZones)
-
-	zones, err := d.gcp.client.ListZones()
+	reporter.Succeeded("Successfully deleted the firewall rules")
+	zones, err := d.retrieveZones(reporter)
 	if err != nil {
-		return reportFailure(reporter, err, "failed to list the zones in the project %q", d.gcp.projectID)
+		return err
 	}
-
-	reporter.Succeeded(messageRetrievedZones)
 
 	for _, zone := range zones.Items {
 		if d.ignoreZone(zone) {
@@ -436,4 +429,17 @@ func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.
 	}
 
 	return nil
+}
+
+func (d *ocpGatewayDeployer) retrieveZones(reporter api.Reporter) (*compute.ZoneList, error) {
+	reporter.Started("Retrieving the current zones in the project")
+
+	zones, err := d.gcp.client.ListZones()
+	if err != nil {
+		return nil, reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.gcp.projectID)
+	}
+
+	reporter.Succeeded("Retrieved the zones")
+
+	return zones, nil
 }

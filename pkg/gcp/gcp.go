@@ -28,18 +28,6 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-const (
-	messageRetrieveZones              = "Retrieving zones in the project"
-	messageRetrievedZones             = "Retrieved the zones"
-	messageValidateCurrentGWCount     = "Verifying if current gateways match the required number of gateways"
-	messageValidatedCurrentGWs        = "Current gateways match the required number of gateways"
-	messageDeployedGatewayNode        = "Successfully deployed gateway node"
-	messageInsufficientZonesForDeploy = "there are insufficient zone instances to deploy the required number of gateways"
-	messageCreateExtFWRules           = "Configuring the required firewall rules for inter-cluster traffic"
-	messageRetrieveExtFWRules         = "Retrieving the Submariner gateway firewall rules"
-	messageDeletedExtFWRules          = "Successfully deleted the firewall rules"
-)
-
 type gcpCloud struct {
 	infraID   string
 	region    string
