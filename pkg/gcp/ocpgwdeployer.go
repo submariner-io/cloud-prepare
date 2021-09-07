@@ -178,6 +178,11 @@ func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(reporter api.Reporter)
 		}
 
 		for _, instance := range instanceList.Items {
+			// Check if the instance belongs to the cluster (identified via infraID) we are operating on.
+			if !strings.HasPrefix(instance.Name, d.gcp.infraID) {
+				continue
+			}
+
 			// A GatewayNode will always be tagged with submarinerGatewayNodeTag when deployed with OCPMachineSet
 			// as well as when an existing worker node is updated as a Gateway node.
 			if d.isInstanceGatewayNode(instance) {
@@ -324,6 +329,11 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 		}
 
 		for _, instance := range instanceList.Items {
+			// Check if the instance belongs to the cluster (identified via infraID) we are operating on.
+			if !strings.HasPrefix(instance.Name, d.gcp.infraID) {
+				continue
+			}
+
 			if !d.isInstanceGatewayNode(instance) {
 				continue
 			}
