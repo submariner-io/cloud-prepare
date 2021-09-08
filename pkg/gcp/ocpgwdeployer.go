@@ -31,7 +31,6 @@ import (
 	"google.golang.org/api/compute/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/client-go/rest"
 )
 
 type ocpGatewayDeployer struct {
@@ -46,15 +45,10 @@ type ocpGatewayDeployer struct {
 // NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP
 // If the supplied cloud is not a gcpCloud, an error is returned
 func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType, image string,
-	dedicatedGWNode bool, k8sConfig *rest.Config) (api.GatewayDeployer, error) {
+	dedicatedGWNode bool, k8sClient k8s.K8sInterface) (api.GatewayDeployer, error) {
 	gcp, ok := cloud.(*gcpCloud)
 	if !ok {
 		return nil, errors.New("the cloud must be GCP")
-	}
-
-	k8sClient, err := k8s.NewK8sInterface(k8sConfig)
-	if err != nil {
-		return nil, errors.Errorf("error creating the k8s clientSet %v", err)
 	}
 
 	return &ocpGatewayDeployer{

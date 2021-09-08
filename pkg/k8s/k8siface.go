@@ -25,7 +25,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -40,16 +39,11 @@ type K8sInterface interface {
 }
 
 type k8sIface struct {
-	clientSet *kubernetes.Clientset
+	clientSet kubernetes.Interface
 }
 
-func NewK8sInterface(k8sConfig *rest.Config) (K8sInterface, error) {
-	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return &k8sIface{clientSet: k8sClient}, nil
+func NewK8sInterface(clientSet kubernetes.Interface) (K8sInterface, error) {
+	return &k8sIface{clientSet: clientSet}, nil
 }
 
 func (k *k8sIface) ListWorkerNodes(labelSelector string) (*v1.NodeList, error) {
