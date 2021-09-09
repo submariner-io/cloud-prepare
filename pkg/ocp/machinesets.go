@@ -25,11 +25,11 @@ import (
 	"github.com/submariner-io/admiral/pkg/resource"
 	"github.com/submariner-io/admiral/pkg/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
 )
 
 // MachineSetDeployer can deploy and delete machinesets from OCP
@@ -45,31 +45,24 @@ type MachineSetDeployer interface {
 }
 
 type k8sMachineSetDeployer struct {
-	k8sConfig *rest.Config
+	restMapper    meta.RESTMapper
+	dynamicClient dynamic.Interface
 }
 
 // NewK8sMachinesetDeployer returns a MachineSetDeployer capable deploying directly to Kubernetes
-func NewK8sMachinesetDeployer(k8sConfig *rest.Config) MachineSetDeployer {
-	return &k8sMachineSetDeployer{k8sConfig: k8sConfig}
+func NewK8sMachinesetDeployer(restMapper meta.RESTMapper, dynamicClient dynamic.Interface) MachineSetDeployer {
+	return &k8sMachineSetDeployer{
+		dynamicClient: dynamicClient,
+		restMapper:    restMapper}
 }
 
 func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (resource.Interface, error) {
-	k8sClient, err := dynamic.NewForConfig(msd.k8sConfig)
+	machineSet, gvr, err := util.ToUnstructuredResource(obj, msd.restMapper)
 	if err != nil {
 		return nil, err
 	}
 
-	restMapper, err := util.BuildRestMapper(msd.k8sConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	machineSet, gvr, err := util.ToUnstructuredResource(obj, restMapper)
-	if err != nil {
-		return nil, err
-	}
-
-	dynamicClient := k8sClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
+	dynamicClient := msd.dynamicClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
 
 	return resource.ForDynamic(dynamicClient), nil
 }
