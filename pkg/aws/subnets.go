@@ -63,12 +63,7 @@ func (ac *awsCloud) findPublicSubnets(vpcID string, filter *ec2.Filter) ([]*ec2.
 	return result.Subnets, nil
 }
 
-func (ac *awsCloud) getPublicSubnets(vpcID, instanceType string) ([]*ec2.Subnet, error) {
-	subnets, err := ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}-public-{region}*"))
-	if err != nil {
-		return nil, err
-	}
-
+func (ac *awsCloud) getSubnetsSupportingInstanceType(subnets []*ec2.Subnet, instanceType string) ([]*ec2.Subnet, error) {
 	return filterSubnets(subnets, func(subnet *ec2.Subnet) (bool, error) {
 		output, err := ac.client.DescribeInstanceTypeOfferings(&ec2.DescribeInstanceTypeOfferingsInput{
 			LocationType: aws.String("availability-zone"),

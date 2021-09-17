@@ -36,6 +36,8 @@ type ocpGatewayDeployer struct {
 	instanceType string
 }
 
+var preferredInstances = []string{"c5d.large", "m5n.large"}
+
 // NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP
 // If the supplied cloud is not an awsCloud, an error is returned
 func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType string) (api.GatewayDeployer, error) {
@@ -64,7 +66,13 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 	reporter.Started(messageValidatePrerequisites)
 
-	err = d.validateDeployPrerequisites(vpcID, input)
+	publicSubnets, err := d.aws.findPublicSubnets(vpcID, d.aws.filterByName("{infraID}-public-{region}*"))
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	}
+
+	err = d.validateDeployPrerequisites(vpcID, input, publicSubnets)
 	if err != nil {
 		reporter.Failed(err)
 		return err
@@ -82,7 +90,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 	reporter.Succeeded("Created Submariner gateway security group %s", gatewaySG)
 
-	subnets, err := d.aws.getPublicSubnets(vpcID, d.instanceType)
+	subnets, err := d.aws.getSubnetsSupportingInstanceType(publicSubnets, d.instanceType)
 	if err != nil {
 		return err
 	}
@@ -131,8 +139,11 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	return nil
 }
 
-func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api.GatewayDeployInput) error {
+func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api.GatewayDeployInput,
+	publicSubnets []*ec2.Subnet) error {
 	var errs []error
+	var subnets []*ec2.Subnet
+
 	errs = appendIfError(errs, d.aws.validateCreateSecGroup(vpcID))
 	errs = appendIfError(errs, d.aws.validateCreateSecGroupRule(vpcID))
 	err := d.aws.validateDescribeInstanceTypeOfferings()
@@ -142,9 +153,24 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 		return newCompositeError(errs...)
 	}
 
-	subnets, err := d.aws.getPublicSubnets(vpcID, d.instanceType)
-	if err != nil {
-		return err
+	// If instanceType is not specified, auto-select the most suitable one.
+	if d.instanceType == "" {
+		for _, instanceType := range preferredInstances {
+			subnets, err = d.aws.getSubnetsSupportingInstanceType(publicSubnets, instanceType)
+			if err != nil {
+				return err
+			}
+
+			if len(subnets) != 0 {
+				d.instanceType = instanceType
+				break
+			}
+		}
+	} else {
+		subnets, err = d.aws.getSubnetsSupportingInstanceType(publicSubnets, d.instanceType)
+		if err != nil {
+			return err
+		}
 	}
 
 	subnetsCount := len(subnets)
