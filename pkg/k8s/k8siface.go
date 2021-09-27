@@ -33,7 +33,8 @@ const (
 )
 
 type K8sInterface interface {
-	ListWorkerNodes(labelSelector string) (*v1.NodeList, error)
+	ListNodesWithLabel(labelSelector string) (*v1.NodeList, error)
+	ListGatewayNodes() (*v1.NodeList, error)
 	AddGWLabelOnNode(nodeName string) error
 	RemoveGWLabelFromWorkerNodes() error
 }
@@ -46,10 +47,20 @@ func NewK8sInterface(clientSet kubernetes.Interface) (K8sInterface, error) {
 	return &k8sIface{clientSet: clientSet}, nil
 }
 
-func (k *k8sIface) ListWorkerNodes(labelSelector string) (*v1.NodeList, error) {
+func (k *k8sIface) ListNodesWithLabel(labelSelector string) (*v1.NodeList, error) {
 	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return nil, fmt.Errorf("unable to list the nodes in the cluster, err: %s", err)
+	}
+
+	return nodes, nil
+}
+
+func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
+	labelSelector := submarinerGatewayLabel + "=true"
+	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		return nil, fmt.Errorf("unable to list the Gateway nodes in the cluster, err: %s", err)
 	}
 
 	return nodes, nil
@@ -80,12 +91,13 @@ func (k *k8sIface) AddGWLabelOnNode(nodeName string) error {
 }
 
 func (k *k8sIface) RemoveGWLabelFromWorkerNodes() error {
-	nodeList, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
+	labelSelector := submarinerGatewayLabel + "=true"
+	gwNodeList, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return err
 	}
 
-	for _, node := range nodeList.Items {
+	for _, node := range gwNodeList.Items {
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			node, err := k.clientSet.CoreV1().Nodes().Get(context.TODO(), node.Name, metav1.GetOptions{})
 			if err != nil {

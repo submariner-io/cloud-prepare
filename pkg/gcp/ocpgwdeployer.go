@@ -109,7 +109,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 			// Query the list of instances in the eligibleZones of the current region and if it's a worker node,
 			// configure the instance as Submariner Gateway node.
 			for _, zone := range eligibleZonesForGW.Elements() {
-				workerNodes, err := d.k8sClient.ListWorkerNodes("topology.kubernetes.io/zone=" + zone + ",node-role.kubernetes.io/worker")
+				workerNodes, err := d.k8sClient.ListNodesWithLabel("topology.kubernetes.io/zone=" + zone + ",node-role.kubernetes.io/worker")
 				if err != nil {
 					return reportFailure(reporter, err, "failed to list k8s nodes in zone %q of project %q", zone, d.gcp.projectID)
 				}
