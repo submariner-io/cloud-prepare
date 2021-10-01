@@ -42,14 +42,14 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 		return err
 	}
 
+	gatewayNodesToDeploy := input.Gateways - len(gwNodes.Items)
+
 	// Currently, we only support increasing the number of Gateway nodes which could be a valid use-case
 	// to convert a non-HA deployment to an HA deployment. We are not supporting decreasing the Gateway
 	// nodes (for now) as it might impact the datapath if we accidentally delete the active GW node.
-	if len(gwNodes.Items) >= input.Gateways {
+	if gatewayNodesToDeploy <= 0 {
 		return nil
 	}
-
-	gatewayNodesToDeploy := input.Gateways - len(gwNodes.Items)
 
 	nonGWNodes, err := g.k8sClient.ListNodesWithLabel("!submariner.io/gateway")
 	if err != nil {
@@ -77,11 +77,11 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 		}
 	}
 
-	if gatewayNodesToDeploy > 0 {
-		reporter.Failed(fmt.Errorf("there are insufficient number of worker nodes to label as gateways"))
-	}
+	err = fmt.Errorf("there are an insufficient number of worker nodes (%d) to satisfy the desired number of gateways (%d)",
+		len(nonGWNodes.Items), input.Gateways)
+	reporter.Failed(err)
 
-	return nil
+	return err
 }
 
 func (g *gatewayDeployer) Cleanup(reporter api.Reporter) error {
