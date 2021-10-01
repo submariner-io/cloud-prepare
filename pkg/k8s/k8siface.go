@@ -43,8 +43,8 @@ type k8sIface struct {
 	clientSet kubernetes.Interface
 }
 
-func NewK8sInterface(clientSet kubernetes.Interface) (K8sInterface, error) {
-	return &k8sIface{clientSet: clientSet}, nil
+func NewK8sInterface(clientSet kubernetes.Interface) K8sInterface {
+	return &k8sIface{clientSet: clientSet}
 }
 
 func (k *k8sIface) ListNodesWithLabel(labelSelector string) (*v1.NodeList, error) {
