@@ -30,9 +30,9 @@ type gatewayDeployer struct {
 	k8sClient k8s.K8sInterface
 }
 
-// NewGatewayDeployer created a GatewayDeployer capable of deploying gateways to GCP
-func NewGatewayDeployer(k8sClient k8s.K8sInterface) (api.GatewayDeployer, error) {
-	return &gatewayDeployer{k8sClient: k8sClient}, nil
+// NewGatewayDeployer creates a generic GatewayDeployer implementation.
+func NewGatewayDeployer(k8sClient k8s.K8sInterface) api.GatewayDeployer {
+	return &gatewayDeployer{k8sClient: k8sClient}
 }
 
 func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
