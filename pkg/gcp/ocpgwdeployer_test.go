@@ -122,7 +122,7 @@ func testDeploy() {
 
 		Context("and there's an insufficient number of available nodes", func() {
 			It("should partially label the gateways", func() {
-				Expect(retError).To(Succeed())
+				Expect(retError).ToNot(Succeed())
 				t.assertLabeledNodes("node-1")
 			})
 		})
