@@ -4,3 +4,4 @@ vendor/
 Makefile.dapper
 Dockerfile.*
 .idea
+*.coverprofile
