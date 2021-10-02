@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	submarinerGatewayLabel = "submariner.io/gateway"
+	SubmarinerGatewayLabel = "submariner.io/gateway"
 )
 
 type K8sInterface interface {
@@ -57,7 +57,7 @@ func (k *k8sIface) ListNodesWithLabel(labelSelector string) (*v1.NodeList, error
 }
 
 func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
-	labelSelector := submarinerGatewayLabel + "=true"
+	labelSelector := SubmarinerGatewayLabel + "=true"
 	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return nil, fmt.Errorf("unable to list the Gateway nodes in the cluster, err: %s", err)
@@ -77,7 +77,7 @@ func (k *k8sIface) AddGWLabelOnNode(nodeName string) error {
 		if labels == nil {
 			labels = map[string]string{}
 		}
-		labels[submarinerGatewayLabel] = "true"
+		labels[SubmarinerGatewayLabel] = "true"
 		node.SetLabels(labels)
 		_, updateErr := k.clientSet.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
 		return updateErr
@@ -91,7 +91,7 @@ func (k *k8sIface) AddGWLabelOnNode(nodeName string) error {
 }
 
 func (k *k8sIface) RemoveGWLabelFromWorkerNodes() error {
-	labelSelector := submarinerGatewayLabel + "=true"
+	labelSelector := SubmarinerGatewayLabel + "=true"
 	gwNodeList, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return err
@@ -108,7 +108,7 @@ func (k *k8sIface) RemoveGWLabelFromWorkerNodes() error {
 			if labels == nil {
 				return nil
 			}
-			delete(labels, submarinerGatewayLabel)
+			delete(labels, SubmarinerGatewayLabel)
 			node.SetLabels(labels)
 			_, updateErr := k.clientSet.CoreV1().Nodes().Update(context.TODO(), node, metav1.UpdateOptions{})
 			return updateErr
