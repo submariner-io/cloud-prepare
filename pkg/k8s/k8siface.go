@@ -34,7 +34,7 @@ const (
 	SubmarinerGatewayLabel = "submariner.io/gateway"
 )
 
-type K8sInterface interface {
+type Interface interface {
 	ListNodesWithLabel(labelSelector string) (*v1.NodeList, error)
 	ListGatewayNodes() (*v1.NodeList, error)
 	AddGWLabelOnNode(nodeName string) error
@@ -45,7 +45,7 @@ type k8sIface struct {
 	clientSet kubernetes.Interface
 }
 
-func NewK8sInterface(clientSet kubernetes.Interface) K8sInterface {
+func NewInterface(clientSet kubernetes.Interface) Interface {
 	return &k8sIface{clientSet: clientSet}
 }
 

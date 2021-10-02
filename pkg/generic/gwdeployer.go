@@ -27,11 +27,11 @@ import (
 )
 
 type gatewayDeployer struct {
-	k8sClient k8s.K8sInterface
+	k8sClient k8s.Interface
 }
 
 // NewGatewayDeployer creates a generic GatewayDeployer implementation.
-func NewGatewayDeployer(k8sClient k8s.K8sInterface) api.GatewayDeployer {
+func NewGatewayDeployer(k8sClient k8s.Interface) api.GatewayDeployer {
 	return &gatewayDeployer{k8sClient: k8sClient}
 }
 

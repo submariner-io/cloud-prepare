@@ -39,13 +39,13 @@ type ocpGatewayDeployer struct {
 	instanceType    string
 	image           string
 	dedicatedGWNode bool
-	k8sClient       k8s.K8sInterface
+	k8sClient       k8s.Interface
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP
 // If the supplied cloud is not a gcpCloud, an error is returned
 func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType, image string,
-	dedicatedGWNode bool, k8sClient k8s.K8sInterface) (api.GatewayDeployer, error) {
+	dedicatedGWNode bool, k8sClient k8s.Interface) (api.GatewayDeployer, error) {
 	gcp, ok := cloud.(*gcpCloud)
 	if !ok {
 		return nil, errors.New("the cloud must be GCP")
