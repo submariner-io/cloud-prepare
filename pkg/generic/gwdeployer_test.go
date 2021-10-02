@@ -222,7 +222,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 
 		t.kubeClient.ClearActions()
 
-		t.gwDeployer = generic.NewGatewayDeployer(k8s.NewK8sInterface(t.kubeClient))
+		t.gwDeployer = generic.NewGatewayDeployer(k8s.NewInterface(t.kubeClient))
 	})
 
 	return t
