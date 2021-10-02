@@ -44,10 +44,16 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 
 	gatewayNodesToDeploy := input.Gateways - len(gwNodes.Items)
 
+	if gatewayNodesToDeploy == 0 {
+		reporter.Succeeded("Current gateways match the desired number of gateways")
+		return nil
+	}
+
 	// Currently, we only support increasing the number of Gateway nodes which could be a valid use-case
 	// to convert a non-HA deployment to an HA deployment. We are not supporting decreasing the Gateway
 	// nodes (for now) as it might impact the datapath if we accidentally delete the active GW node.
-	if gatewayNodesToDeploy <= 0 {
+	if gatewayNodesToDeploy < 0 {
+		reporter.Failed(fmt.Errorf("decreasing the number of Gateway nodes is not currently supported"))
 		return nil
 	}
 
