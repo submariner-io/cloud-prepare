@@ -7,7 +7,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/submariner-io/admiral v0.11.0-m2
-	google.golang.org/api v0.57.0
+	google.golang.org/api v0.58.0
 	k8s.io/api v0.19.10
 	k8s.io/apimachinery v0.19.10
 	k8s.io/client-go v0.19.10
