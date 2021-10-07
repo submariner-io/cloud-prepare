@@ -18,38 +18,26 @@ limitations under the License.
 package gcp
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/submariner-io/cloud-prepare/pkg/api"
-	gcpclient "github.com/submariner-io/cloud-prepare/pkg/gcp/client"
-
-	"google.golang.org/api/compute/v1"
 )
 
 type gcpCloud struct {
-	infraID   string
-	region    string
-	projectID string
-	client    gcpclient.Interface
+	CloudInfo
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare GCP for Submariner to be deployed on it
-func NewCloud(projectID, infraID, region string, client gcpclient.Interface) api.Cloud {
-	return &gcpCloud{
-		infraID:   infraID,
-		projectID: projectID,
-		region:    region,
-		client:    client,
-	}
+func NewCloud(info CloudInfo) api.Cloud {
+	return &gcpCloud{CloudInfo: info}
 }
 
 // PrepareForSubmariner prepares submariner cluster environment on GCP
 func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, reporter api.Reporter) error {
 	// create the inbound firewall rule for submariner internal ports
 	reporter.Started("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(input.InternalPorts))
-	internalIngress := newInternalFirewallRule(gc.projectID, gc.infraID, input.InternalPorts)
+	internalIngress := newInternalFirewallRule(gc.ProjectID, gc.InfraID, input.InternalPorts)
 	if err := gc.openPorts(internalIngress); err != nil {
 		reporter.Failed(err)
 		return err
@@ -64,50 +52,9 @@ func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 // CleanupAfterSubmariner clean up submariner cluster environment on GCP
 func (gc *gcpCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 	// delete the inbound and outbound firewall rules to close submariner internal ports
-	internalIngressName := generateRuleName(gc.infraID, internalPortsRuleName)
+	internalIngressName := generateRuleName(gc.InfraID, internalPortsRuleName)
 
 	return gc.deleteFirewallRule(internalIngressName, reporter)
-}
-
-// open expected ports by creating related firewall rule
-// - if the firewall rule is not found, we will create it
-// - if the firewall rule is found and changed, we will update it
-func (gc *gcpCloud) openPorts(rules ...*compute.Firewall) error {
-	for _, rule := range rules {
-		_, err := gc.client.GetFirewallRule(gc.projectID, rule.Name)
-		if gcpclient.IsGCPNotFoundError(err) {
-			if err := gc.client.InsertFirewallRule(gc.projectID, rule); err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		if err != nil {
-			return err
-		}
-
-		if err := gc.client.UpdateFirewallRule(gc.projectID, rule.Name, rule); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (gc *gcpCloud) deleteFirewallRule(name string, reporter api.Reporter) error {
-	reporter.Started("Deleting firewall rule %q on GCP", name)
-
-	if err := gc.client.DeleteFirewallRule(gc.projectID, name); err != nil {
-		if !gcpclient.IsGCPNotFoundError(err) {
-			reporter.Failed(err)
-			return err
-		}
-	}
-
-	reporter.Succeeded("Deleted firewall rule %q on GCP", name)
-
-	return nil
 }
 
 func formatPorts(ports []api.PortSpec) string {
@@ -120,24 +67,19 @@ func formatPorts(ports []api.PortSpec) string {
 }
 
 type gcpGatewayDeployer struct {
-	gcp *gcpCloud
+	CloudInfo
 }
 
 // NewGCPGatewayDeployer created a GatewayDeployer capable of deploying gateways to GCP
-func NewGCPGatewayDeployer(cloud api.Cloud) (api.GatewayDeployer, error) {
-	gcp, ok := cloud.(*gcpCloud)
-	if !ok {
-		return nil, errors.New("the cloud must be GCP")
-	}
-
-	return &gcpGatewayDeployer{gcp: gcp}, nil
+func NewGCPGatewayDeployer(info CloudInfo) api.GatewayDeployer {
+	return &gcpGatewayDeployer{CloudInfo: info}
 }
 
 func (d *gcpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
 	// create the inbound and outbound firewall rules for submariner public ports
 	reporter.Started("Opening public ports %q for cluster communications on GCP", formatPorts(input.PublicPorts))
-	ingress := newExternalFirewallRules(d.gcp.projectID, d.gcp.infraID, input.PublicPorts)
-	if err := d.gcp.openPorts(ingress); err != nil {
+	ingress := newExternalFirewallRules(d.ProjectID, d.InfraID, input.PublicPorts)
+	if err := d.openPorts(ingress); err != nil {
 		reporter.Failed(err)
 		return err
 	}
@@ -150,9 +92,9 @@ func (d *gcpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 func (d *gcpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	// delete the inbound and outbound firewall rules to close submariner public ports
-	ingressName := generateRuleName(d.gcp.infraID, publicPortsRuleName)
+	ingressName := generateRuleName(d.InfraID, publicPortsRuleName)
 
-	if err := d.gcp.deleteFirewallRule(ingressName, reporter); err != nil {
+	if err := d.deleteFirewallRule(ingressName, reporter); err != nil {
 		return err
 	}
 
