@@ -34,7 +34,8 @@ import (
 )
 
 type ocpGatewayDeployer struct {
-	gcp             *gcpCloud
+	CloudInfo
+	gcp             gcpCloud
 	msDeployer      ocp.MachineSetDeployer
 	instanceType    string
 	image           string
@@ -42,29 +43,24 @@ type ocpGatewayDeployer struct {
 	k8sClient       k8s.Interface
 }
 
-// NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP
+// NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP
 // If the supplied cloud is not a gcpCloud, an error is returned
-func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType, image string,
-	dedicatedGWNode bool, k8sClient k8s.Interface) (api.GatewayDeployer, error) {
-	gcp, ok := cloud.(*gcpCloud)
-	if !ok {
-		return nil, errors.New("the cloud must be GCP")
-	}
-
+func NewOcpGatewayDeployer(info CloudInfo, msDeployer ocp.MachineSetDeployer, instanceType, image string,
+	dedicatedGWNode bool, k8sClient k8s.Interface) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
-		gcp:             gcp,
+		CloudInfo:       info,
 		msDeployer:      msDeployer,
 		instanceType:    instanceType,
 		image:           image,
 		dedicatedGWNode: dedicatedGWNode,
 		k8sClient:       k8sClient,
-	}, nil
+	}
 }
 
 func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
 	reporter.Started("Configuring the required firewall rules for inter-cluster traffic")
 
-	externalIngress := newExternalFirewallRules(d.gcp.projectID, d.gcp.infraID, input.PublicPorts)
+	externalIngress := newExternalFirewallRules(d.ProjectID, d.InfraID, input.PublicPorts)
 	if err := d.gcp.openPorts(externalIngress); err != nil {
 		reporter.Failed(err)
 		return err
@@ -111,7 +107,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 			for _, zone := range eligibleZonesForGW.Elements() {
 				workerNodes, err := d.k8sClient.ListNodesWithLabel("topology.kubernetes.io/zone=" + zone + ",node-role.kubernetes.io/worker")
 				if err != nil {
-					return reportFailure(reporter, err, "failed to list k8s nodes in zone %q of project %q", zone, d.gcp.projectID)
+					return reportFailure(reporter, err, "failed to list k8s nodes in zone %q of project %q", zone, d.ProjectID)
 				}
 
 				for _, node := range workerNodes.Items {
@@ -166,14 +162,14 @@ func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(reporter api.Reporter)
 			continue
 		}
 
-		instanceList, err := d.gcp.client.ListInstances(zone.Name)
+		instanceList, err := d.Client.ListInstances(zone.Name)
 		if err != nil {
-			return 0, nil, reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.gcp.projectID)
+			return 0, nil, reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.ProjectID)
 		}
 
 		for _, instance := range instanceList.Items {
 			// Check if the instance belongs to the cluster (identified via infraID) we are operating on.
-			if !strings.HasPrefix(instance.Name, d.gcp.infraID) {
+			if !strings.HasPrefix(instance.Name, d.InfraID) {
 				continue
 			}
 
@@ -215,10 +211,10 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(zone, image string) ([]byte, error)
 
 	tplVars := machineSetConfig{
 		AZ:                  zone,
-		InfraID:             d.gcp.infraID,
-		ProjectID:           d.gcp.projectID,
+		InfraID:             d.InfraID,
+		ProjectID:           d.ProjectID,
 		InstanceType:        d.instanceType,
-		Region:              d.gcp.region,
+		Region:              d.Region,
 		Image:               image,
 		SubmarinerGWNodeTag: submarinerGatewayNodeTag,
 	}
@@ -254,7 +250,7 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 	}
 
 	if d.image == "" {
-		d.image, err = d.msDeployer.GetWorkerNodeImage(machineSet, d.gcp.infraID)
+		d.image, err = d.msDeployer.GetWorkerNodeImage(machineSet, d.InfraID)
 		if err != nil {
 			return err
 		}
@@ -269,7 +265,7 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 }
 
 func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, nodeName string) error {
-	instance, err := d.gcp.client.GetInstance(zone, gcpInstanceInfo)
+	instance, err := d.Client.GetInstance(zone, gcpInstanceInfo)
 	if err != nil {
 		return err
 	}
@@ -281,12 +277,12 @@ func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, no
 
 	tags.Items = append(tags.Items, submarinerGatewayNodeTag)
 
-	err = d.gcp.client.UpdateInstanceNetworkTags(d.gcp.projectID, zone, instance.Name, tags)
+	err = d.Client.UpdateInstanceNetworkTags(d.ProjectID, zone, instance.Name, tags)
 	if err != nil {
 		return err
 	}
 
-	err = d.gcp.client.ConfigurePublicIPOnInstance(instance)
+	err = d.Client.ConfigurePublicIPOnInstance(instance)
 	if err != nil {
 		return err
 	}
@@ -303,7 +299,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	reporter.Started("Retrieving the Submariner gateway firewall rules")
 	err := d.deleteExternalFWRules(reporter)
 	if err != nil {
-		return reportFailure(reporter, err, "failed to delete the gateway firewall rules in the project %q", d.gcp.projectID)
+		return reportFailure(reporter, err, "failed to delete the gateway firewall rules in the project %q", d.ProjectID)
 	}
 
 	reporter.Succeeded("Successfully deleted the firewall rules")
@@ -317,14 +313,14 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 			continue
 		}
 
-		instanceList, err := d.gcp.client.ListInstances(zone.Name)
+		instanceList, err := d.Client.ListInstances(zone.Name)
 		if err != nil {
-			return reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.gcp.projectID)
+			return reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.ProjectID)
 		}
 
 		for _, instance := range instanceList.Items {
 			// Check if the instance belongs to the cluster (identified via infraID) we are operating on.
-			if !strings.HasPrefix(instance.Name, d.gcp.infraID) {
+			if !strings.HasPrefix(instance.Name, d.InfraID) {
 				continue
 			}
 
@@ -332,9 +328,9 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 				continue
 			}
 
-			// If the instance name matches with d.gcp.infraID + "-submariner-gw-" + zone.Name, it implies that
+			// If the instance name matches with d.InfraID + "-submariner-gw-" + zone.Name, it implies that
 			// the gateway node was deployed using the OCPMachineSet API otherwise it's an existing worker node.
-			prefix := d.gcp.infraID + "-submariner-gw-" + zone.Name
+			prefix := d.InfraID + "-submariner-gw-" + zone.Name
 			if strings.HasPrefix(instance.Name, prefix) {
 				reporter.Started(fmt.Sprintf("Deleting the gateway instance %q", instance.Name))
 				err := d.deleteGateway(zone.Name)
@@ -377,7 +373,7 @@ func (d *ocpGatewayDeployer) deleteGateway(zone string) error {
 }
 
 func (d *ocpGatewayDeployer) deleteExternalFWRules(reporter api.Reporter) error {
-	ingressName := generateRuleName(d.gcp.infraID, publicPortsRuleName)
+	ingressName := generateRuleName(d.InfraID, publicPortsRuleName)
 
 	if err := d.gcp.deleteFirewallRule(ingressName, reporter); err != nil {
 		reporter.Failed(err)
@@ -397,7 +393,7 @@ func reportFailure(reporter api.Reporter, failure error, format string, args ...
 func (d *ocpGatewayDeployer) ignoreZone(zone *compute.Zone) bool {
 	region := zone.Region[strings.LastIndex(zone.Region, "/")+1:]
 
-	return region != d.gcp.region
+	return region != d.Region
 }
 
 func (d *ocpGatewayDeployer) isInstanceGatewayNode(instance *compute.Instance) bool {
@@ -422,12 +418,12 @@ func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.
 		Fingerprint: instance.Tags.Fingerprint,
 	}
 
-	err := d.gcp.client.UpdateInstanceNetworkTags(d.gcp.projectID, zone, instance.Name, tags)
+	err := d.Client.UpdateInstanceNetworkTags(d.ProjectID, zone, instance.Name, tags)
 	if err != nil {
 		return err
 	}
 
-	err = d.gcp.client.DeletePublicIPOnInstance(instance)
+	err = d.Client.DeletePublicIPOnInstance(instance)
 	if err != nil {
 		return err
 	}
@@ -438,9 +434,9 @@ func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.
 func (d *ocpGatewayDeployer) retrieveZones(reporter api.Reporter) (*compute.ZoneList, error) {
 	reporter.Started("Retrieving the current zones in the project")
 
-	zones, err := d.gcp.client.ListZones()
+	zones, err := d.Client.ListZones()
 	if err != nil {
-		return nil, reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.gcp.projectID)
+		return nil, reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.ProjectID)
 	}
 
 	reporter.Succeeded("Retrieved the zones")
