@@ -3,7 +3,7 @@ module github.com/submariner-io/cloud-prepare
 go 1.13
 
 require (
-	github.com/aws/aws-sdk-go v1.40.54
+	github.com/aws/aws-sdk-go v1.40.59
 	github.com/golang/mock v1.6.0
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
