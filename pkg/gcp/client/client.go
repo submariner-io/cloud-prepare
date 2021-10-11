@@ -28,7 +28,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-//go:generate mockgen -source=./client.go -destination=./mock/client_generated.go -package=mock
+//go:generate mockgen -source=./client.go -destination=./fake/client.go -package=fake
 
 // Interface wraps an actual GCP library client to allow for easier testing.
 type Interface interface {
