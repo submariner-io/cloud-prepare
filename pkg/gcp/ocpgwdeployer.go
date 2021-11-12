@@ -60,8 +60,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 	externalIngress := newExternalFirewallRules(d.ProjectID, d.InfraID, input.PublicPorts)
 	if err := d.openPorts(externalIngress); err != nil {
-		reporter.Failed(err)
-		return err
+		return reportFailure(reporter, err, "error creating firewall rule %q", externalIngress.Name)
 	}
 
 	reporter.Succeeded("Opened External ports %q with firewall rule %q on GCP",
@@ -69,8 +68,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 	numGatewayNodes, eligibleZonesForGW, err := d.parseCurrentGatewayInstances(reporter)
 	if err != nil {
-		reporter.Failed(err)
-		return err
+		return reportFailure(reporter, err, "error parsing current gateway instances")
 	}
 
 	if numGatewayNodes == input.Gateways {
@@ -89,8 +87,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 				reporter.Started(fmt.Sprintf("Deploying dedicated gateway node in zone %q", zone))
 				err = d.deployGateway(zone)
 				if err != nil {
-					reporter.Failed(err)
-					return err
+					return reportFailure(reporter, err, "error deploying gateway for zone %q", zone)
 				}
 
 				gatewayNodesToDeploy--
@@ -115,8 +112,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 						if len(gcpInstanceInfo) > 1 {
 							reporter.Started(fmt.Sprintf("Configuring worker node %q in zone %q as gateway node", node.Name, zone))
 							if err := d.configureExistingNodeAsGW(zone, gcpInstanceInfo[1], node.Name); err != nil {
-								reporter.Failed(err)
-								return err
+								return reportFailure(reporter, err, "error configuring gateway node %q", node.Name)
 							}
 							gatewayNodesToDeploy--
 							break
@@ -162,7 +158,7 @@ func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(reporter api.Reporter)
 
 		instanceList, err := d.Client.ListInstances(zone.Name)
 		if err != nil {
-			return 0, nil, reportFailure(reporter, err, "failed to list instances in zone %q of project %q", zone.Name, d.ProjectID)
+			return 0, nil, errors.Wrapf(err, "failed to list instances in zone %q of project %q", zone.Name, d.ProjectID)
 		}
 
 		for _, instance := range instanceList.Items {
@@ -303,7 +299,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	reporter.Succeeded("Successfully deleted the firewall rules")
 	zones, err := d.retrieveZones(reporter)
 	if err != nil {
-		return err
+		return reportFailure(reporter, err, "error retrieving zones")
 	}
 
 	for _, zone := range zones.Items {
@@ -349,14 +345,14 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 		}
 	}
 
-	reporter.Started("Removing the Submariner gateway labels from K8s nodes")
+	reporter.Started("Removing the Submariner gateway label from worker nodes")
 
 	err = d.k8sClient.RemoveGWLabelFromWorkerNodes()
 	if err != nil {
-		return err
+		return reportFailure(reporter, err, "error removing the gateway label from worker nodes")
 	}
 
-	reporter.Succeeded("Successfully removed the labels from the nodes")
+	reporter.Succeeded("Successfully removed the label from the worker nodes")
 
 	return nil
 }
@@ -374,15 +370,14 @@ func (d *ocpGatewayDeployer) deleteExternalFWRules(reporter api.Reporter) error 
 	ingressName := generateRuleName(d.InfraID, publicPortsRuleName)
 
 	if err := d.deleteFirewallRule(ingressName, reporter); err != nil {
-		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "error deleting firewall rule %q", ingressName)
 	}
 
 	return nil
 }
 
-func reportFailure(reporter api.Reporter, failure error, format string, args ...string) error {
-	err := errors.WithMessagef(failure, format, args)
+func reportFailure(reporter api.Reporter, failure error, format string, args ...interface{}) error {
+	err := errors.WithMessagef(failure, format, args...)
 	reporter.Failed(err)
 
 	return err
@@ -438,7 +433,7 @@ func (d *ocpGatewayDeployer) retrieveZones(reporter api.Reporter) (*compute.Zone
 
 	zones, err := d.Client.ListZones()
 	if err != nil {
-		return nil, reportFailure(reporter, err, "failed to list the zones in the project %q. %v", d.ProjectID)
+		return nil, errors.Wrapf(err, "failed to list the zones in the project %q", d.ProjectID)
 	}
 
 	reporter.Succeeded("Retrieved the zones")
