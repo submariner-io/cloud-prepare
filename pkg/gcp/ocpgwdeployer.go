@@ -35,7 +35,6 @@ import (
 
 type ocpGatewayDeployer struct {
 	CloudInfo
-	gcp             gcpCloud
 	msDeployer      ocp.MachineSetDeployer
 	instanceType    string
 	image           string
@@ -43,8 +42,7 @@ type ocpGatewayDeployer struct {
 	k8sClient       k8s.Interface
 }
 
-// NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP
-// If the supplied cloud is not a gcpCloud, an error is returned
+// NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
 func NewOcpGatewayDeployer(info CloudInfo, msDeployer ocp.MachineSetDeployer, instanceType, image string,
 	dedicatedGWNode bool, k8sClient k8s.Interface) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
@@ -61,7 +59,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	reporter.Started("Configuring the required firewall rules for inter-cluster traffic")
 
 	externalIngress := newExternalFirewallRules(d.ProjectID, d.InfraID, input.PublicPorts)
-	if err := d.gcp.openPorts(externalIngress); err != nil {
+	if err := d.openPorts(externalIngress); err != nil {
 		reporter.Failed(err)
 		return err
 	}
@@ -375,7 +373,7 @@ func (d *ocpGatewayDeployer) deleteGateway(zone string) error {
 func (d *ocpGatewayDeployer) deleteExternalFWRules(reporter api.Reporter) error {
 	ingressName := generateRuleName(d.InfraID, publicPortsRuleName)
 
-	if err := d.gcp.deleteFirewallRule(ingressName, reporter); err != nil {
+	if err := d.deleteFirewallRule(ingressName, reporter); err != nil {
 		reporter.Failed(err)
 		return err
 	}
@@ -397,6 +395,10 @@ func (d *ocpGatewayDeployer) ignoreZone(zone *compute.Zone) bool {
 }
 
 func (d *ocpGatewayDeployer) isInstanceGatewayNode(instance *compute.Instance) bool {
+	if instance.Tags == nil {
+		return false
+	}
+
 	for _, tag := range instance.Tags.Items {
 		if tag == submarinerGatewayNodeTag {
 			return true
