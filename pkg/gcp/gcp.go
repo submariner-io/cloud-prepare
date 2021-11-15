@@ -65,38 +65,3 @@ func formatPorts(ports []api.PortSpec) string {
 
 	return strings.Join(portStrs, ", ")
 }
-
-type gcpGatewayDeployer struct {
-	CloudInfo
-}
-
-// NewGCPGatewayDeployer created a GatewayDeployer capable of deploying gateways to GCP
-func NewGCPGatewayDeployer(info CloudInfo) api.GatewayDeployer {
-	return &gcpGatewayDeployer{CloudInfo: info}
-}
-
-func (d *gcpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
-	// create the inbound and outbound firewall rules for submariner public ports
-	reporter.Started("Opening public ports %q for cluster communications on GCP", formatPorts(input.PublicPorts))
-	ingress := newExternalFirewallRules(d.ProjectID, d.InfraID, input.PublicPorts)
-	if err := d.openPorts(ingress); err != nil {
-		reporter.Failed(err)
-		return err
-	}
-
-	reporter.Succeeded("Opened public ports %q with firewall rules %q on GCP",
-		formatPorts(input.PublicPorts), ingress.Name)
-
-	return nil
-}
-
-func (d *gcpGatewayDeployer) Cleanup(reporter api.Reporter) error {
-	// delete the inbound and outbound firewall rules to close submariner public ports
-	ingressName := generateRuleName(d.InfraID, publicPortsRuleName)
-
-	if err := d.deleteFirewallRule(ingressName, reporter); err != nil {
-		return err
-	}
-
-	return nil
-}
