@@ -56,15 +56,13 @@ func NewK8sMachinesetDeployer(restMapper meta.RESTMapper, dynamicClient dynamic.
 		restMapper:    restMapper}
 }
 
-func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (resource.Interface, error) {
+func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (dynamic.ResourceInterface, error) {
 	machineSet, gvr, err := util.ToUnstructuredResource(obj, msd.restMapper)
 	if err != nil {
 		return nil, err
 	}
 
-	dynamicClient := msd.dynamicClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
-
-	return resource.ForDynamic(dynamicClient), nil
+	return msd.dynamicClient.Resource(*gvr).Namespace(machineSet.GetNamespace()), nil
 }
 
 func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error) {
@@ -82,12 +80,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 			continue
 		}
 
-		obj, err := resource.ToUnstructured(existing)
-		if err != nil {
-			continue
-		}
-
-		disks, _, _ := unstructured.NestedSlice(obj.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
+		disks, _, _ := unstructured.NestedSlice(existing.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
 		for _, o := range disks {
 			disk := o.(map[string]interface{})
 			image, _, _ := unstructured.NestedString(disk, "image")
@@ -106,7 +99,7 @@ func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) 
 		return err
 	}
 
-	_, err = util.CreateOrUpdate(context.TODO(), machineSetClient, machineSet, util.Replace(machineSet))
+	_, err = util.CreateOrUpdate(context.TODO(), resource.ForDynamic(machineSetClient), machineSet, util.Replace(machineSet))
 
 	return err
 }
