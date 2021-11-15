@@ -19,11 +19,13 @@ package aws
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"text/template"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -95,10 +97,10 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		return err
 	}
 
-	taggedSubnets, _ := filterSubnets(subnets, func(subnet *ec2.Subnet) (bool, error) {
+	taggedSubnets, _ := filterSubnets(subnets, func(subnet types.Subnet) (bool, error) {
 		return subnetTagged(subnet), nil
 	})
-	untaggedSubnets, _ := filterSubnets(subnets, func(subnet *ec2.Subnet) (bool, error) {
+	untaggedSubnets, _ := filterSubnets(subnets, func(subnet types.Subnet) (bool, error) {
 		return !subnetTagged(subnet), nil
 	})
 
@@ -140,9 +142,9 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 }
 
 func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api.GatewayDeployInput,
-	publicSubnets []*ec2.Subnet) error {
+	publicSubnets []types.Subnet) error {
 	var errs []error
-	var subnets []*ec2.Subnet
+	var subnets []types.Subnet
 
 	errs = appendIfError(errs, d.aws.validateCreateSecGroup(vpcID))
 	errs = appendIfError(errs, d.aws.validateCreateSecGroupRule(vpcID))
@@ -183,7 +185,7 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 	}
 
 	if len(subnets) > 0 {
-		errs = appendIfError(errs, d.aws.validateCreateTag(subnets[0].SubnetId))
+		errs = appendIfError(errs, d.aws.validateCreateTag(*subnets[0].SubnetId))
 	}
 
 	if len(errs) > 0 {
@@ -204,8 +206,8 @@ type machineSetConfig struct {
 }
 
 func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
-	result, err := d.aws.client.DescribeInstances(&ec2.DescribeInstancesInput{
-		Filters: []*ec2.Filter{
+	result, err := d.aws.client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
+		Filters: []types.Filter{
 			ec2Filter("vpc-id", vpcID),
 			d.aws.filterByName("{infraID}-worker*"),
 			d.aws.filterByCurrentCluster(),
@@ -231,7 +233,7 @@ func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
 	return *result.Reservations[0].Instances[0].ImageId, nil
 }
 
-func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string, publicSubnet *ec2.Subnet) ([]byte, error) {
+func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string, publicSubnet types.Subnet) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// TODO: Not working properly, but we should revisit this as it makes more sense
@@ -259,7 +261,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 	return buf.Bytes(), nil
 }
 
-func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publicSubnet *ec2.Subnet) (*unstructured.Unstructured, error) {
+func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publicSubnet types.Subnet) (*unstructured.Unstructured, error) {
 	gatewayYAML, err := d.loadGatewayYAML(gwSecurityGroup, amiID, publicSubnet)
 	if err != nil {
 		return nil, err
@@ -275,7 +277,7 @@ func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publi
 	return machineSet, nil
 }
 
-func (d *ocpGatewayDeployer) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet *ec2.Subnet) error {
+func (d *ocpGatewayDeployer) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet types.Subnet) error {
 	amiID, err := d.findAMIID(vpcID)
 	if err != nil {
 		return err
@@ -373,7 +375,7 @@ func (d *ocpGatewayDeployer) validateCleanupPrerequisites(vpcID string) error {
 	return nil
 }
 
-func (d *ocpGatewayDeployer) deleteGateway(publicSubnet *ec2.Subnet) error {
+func (d *ocpGatewayDeployer) deleteGateway(publicSubnet types.Subnet) error {
 	machineSet, err := d.initMachineSet("", "", publicSubnet)
 	if err != nil {
 		return err

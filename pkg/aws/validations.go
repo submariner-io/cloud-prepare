@@ -18,10 +18,12 @@ limitations under the License.
 package aws
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
 const permissionsTest = "permissions-test"
@@ -44,7 +46,7 @@ func (ac *awsCloud) validateCreateSecGroup(vpcID string) error {
 		VpcId:       aws.String(vpcID),
 	}
 
-	_, err := ac.client.CreateSecurityGroup(input)
+	_, err := ac.client.CreateSecurityGroup(context.TODO(), input)
 
 	return determinePermissionError(err, "create security group")
 }
@@ -60,17 +62,17 @@ func (ac *awsCloud) validateCreateSecGroupRule(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err = ac.client.AuthorizeSecurityGroupIngress(input)
+	_, err = ac.client.AuthorizeSecurityGroupIngress(context.TODO(), input)
 
 	return determinePermissionError(err, "authorize security group ingress")
 }
 
-func (ac *awsCloud) validateCreateTag(subnetID *string) error {
-	_, err := ac.client.CreateTags(&ec2.CreateTagsInput{
+func (ac *awsCloud) validateCreateTag(subnetID string) error {
+	_, err := ac.client.CreateTags(context.TODO(), &ec2.CreateTagsInput{
 		DryRun:    aws.Bool(true),
-		Resources: []*string{subnetID},
-		Tags: []*ec2.Tag{
-			tagSubmarinerGatgeway,
+		Resources: []string{subnetID},
+		Tags: []types.Tag{
+			tagSubmarinerGateway,
 		},
 	})
 
@@ -78,7 +80,7 @@ func (ac *awsCloud) validateCreateTag(subnetID *string) error {
 }
 
 func (ac *awsCloud) validateDescribeInstanceTypeOfferings() error {
-	_, err := ac.client.DescribeInstanceTypeOfferings(&ec2.DescribeInstanceTypeOfferingsInput{
+	_, err := ac.client.DescribeInstanceTypeOfferings(context.TODO(), &ec2.DescribeInstanceTypeOfferingsInput{
 		DryRun: aws.Bool(true),
 	})
 
@@ -96,7 +98,7 @@ func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err = ac.client.DeleteSecurityGroup(input)
+	_, err = ac.client.DeleteSecurityGroup(context.TODO(), input)
 
 	return determinePermissionError(err, "delete security group")
 }
@@ -112,17 +114,17 @@ func (ac *awsCloud) validateDeleteSecGroupRule(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err = ac.client.RevokeSecurityGroupIngress(input)
+	_, err = ac.client.RevokeSecurityGroupIngress(context.TODO(), input)
 
 	return determinePermissionError(err, "revoke security group ingress")
 }
 
 func (ac *awsCloud) validateRemoveTag(subnetID *string) error {
-	_, err := ac.client.DeleteTags(&ec2.DeleteTagsInput{
+	_, err := ac.client.DeleteTags(context.TODO(), &ec2.DeleteTagsInput{
 		DryRun:    aws.Bool(true),
-		Resources: []*string{subnetID},
-		Tags: []*ec2.Tag{
-			tagSubmarinerGatgeway,
+		Resources: []string{*subnetID},
+		Tags: []types.Tag{
+			tagSubmarinerGateway,
 		},
 	})
 
