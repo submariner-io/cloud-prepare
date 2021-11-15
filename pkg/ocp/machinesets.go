@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/resource"
 	"github.com/submariner-io/admiral/pkg/util"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -76,8 +77,12 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 
 	for _, nodeName := range workerNodeList {
 		existing, err := machineSetClient.Get(context.TODO(), nodeName, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) || err != nil {
+		if apierrors.IsNotFound(err) {
 			continue
+		}
+
+		if err != nil {
+			return "", errors.Wrapf(err, "error retrieving machine set %q", nodeName)
 		}
 
 		disks, _, _ := unstructured.NestedSlice(existing.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
@@ -90,7 +95,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 		}
 	}
 
-	return "", fmt.Errorf("could not retrieve the image of one of the worker nodes on gcp infra %q", infraID)
+	return "", fmt.Errorf("could not find the image of one of the worker nodes on GCP infra %q", infraID)
 }
 
 func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
