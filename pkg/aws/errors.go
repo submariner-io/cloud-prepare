@@ -18,10 +18,11 @@ limitations under the License.
 package aws
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/smithy-go"
 )
 
 type notFoundError struct {
@@ -70,9 +71,10 @@ func appendIfError(errs []error, err error) []error {
 }
 
 func isAWSError(err error, code string) bool {
-	if awsErr, ok := err.(awserr.Error); ok {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
 		// Has to be checked as string, see https://github.com/aws/aws-sdk-go/issues/3235
-		return awsErr.Code() == code
+		return apiErr.ErrorCode() == code
 	}
 
 	return false
