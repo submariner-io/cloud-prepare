@@ -27,9 +27,14 @@ import (
 )
 
 const (
-	infraID   = "test-infraID"
-	region    = "test-region"
-	projectID = "test-projectID"
+	infraID      = "test-infraID"
+	region       = "test-region"
+	projectID    = "test-projectID"
+	instanceType = "test-instance-type"
+	zone1        = "test-zone1"
+	zone2        = "test-zone2"
+	instance1    = infraID + "instance1"
+	instance2    = infraID + "instance2"
 )
 
 func TestGCP(t *testing.T) {

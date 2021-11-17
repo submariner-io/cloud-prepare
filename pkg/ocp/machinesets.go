@@ -33,6 +33,8 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+//go:generate mockgen -source=./machinesets.go -destination=./fake/machineset.go -package=fake
+
 // MachineSetDeployer can deploy and delete machinesets from OCP
 type MachineSetDeployer interface {
 	// Deploy makes sure to deploy the given machine set (creating or updating it)
