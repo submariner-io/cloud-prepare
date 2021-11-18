@@ -52,7 +52,6 @@ func (ac *awsCloud) getSecurityGroup(vpcID, name string) (types.SecurityGroup, e
 	result, err := ac.client.DescribeSecurityGroups(context.TODO(), &ec2.DescribeSecurityGroupsInput{
 		Filters: filters,
 	})
-
 	if err != nil {
 		return types.SecurityGroup{}, err
 	}

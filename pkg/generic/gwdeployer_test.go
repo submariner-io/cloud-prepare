@@ -130,7 +130,6 @@ var _ = Describe("GatewayDeployer", func() {
 					Expect(actualActions[i].GetVerb()).ToNot(Equal("update"))
 				}
 			}
-
 		})
 	})
 
