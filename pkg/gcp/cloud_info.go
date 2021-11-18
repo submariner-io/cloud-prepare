@@ -18,6 +18,7 @@ limitations under the License.
 package gcp
 
 import (
+	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	gcpclient "github.com/submariner-io/cloud-prepare/pkg/gcp/client"
 	"google.golang.org/api/compute/v1"
@@ -38,18 +39,18 @@ func (c *CloudInfo) openPorts(rules ...*compute.Firewall) error {
 		_, err := c.Client.GetFirewallRule(c.ProjectID, rule.Name)
 		if gcpclient.IsGCPNotFoundError(err) {
 			if err := c.Client.InsertFirewallRule(c.ProjectID, rule); err != nil {
-				return err
+				return errors.Wrapf(err, "error inserting firewall rule %#v", rule)
 			}
 
 			continue
 		}
 
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "error retrieving firewall rule %q", rule.Name)
 		}
 
 		if err := c.Client.UpdateFirewallRule(c.ProjectID, rule.Name, rule); err != nil {
-			return err
+			return errors.Wrapf(err, "error updating firewall rule %#v", rule)
 		}
 	}
 
@@ -62,7 +63,7 @@ func (c *CloudInfo) deleteFirewallRule(name string, reporter api.Reporter) error
 	if err := c.Client.DeleteFirewallRule(c.ProjectID, name); err != nil {
 		if !gcpclient.IsGCPNotFoundError(err) {
 			reporter.Failed(err)
-			return err
+			return errors.Wrapf(err, "error deleting firewall rule %q", name)
 		}
 	}
 

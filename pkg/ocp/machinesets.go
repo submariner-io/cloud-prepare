@@ -63,7 +63,7 @@ func NewK8sMachinesetDeployer(restMapper meta.RESTMapper, dynamicClient dynamic.
 func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (dynamic.ResourceInterface, error) {
 	machineSet, gvr, err := util.ToUnstructuredResource(obj, msd.restMapper)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error converting to unstructured")
 	}
 
 	return msd.dynamicClient.Resource(*gvr).Namespace(machineSet.GetNamespace()), nil
@@ -109,7 +109,7 @@ func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) 
 
 	_, err = util.CreateOrUpdate(context.TODO(), resource.ForDynamic(machineSetClient), machineSet, util.Replace(machineSet))
 
-	return err
+	return errors.Wrapf(err, "error creating machine set %#v", machineSet)
 }
 
 func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) error {
@@ -123,5 +123,5 @@ func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) 
 		return nil
 	}
 
-	return err
+	return errors.Wrapf(err, "error deleting machine set %q", machineSet.GetName())
 }

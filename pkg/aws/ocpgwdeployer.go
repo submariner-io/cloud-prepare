@@ -20,12 +20,12 @@ package aws
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -216,7 +216,7 @@ func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
 		},
 	})
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "error describing AWS instances")
 	}
 
 	if len(result.Reservations) == 0 {
@@ -241,7 +241,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 	// tpl, err := template.ParseFiles("pkg/aws/gw-machineset.yaml.template")
 	tpl, err := template.New("").Parse(machineSetYAML)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error parsing machine set YAML")
 	}
 
 	tplVars := machineSetConfig{
@@ -256,7 +256,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 
 	err = tpl.Execute(&buf, tplVars)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error executing the template")
 	}
 
 	return buf.Bytes(), nil
@@ -272,7 +272,7 @@ func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publi
 	machineSet := &unstructured.Unstructured{}
 	_, _, err = unstructDecoder.Decode(gatewayYAML, nil, machineSet)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error converting YAML to machine set")
 	}
 
 	return machineSet, nil
@@ -289,7 +289,7 @@ func (d *ocpGatewayDeployer) deployGateway(vpcID, gatewaySecurityGroup string, p
 		return err
 	}
 
-	return d.msDeployer.Deploy(machineSet)
+	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
 func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
@@ -383,5 +383,5 @@ func (d *ocpGatewayDeployer) deleteGateway(publicSubnet *types.Subnet) error {
 		return err
 	}
 
-	return d.msDeployer.Delete(machineSet)
+	return errors.Wrapf(d.msDeployer.Delete(machineSet), "error deleting machine set %q", machineSet.GetName())
 }

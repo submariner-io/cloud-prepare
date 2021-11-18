@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
@@ -53,7 +54,7 @@ func (ac *awsCloud) getSecurityGroup(vpcID, name string) (types.SecurityGroup, e
 		Filters: filters,
 	})
 	if err != nil {
-		return types.SecurityGroup{}, err
+		return types.SecurityGroup{}, errors.Wrap(err, "error describing AWS security groups")
 	}
 
 	if len(result.SecurityGroups) == 0 {
@@ -74,7 +75,7 @@ func (ac *awsCloud) authorizeSecurityGroupIngress(groupID *string, ipPermissions
 		return nil
 	}
 
-	return err
+	return errors.Wrap(err, "error authorizing AWS security groups ingress")
 }
 
 func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16, protocol, description string) error {
@@ -162,7 +163,7 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 
 		result, err := ac.client.CreateSecurityGroup(context.TODO(), input)
 		if err != nil {
-			return "", err
+			return "", errors.Wrap(err, "error creating AWS security group")
 		}
 
 		gatewayGroupID = result.GroupId
@@ -205,14 +206,14 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 			GroupId: gatewayGroupID,
 		})
 
-		return err
+		return err // nolint:wrapcheck // Let the caller wrap it.
 	})
 
 	if isAWSError(err, "InvalidPermission.NotFound") {
 		return nil
 	}
 
-	return err
+	return errors.Wrap(err, "error deleting AWS security group")
 }
 
 func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
@@ -257,5 +258,5 @@ func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
 
 	_, err := ac.client.RevokeSecurityGroupIngress(context.TODO(), input)
 
-	return err
+	return errors.Wrap(err, "error revoking AWS security group ingress")
 }
