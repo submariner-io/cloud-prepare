@@ -28,14 +28,14 @@ type gcpCloud struct {
 	CloudInfo
 }
 
-// NewCloud creates a new api.Cloud instance which can prepare GCP for Submariner to be deployed on it
+// NewCloud creates a new api.Cloud instance which can prepare GCP for Submariner to be deployed on it.
 func NewCloud(info CloudInfo) api.Cloud {
 	return &gcpCloud{CloudInfo: info}
 }
 
-// PrepareForSubmariner prepares submariner cluster environment on GCP
+// PrepareForSubmariner prepares submariner cluster environment on GCP.
 func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, reporter api.Reporter) error {
-	// create the inbound firewall rule for submariner internal ports
+	// Create the inbound firewall rule for submariner internal ports.
 	reporter.Started("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(input.InternalPorts))
 	internalIngress := newInternalFirewallRule(gc.ProjectID, gc.InfraID, input.InternalPorts)
 	if err := gc.openPorts(internalIngress); err != nil {
@@ -49,9 +49,9 @@ func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 	return nil
 }
 
-// CleanupAfterSubmariner clean up submariner cluster environment on GCP
+// CleanupAfterSubmariner clean up submariner cluster environment on GCP.
 func (gc *gcpCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
-	// delete the inbound and outbound firewall rules to close submariner internal ports
+	// Delete the inbound and outbound firewall rules to close submariner internal ports.
 	internalIngressName := generateRuleName(gc.InfraID, internalPortsRuleName)
 
 	return gc.deleteFirewallRule(internalIngressName, reporter)

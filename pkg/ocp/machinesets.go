@@ -35,15 +35,15 @@ import (
 
 //go:generate mockgen -source=./machinesets.go -destination=./fake/machineset.go -package=fake
 
-// MachineSetDeployer can deploy and delete machinesets from OCP
+// MachineSetDeployer can deploy and delete machinesets from OCP.
 type MachineSetDeployer interface {
-	// Deploy makes sure to deploy the given machine set (creating or updating it)
+	// Deploy makes sure to deploy the given machine set (creating or updating it).
 	Deploy(machineSet *unstructured.Unstructured) error
 
-	// GetWorkerNodeImage returns the image used by OCP worker nodes
+	// GetWorkerNodeImage returns the image used by OCP worker nodes.
 	GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error)
 
-	// Delete will remove the given machineset
+	// Delete will remove the given machineset.
 	Delete(machineSet *unstructured.Unstructured) error
 }
 
@@ -52,7 +52,7 @@ type k8sMachineSetDeployer struct {
 	dynamicClient dynamic.Interface
 }
 
-// NewK8sMachinesetDeployer returns a MachineSetDeployer capable deploying directly to Kubernetes
+// NewK8sMachinesetDeployer returns a MachineSetDeployer capable deploying directly to Kubernetes.
 func NewK8sMachinesetDeployer(restMapper meta.RESTMapper, dynamicClient dynamic.Interface) MachineSetDeployer {
 	return &k8sMachineSetDeployer{
 		dynamicClient: dynamicClient,

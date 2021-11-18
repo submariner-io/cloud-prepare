@@ -30,9 +30,9 @@ type CloudInfo struct {
 	Client    gcpclient.Interface
 }
 
-// open expected ports by creating related firewall rule
-// - if the firewall rule is not found, we will create it
-// - if the firewall rule is found and changed, we will update it
+// Open expected ports by creating related firewall rule.
+// - if the firewall rule is not found, we will create it.
+// - if the firewall rule is found and changed, we will update it.
 func (c *CloudInfo) openPorts(rules ...*compute.Firewall) error {
 	for _, rule := range rules {
 		_, err := c.Client.GetFirewallRule(c.ProjectID, rule.Name)
