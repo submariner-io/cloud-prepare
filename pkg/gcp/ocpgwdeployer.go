@@ -109,19 +109,21 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 				return reportFailure(reporter, err, "failed to list k8s nodes in zone %q of project %q", zone, d.ProjectID)
 			}
 
-			for _, node := range workerNodes.Items {
+			for i := range workerNodes.Items {
+				node := &workerNodes.Items[i]
 				machineSetInfo := node.GetAnnotations()["machine.openshift.io/machine"]
-				if machineSetInfo != "" {
-					gcpInstanceInfo := strings.Split(machineSetInfo, "/")
-					if len(gcpInstanceInfo) > 1 {
-						reporter.Started(fmt.Sprintf("Configuring worker node %q in zone %q as gateway node", node.Name, zone))
-						if err := d.configureExistingNodeAsGW(zone, gcpInstanceInfo[1], node.Name); err != nil {
-							return reportFailure(reporter, err, "error configuring gateway node %q", node.Name)
-						}
-						gatewayNodesToDeploy--
-						break
-					}
+				gcpInstanceInfo := strings.Split(machineSetInfo, "/")
+				if len(gcpInstanceInfo) <= 1 {
+					continue
 				}
+
+				reporter.Started(fmt.Sprintf("Configuring worker node %q in zone %q as gateway node", node.Name, zone))
+				if err := d.configureExistingNodeAsGW(zone, gcpInstanceInfo[1], node.Name); err != nil {
+					return reportFailure(reporter, err, "error configuring gateway node %q", node.Name)
+				}
+
+				gatewayNodesToDeploy--
+				break
 			}
 
 			if gatewayNodesToDeploy <= 0 {
