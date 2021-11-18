@@ -204,7 +204,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(zone, image string) ([]byte, error)
 	// tpl, err := template.ParseFiles("pkg/aws/gw-machineset.yaml.template")
 	tpl, err := template.New("").Parse(machineSetYAML)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error parsing machine set YAML")
 	}
 
 	tplVars := machineSetConfig{
@@ -219,7 +219,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(zone, image string) ([]byte, error)
 
 	err = tpl.Execute(&buf, tplVars)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error executing the template")
 	}
 
 	return buf.Bytes(), nil
@@ -235,7 +235,7 @@ func (d *ocpGatewayDeployer) initMachineSet(zone string) (*unstructured.Unstruct
 	machineSet := &unstructured.Unstructured{}
 	_, _, err = unstructDecoder.Decode(gatewayYAML, nil, machineSet)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error converting YAML to machine set")
 	}
 
 	return machineSet, nil
@@ -250,7 +250,7 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 	if d.image == "" {
 		d.image, err = d.msDeployer.GetWorkerNodeImage(machineSet, d.InfraID)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "error retrieving worker node image")
 		}
 
 		machineSet, err = d.initMachineSet(zone)
@@ -259,13 +259,13 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 		}
 	}
 
-	return d.msDeployer.Deploy(machineSet)
+	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
 func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, nodeName string) error {
 	instance, err := d.Client.GetInstance(zone, gcpInstanceInfo)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error retrieving GCP instance %q in zode %q", gcpInstanceInfo, zone)
 	}
 
 	tags := &compute.Tags{
@@ -277,17 +277,17 @@ func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, no
 
 	err = d.Client.UpdateInstanceNetworkTags(d.ProjectID, zone, instance.Name, tags)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error updating network tags for GCP instance %q in zode %q", instance.Name, zone)
 	}
 
 	err = d.Client.ConfigurePublicIPOnInstance(instance)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error configuring public IP for GCP instance %q in zode %q", instance.Name, zone)
 	}
 
 	err = d.k8sClient.AddGWLabelOnNode(nodeName)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error labeling node %q", nodeName)
 	}
 
 	return nil
@@ -367,7 +367,7 @@ func (d *ocpGatewayDeployer) deleteGateway(zone string) error {
 		return err
 	}
 
-	return d.msDeployer.Delete(machineSet)
+	return errors.Wrapf(d.msDeployer.Delete(machineSet), "error deleting machine set %q", machineSet.GetName())
 }
 
 func (d *ocpGatewayDeployer) deleteExternalFWRules(reporter api.Reporter) error {
@@ -421,12 +421,12 @@ func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.
 
 	err := d.Client.UpdateInstanceNetworkTags(d.ProjectID, zone, instance.Name, tags)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error updating network tags for GCP instance %q in zode %q", instance.Name, zone)
 	}
 
 	err = d.Client.DeletePublicIPOnInstance(instance)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "error deleting public IP for GCP instance %q in zode %q", instance.Name, zone)
 	}
 
 	return nil

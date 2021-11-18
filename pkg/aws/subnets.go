@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -60,7 +61,7 @@ func (ac *awsCloud) findPublicSubnets(vpcID string, filter types.Filter) ([]type
 
 	result, err := ac.client.DescribeSubnets(context.TODO(), &ec2.DescribeSubnetsInput{Filters: filters})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error describing AWS subnets")
 	}
 
 	return result.Subnets, nil
@@ -76,7 +77,7 @@ func (ac *awsCloud) getSubnetsSupportingInstanceType(subnets []types.Subnet, ins
 			},
 		})
 		if err != nil {
-			return false, err
+			return false, err // nolint:wrapcheck // Let the caller wrap it.
 		}
 
 		return len(output.InstanceTypeOfferings) > 0, nil
@@ -96,7 +97,7 @@ func (ac *awsCloud) tagPublicSubnet(subnetID *string) error {
 		},
 	})
 
-	return err
+	return errors.Wrap(err, "error creating AWS tag")
 }
 
 func (ac *awsCloud) untagPublicSubnet(subnetID *string) error {
@@ -108,5 +109,5 @@ func (ac *awsCloud) untagPublicSubnet(subnetID *string) error {
 		},
 	})
 
-	return err
+	return errors.Wrap(err, "error deleting AWS tag")
 }

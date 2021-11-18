@@ -69,6 +69,7 @@ func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
 }
 
 func (k *k8sIface) updateLabel(nodeName string, mutate func(existing *v1.Node)) error {
+	// nolint:wrapcheck // Let the caller wrap these errors.
 	client := &resource.InterfaceFuncs{
 		GetFunc: func(ctx context.Context, name string, options metav1.GetOptions) (runtime.Object, error) {
 			return k.clientSet.CoreV1().Nodes().Get(ctx, name, options)
@@ -78,14 +79,14 @@ func (k *k8sIface) updateLabel(nodeName string, mutate func(existing *v1.Node)) 
 		},
 	}
 
-	return util.Update(context.TODO(), client, &v1.Node{
+	return errors.Wrap(util.Update(context.TODO(), client, &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 		},
 	}, func(existing runtime.Object) (runtime.Object, error) {
 		mutate(existing.(*v1.Node))
 		return existing, nil
-	})
+	}), "error updating node")
 }
 
 func (k *k8sIface) AddGWLabelOnNode(nodeName string) error {
@@ -103,7 +104,7 @@ func (k *k8sIface) AddGWLabelOnNode(nodeName string) error {
 func (k *k8sIface) RemoveGWLabelFromWorkerNodes() error {
 	gwNodeList, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: SubmarinerGatewayLabel})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error listing gateway nodes")
 	}
 
 	for i := range gwNodeList.Items {

@@ -21,6 +21,7 @@ package generic
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	v1 "k8s.io/api/core/v1"
@@ -39,7 +40,7 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 	gwNodes, err := g.k8sClient.ListGatewayNodes()
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrap(err, "error listing the gateway nodes")
 	}
 
 	gatewayNodesToDeploy := input.Gateways - len(gwNodes.Items)
@@ -60,7 +61,7 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 	nonGWNodes, err := g.k8sClient.ListNodesWithLabel("!submariner.io/gateway")
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrap(err, "error listing the gateway nodes")
 	}
 
 	for i := range nonGWNodes.Items {
@@ -73,7 +74,7 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 		err = g.k8sClient.AddGWLabelOnNode(node.Name)
 		if err != nil {
 			reporter.Failed(err)
-			return err
+			return errors.Wrapf(err, "error adding the gateway label on node %q", node.Name)
 		}
 
 		gatewayNodesToDeploy--
@@ -95,7 +96,7 @@ func (g *gatewayDeployer) Cleanup(reporter api.Reporter) error {
 	err := g.k8sClient.RemoveGWLabelFromWorkerNodes()
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrap(err, "error removing the gateway label from all worker nodes")
 	}
 
 	reporter.Succeeded("Successfully removed Submariner gateway label from worker nodes")
