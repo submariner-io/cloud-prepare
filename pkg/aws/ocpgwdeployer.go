@@ -40,8 +40,8 @@ type ocpGatewayDeployer struct {
 
 var preferredInstances = []string{"c5d.large", "m5n.large"}
 
-// NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP
-// If the supplied cloud is not an awsCloud, an error is returned
+// NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP.
+// If the supplied cloud is not an awsCloud, an error is returned.
 func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType string) (api.GatewayDeployer, error) {
 	aws, ok := cloud.(*awsCloud)
 	if !ok {

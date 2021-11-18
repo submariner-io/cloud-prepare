@@ -35,7 +35,7 @@ type awsCloud struct {
 	region  string
 }
 
-// NewCloud creates a new api.Cloud instance which can prepare AWS for Submariner to be deployed on it
+// NewCloud creates a new api.Cloud instance which can prepare AWS for Submariner to be deployed on it.
 func NewCloud(client awsClient.Interface, infraID, region string) api.Cloud {
 	return &awsCloud{
 		client:  client,
