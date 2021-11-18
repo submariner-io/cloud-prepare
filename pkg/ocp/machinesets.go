@@ -56,7 +56,8 @@ type k8sMachineSetDeployer struct {
 func NewK8sMachinesetDeployer(restMapper meta.RESTMapper, dynamicClient dynamic.Interface) MachineSetDeployer {
 	return &k8sMachineSetDeployer{
 		dynamicClient: dynamicClient,
-		restMapper:    restMapper}
+		restMapper:    restMapper,
+	}
 }
 
 func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (dynamic.ResourceInterface, error) {

@@ -23,8 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 )
 
-type loggingReporter struct {
-}
+type loggingReporter struct{}
 
 func NewLoggingReporter() Reporter {
 	return &loggingReporter{}

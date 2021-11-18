@@ -215,7 +215,6 @@ func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
 			d.aws.filterByCurrentCluster(),
 		},
 	})
-
 	if err != nil {
 		return "", err
 	}

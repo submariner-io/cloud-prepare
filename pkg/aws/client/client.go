@@ -81,6 +81,7 @@ func (ac *awsClient) DescribeInstances(ctx context.Context, input *ec2.DescribeI
 	optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error) {
 	return ac.ec2Client.DescribeInstances(ctx, input, optFns...)
 }
+
 func (ac *awsClient) DescribeVpcs(ctx context.Context, input *ec2.DescribeVpcsInput,
 	optFns ...func(*ec2.Options)) (*ec2.DescribeVpcsOutput, error) {
 	return ac.ec2Client.DescribeVpcs(ctx, input, optFns...)
