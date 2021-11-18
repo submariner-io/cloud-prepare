@@ -106,7 +106,8 @@ func (k *k8sIface) RemoveGWLabelFromWorkerNodes() error {
 		return err
 	}
 
-	for _, node := range gwNodeList.Items {
+	for i := range gwNodeList.Items {
+		node := &gwNodeList.Items[i]
 		err = k.updateLabel(node.Name, func(existing *v1.Node) {
 			delete(existing.Labels, SubmarinerGatewayLabel)
 		})

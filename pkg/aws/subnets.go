@@ -29,24 +29,25 @@ var (
 	tagInternalELB       = ec2Tag("kubernetes.io/role/internal-elb", "")
 )
 
-func filterSubnets(subnets []types.Subnet, filterFunc func(subnet types.Subnet) (bool, error)) ([]types.Subnet, error) {
+func filterSubnets(subnets []types.Subnet, filterFunc func(subnet *types.Subnet) (bool, error)) ([]types.Subnet, error) {
 	var filteredSubnets []types.Subnet
 
-	for _, subnet := range subnets {
+	for i := range subnets {
+		subnet := &subnets[i]
 		filterResult, err := filterFunc(subnet)
 		if err != nil {
 			return nil, err
 		}
 
 		if filterResult {
-			filteredSubnets = append(filteredSubnets, subnet)
+			filteredSubnets = append(filteredSubnets, *subnet)
 		}
 	}
 
 	return filteredSubnets, nil
 }
 
-func subnetTagged(subnet types.Subnet) bool {
+func subnetTagged(subnet *types.Subnet) bool {
 	return hasTag(subnet.Tags, tagSubmarinerGateway)
 }
 
@@ -66,7 +67,7 @@ func (ac *awsCloud) findPublicSubnets(vpcID string, filter types.Filter) ([]type
 }
 
 func (ac *awsCloud) getSubnetsSupportingInstanceType(subnets []types.Subnet, instanceType string) ([]types.Subnet, error) {
-	return filterSubnets(subnets, func(subnet types.Subnet) (bool, error) {
+	return filterSubnets(subnets, func(subnet *types.Subnet) (bool, error) {
 		output, err := ac.client.DescribeInstanceTypeOfferings(context.TODO(), &ec2.DescribeInstanceTypeOfferingsInput{
 			LocationType: types.LocationTypeAvailabilityZone,
 			Filters: []types.Filter{

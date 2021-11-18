@@ -63,7 +63,8 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 		return err
 	}
 
-	for _, node := range nonGWNodes.Items {
+	for i := range nonGWNodes.Items {
+		node := &nonGWNodes.Items[i]
 		if isMasterNode(node) {
 			// Skip master nodes
 			continue
@@ -102,7 +103,7 @@ func (g *gatewayDeployer) Cleanup(reporter api.Reporter) error {
 	return nil
 }
 
-func isMasterNode(node v1.Node) bool {
+func isMasterNode(node *v1.Node) bool {
 	for _, taint := range node.Spec.Taints {
 		if taint.Key == "node-role.kubernetes.io/master" && taint.Effect == v1.TaintEffectNoSchedule {
 			return true

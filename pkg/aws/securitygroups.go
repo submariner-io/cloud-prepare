@@ -227,15 +227,15 @@ func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
 		return err
 	}
 
-	err = ac.revokePortsFromGroup(workerGroup)
+	err = ac.revokePortsFromGroup(&workerGroup)
 	if err != nil {
 		return err
 	}
 
-	return ac.revokePortsFromGroup(masterGroup)
+	return ac.revokePortsFromGroup(&masterGroup)
 }
 
-func (ac *awsCloud) revokePortsFromGroup(group types.SecurityGroup) error {
+func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
 	var permissionsToRevoke []types.IpPermission
 
 	for _, permission := range group.IpPermissions {

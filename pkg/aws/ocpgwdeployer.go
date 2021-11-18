@@ -97,14 +97,15 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 		return err
 	}
 
-	taggedSubnets, _ := filterSubnets(subnets, func(subnet types.Subnet) (bool, error) {
+	taggedSubnets, _ := filterSubnets(subnets, func(subnet *types.Subnet) (bool, error) {
 		return subnetTagged(subnet), nil
 	})
-	untaggedSubnets, _ := filterSubnets(subnets, func(subnet types.Subnet) (bool, error) {
+	untaggedSubnets, _ := filterSubnets(subnets, func(subnet *types.Subnet) (bool, error) {
 		return !subnetTagged(subnet), nil
 	})
 
-	for _, subnet := range untaggedSubnets {
+	for i := range untaggedSubnets {
+		subnet := &untaggedSubnets[i]
 		if input.Gateways > 0 && len(taggedSubnets) == input.Gateways {
 			break
 		}
@@ -119,12 +120,13 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 			return err
 		}
 
-		taggedSubnets = append(taggedSubnets, subnet)
+		taggedSubnets = append(taggedSubnets, *subnet)
 
 		reporter.Succeeded("Adjusted public subnet %s to support Submariner", subnetName)
 	}
 
-	for _, subnet := range taggedSubnets {
+	for i := range taggedSubnets {
+		subnet := &taggedSubnets[i]
 		subnetName := extractName(subnet.Tags)
 
 		reporter.Started("Deploying gateway node for public subnet %s", subnetName)
@@ -233,7 +235,7 @@ func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
 	return *result.Reservations[0].Instances[0].ImageId, nil
 }
 
-func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string, publicSubnet types.Subnet) ([]byte, error) {
+func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string, publicSubnet *types.Subnet) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// TODO: Not working properly, but we should revisit this as it makes more sense
@@ -261,7 +263,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 	return buf.Bytes(), nil
 }
 
-func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publicSubnet types.Subnet) (*unstructured.Unstructured, error) {
+func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publicSubnet *types.Subnet) (*unstructured.Unstructured, error) {
 	gatewayYAML, err := d.loadGatewayYAML(gwSecurityGroup, amiID, publicSubnet)
 	if err != nil {
 		return nil, err
@@ -277,7 +279,7 @@ func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publi
 	return machineSet, nil
 }
 
-func (d *ocpGatewayDeployer) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet types.Subnet) error {
+func (d *ocpGatewayDeployer) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet *types.Subnet) error {
 	amiID, err := d.findAMIID(vpcID)
 	if err != nil {
 		return err
@@ -317,7 +319,8 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 		return err
 	}
 
-	for _, subnet := range subnets {
+	for i := range subnets {
+		subnet := &subnets[i]
 		subnetName := extractName(subnet.Tags)
 
 		reporter.Started("Removing gateway node for public subnet %s", subnetName)
@@ -375,7 +378,7 @@ func (d *ocpGatewayDeployer) validateCleanupPrerequisites(vpcID string) error {
 	return nil
 }
 
-func (d *ocpGatewayDeployer) deleteGateway(publicSubnet types.Subnet) error {
+func (d *ocpGatewayDeployer) deleteGateway(publicSubnet *types.Subnet) error {
 	machineSet, err := d.initMachineSet("", "", publicSubnet)
 	if err != nil {
 		return err
