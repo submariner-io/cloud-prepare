@@ -19,6 +19,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -84,12 +85,12 @@ func NewClient(projectID string, options []option.ClientOption) (Interface, erro
 }
 
 func IsGCPNotFoundError(err error) bool {
-	gerr, ok := err.(*googleapi.Error)
-	if !ok {
-		return false
+	var gerr *googleapi.Error
+	if errors.As(err, &gerr) {
+		return gerr.Code == http.StatusNotFound
 	}
 
-	return gerr.Code == http.StatusNotFound
+	return false
 }
 
 func (g *gcpClient) GetInstance(zone, instance string) (*compute.Instance, error) {

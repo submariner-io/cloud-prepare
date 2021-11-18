@@ -29,17 +29,17 @@ type notFoundError struct {
 	s string
 }
 
-func (e *notFoundError) Error() string {
+func (e notFoundError) Error() string {
 	return fmt.Sprintf("%s not found", e.s)
 }
 
 func newNotFoundError(msg string, args ...interface{}) error {
-	return &notFoundError{fmt.Sprintf(msg, args...)}
+	return notFoundError{fmt.Sprintf(msg, args...)}
 }
 
 func isNotFoundError(err error) bool {
-	_, ok := err.(*notFoundError)
-	return ok
+	var e notFoundError
+	return errors.As(err, &e)
 }
 
 type compositeError struct {

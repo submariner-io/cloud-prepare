@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/pkg/errors"
 )
 
 const permissionsTest = "permissions-test"
@@ -35,7 +36,7 @@ func determinePermissionError(err error, operation string) error {
 		return fmt.Errorf("no permission to %s", operation)
 	}
 
-	return fmt.Errorf("error while checking permissions for %s, details: %s", operation, err)
+	return errors.Wrapf(err, "error while checking permissions for %s", operation)
 }
 
 func (ac *awsCloud) validateCreateSecGroup(vpcID string) error {

@@ -20,8 +20,8 @@ package k8s
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/resource"
 	"github.com/submariner-io/admiral/pkg/util"
 	v1 "k8s.io/api/core/v1"
@@ -52,7 +52,7 @@ func NewInterface(clientSet kubernetes.Interface) Interface {
 func (k *k8sIface) ListNodesWithLabel(labelSelector string) (*v1.NodeList, error) {
 	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
-		return nil, fmt.Errorf("unable to list the nodes in the cluster, err: %s", err)
+		return nil, errors.Wrap(err, "unable to list the nodes in the cluster")
 	}
 
 	return nodes, nil
@@ -62,7 +62,7 @@ func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
 	labelSelector := SubmarinerGatewayLabel + "=true"
 	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
-		return nil, fmt.Errorf("unable to list the Gateway nodes in the cluster, err: %s", err)
+		return nil, errors.Wrap(err, "unable to list the Gateway nodes in the cluster")
 	}
 
 	return nodes, nil
