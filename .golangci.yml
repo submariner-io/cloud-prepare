@@ -27,6 +27,7 @@ linters:
     - errcheck
     - errorlint
     - exportloopref
+    - forcetypeassert
     - gocognit
     - goconst
     - gocritic
