@@ -56,6 +56,7 @@ linters:
     - varcheck
     - whitespace
     - wrapcheck
+    - wsl
 issues:
   exclude-rules:
     # Separating explicit var declarations by blank lines seems excessive.

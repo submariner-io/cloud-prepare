@@ -89,6 +89,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	if d.dedicatedGWNode {
 		for _, zone := range eligibleZonesForGW.Elements() {
 			reporter.Started(fmt.Sprintf("Deploying dedicated gateway node in zone %q", zone))
+
 			err = d.deployGateway(zone)
 			if err != nil {
 				return reportFailure(reporter, err, "error deploying gateway for zone %q", zone)
@@ -232,7 +233,9 @@ func (d *ocpGatewayDeployer) initMachineSet(zone string) (*unstructured.Unstruct
 	}
 
 	unstructDecoder := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+
 	machineSet := &unstructured.Unstructured{}
+
 	_, _, err = unstructDecoder.Decode(gatewayYAML, nil, machineSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "error converting YAML to machine set")
@@ -295,12 +298,14 @@ func (d *ocpGatewayDeployer) configureExistingNodeAsGW(zone, gcpInstanceInfo, no
 
 func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	reporter.Started("Retrieving the Submariner gateway firewall rules")
+
 	err := d.deleteExternalFWRules(reporter)
 	if err != nil {
 		return reportFailure(reporter, err, "failed to delete the gateway firewall rules in the project %q", d.ProjectID)
 	}
 
 	reporter.Succeeded("Successfully deleted the firewall rules")
+
 	zones, err := d.retrieveZones(reporter)
 	if err != nil {
 		return reportFailure(reporter, err, "error retrieving zones")
@@ -331,6 +336,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 			prefix := d.InfraID + "-submariner-gw-" + zone.Name
 			if strings.HasPrefix(instance.Name, prefix) {
 				reporter.Started(fmt.Sprintf("Deleting the gateway instance %q", instance.Name))
+
 				err := d.deleteGateway(zone.Name)
 				if err != nil {
 					return reportFailure(reporter, err, "failed to delete dedicated gateway instance %q", instance.Name)
@@ -339,6 +345,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 				reporter.Succeeded("Successfully deleted the instance")
 			} else {
 				reporter.Started(fmt.Sprintf("Removing the gateway configuration from instance %q", instance.Name))
+
 				err = d.resetExistingGWNode(zone.Name, instance)
 				if err != nil {
 					return reportFailure(reporter, err, "failed to delete gateway instance %q", instance.Name)
