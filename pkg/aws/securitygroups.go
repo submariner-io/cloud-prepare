@@ -140,6 +140,7 @@ func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, d
 
 func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string, error) {
 	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
+
 	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
 	if err != nil {
 		if !isNotFoundError(err) {
@@ -185,6 +186,7 @@ func gatewayDeletionRetriable(err error) bool {
 
 func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
+
 	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
 	if err != nil {
 		if isNotFoundError(err) {

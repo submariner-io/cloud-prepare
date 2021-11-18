@@ -106,6 +106,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 	for i := range untaggedSubnets {
 		subnet := &untaggedSubnets[i]
+
 		if input.Gateways > 0 && len(taggedSubnets) == input.Gateways {
 			break
 		}
@@ -269,7 +270,9 @@ func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publi
 	}
 
 	unstructDecoder := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+
 	machineSet := &unstructured.Unstructured{}
+
 	_, _, err = unstructDecoder.Decode(gatewayYAML, nil, machineSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "error converting YAML to machine set")

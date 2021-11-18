@@ -67,6 +67,7 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 
 	for _, port := range input.InternalPorts {
 		reporter.Started("Opening port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
+
 		err = ac.allowPortInCluster(vpcID, port.Port, port.Protocol)
 		if err != nil {
 			reporter.Failed(err)

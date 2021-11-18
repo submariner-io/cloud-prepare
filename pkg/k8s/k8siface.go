@@ -60,6 +60,7 @@ func (k *k8sIface) ListNodesWithLabel(labelSelector string) (*v1.NodeList, error
 
 func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
 	labelSelector := SubmarinerGatewayLabel + "=true"
+
 	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to list the Gateway nodes in the cluster")

@@ -35,6 +35,7 @@ func filterSubnets(subnets []types.Subnet, filterFunc func(subnet *types.Subnet)
 
 	for i := range subnets {
 		subnet := &subnets[i]
+
 		filterResult, err := filterFunc(subnet)
 		if err != nil {
 			return nil, err

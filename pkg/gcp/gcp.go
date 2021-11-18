@@ -37,6 +37,7 @@ func NewCloud(info CloudInfo) api.Cloud {
 func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, reporter api.Reporter) error {
 	// Create the inbound firewall rule for submariner internal ports.
 	reporter.Started("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(input.InternalPorts))
+
 	internalIngress := newInternalFirewallRule(gc.ProjectID, gc.InfraID, input.InternalPorts)
 	if err := gc.openPorts(internalIngress); err != nil {
 		reporter.Failed(err)
