@@ -5,3 +5,5 @@ Makefile.dapper
 Dockerfile.*
 .idea
 *.coverprofile
+junit.xml
+
