@@ -14,7 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/submariner-io/admiral v0.12.0-m0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
-	google.golang.org/api v0.60.0
+	google.golang.org/api v0.61.0
 	k8s.io/api v0.19.10
 	k8s.io/apimachinery v0.19.10
 	k8s.io/client-go v0.19.10
