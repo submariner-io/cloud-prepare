@@ -19,10 +19,3 @@ require (
 	k8s.io/apimachinery v0.19.16
 	k8s.io/client-go v0.19.16
 )
-
-// Pinned to kubernetes-1.19.10
-replace (
-	k8s.io/api => k8s.io/api v0.19.10
-	k8s.io/apimachinery => k8s.io/apimachinery v0.19.10
-	k8s.io/client-go => k8s.io/client-go v0.19.10
-)
