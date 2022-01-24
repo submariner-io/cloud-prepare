@@ -33,6 +33,10 @@ import (
 
 // Interface wraps an actual AWS SDK ec2 client to allow for easier testing.
 type Interface interface {
+
+	AcceptVpcPeeringConnection(ctx context.Context, input *ec2.AcceptVpcPeeringConnectionInput,
+		optFns ...func( *ec2.Options)) (*ec2.AcceptVpcPeeringConnectionOutput, error)
+
 	AuthorizeSecurityGroupIngress(ctx context.Context, params *ec2.AuthorizeSecurityGroupIngressInput,
 		optFns ...func(*ec2.Options)) (*ec2.AuthorizeSecurityGroupIngressOutput, error)
 
@@ -40,6 +44,10 @@ type Interface interface {
 		optFns ...func(*ec2.Options)) (*ec2.CreateSecurityGroupOutput, error)
 	CreateTags(ctx context.Context, params *ec2.CreateTagsInput,
 		optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
+	CreateRoute(ctx context.Context, input *ec2.CreateRouteInput,
+		optFns ...func( *ec2.Options)) (*ec2.CreateRouteOutput, error)
+	CreateVpcPeeringConnection(ctx context.Context, input *ec2.CreateVpcPeeringConnectionInput,
+		optFns ...func( *ec2.Options)) (*ec2.CreateVpcPeeringConnectionOutput, error)
 
 	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput,
 		optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
@@ -51,6 +59,8 @@ type Interface interface {
 		optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
 	DescribeInstanceTypeOfferings(ctx context.Context, params *ec2.DescribeInstanceTypeOfferingsInput,
 		optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypeOfferingsOutput, error)
+	DescribeRouteTables(ctx context.Context, input *ec2.DescribeRouteTablesInput,
+		optFns ...func(*ec2.Options)) (*ec2.DescribeRouteTablesOutput, error)
 
 	DeleteSecurityGroup(ctx context.Context, params *ec2.DeleteSecurityGroupInput,
 		optFns ...func(*ec2.Options)) (*ec2.DeleteSecurityGroupOutput, error)
@@ -62,6 +72,11 @@ type Interface interface {
 
 type awsClient struct {
 	ec2Client ec2.Client
+}
+
+func (ac *awsClient) AcceptVpcPeeringConnection(ctx context.Context, input *ec2.AcceptVpcPeeringConnectionInput,
+	optFns ...func( *ec2.Options)) (*ec2.AcceptVpcPeeringConnectionOutput, error) {
+	return ac.ec2Client.AcceptVpcPeeringConnection(ctx, input, optFns...)
 }
 
 func (ac *awsClient) AuthorizeSecurityGroupIngress(ctx context.Context, input *ec2.AuthorizeSecurityGroupIngressInput,
@@ -77,6 +92,16 @@ func (ac *awsClient) CreateSecurityGroup(ctx context.Context, input *ec2.CreateS
 func (ac *awsClient) CreateTags(ctx context.Context, input *ec2.CreateTagsInput,
 	optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
 	return ac.ec2Client.CreateTags(ctx, input, optFns...)
+}
+
+func (ac *awsClient) CreateRoute(ctx context.Context, input *ec2.CreateRouteInput,
+	optFns ...func( *ec2.Options)) (*ec2.CreateRouteOutput, error) {
+	return ac.ec2Client.CreateRoute(ctx, input, optFns...)
+}
+
+func (ac *awsClient) CreateVpcPeeringConnection(ctx context.Context, input *ec2.CreateVpcPeeringConnectionInput,
+	optFns ...func( *ec2.Options)) (*ec2.CreateVpcPeeringConnectionOutput, error) {
+	return ac.ec2Client.CreateVpcPeeringConnection(ctx, input, optFns...)
 }
 
 func (ac *awsClient) DescribeInstances(ctx context.Context, input *ec2.DescribeInstancesInput,
@@ -97,6 +122,11 @@ func (ac *awsClient) DescribeSecurityGroups(ctx context.Context, input *ec2.Desc
 func (ac *awsClient) DescribeSubnets(ctx context.Context, input *ec2.DescribeSubnetsInput,
 	optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error) {
 	return ac.ec2Client.DescribeSubnets(ctx, input, optFns...)
+}
+
+func (ac *awsClient) DescribeRouteTables(ctx context.Context, input *ec2.DescribeRouteTablesInput,
+	optFns ...func(*ec2.Options)) (*ec2.DescribeRouteTablesOutput, error) {
+	return ac.ec2Client.DescribeRouteTables(ctx, input, optFns...)
 }
 
 func (ac *awsClient) DeleteSecurityGroup(ctx context.Context, input *ec2.DeleteSecurityGroupInput,
