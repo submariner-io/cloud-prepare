@@ -20,11 +20,11 @@ package aws
 import (
 	"context"
 	"fmt"
+
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
-	"strings"
 )
 
 func (ac *awsCloud) createAWSPeering(target *awsCloud, reporter api.Reporter) error {
@@ -60,27 +60,6 @@ func (ac *awsCloud) createAWSPeering(target *awsCloud, reporter api.Reporter) er
 		return errors.Wrapf(err, "unable to create routes for VPC peering")
 	}
 	reporter.Succeeded("Created VPC Peering")
-	return nil
-}
-
-func (ac *awsCloud) validatePeeringPrerequisites(target *awsCloud, reporter api.Reporter) error {
-	reporter.Started("Validating VPC Peering pre-requisites")
-	srcVpc, err := ac.getVpc()
-	if err != nil {
-		reporter.Failed(err)
-		return errors.Wrapf(err, "unable to validate vpc peering prerequisites for source")
-	}
-	targetVpc, err := target.getVpc()
-	if err != nil {
-		reporter.Failed(err)
-		return errors.Wrapf(err, "unable to validate vpc peering prerequisites for target")
-	}
-	if strings.Compare(*srcVpc.CidrBlock, *targetVpc.CidrBlock) == 0 {
-		err = errors.Errorf("source [%v] and target [%v] CIDR Blocks must be different", srcVpc.CidrBlock, targetVpc.CidrBlock)
-		reporter.Failed(err)
-		return err
-	}
-	reporter.Succeeded("Validated VPC Peering pre-requisites")
 	return nil
 }
 

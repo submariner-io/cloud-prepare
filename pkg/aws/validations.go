@@ -20,11 +20,13 @@ package aws
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
+	"github.com/submariner-io/cloud-prepare/pkg/api"
 )
 
 const permissionsTest = "permissions-test"
@@ -130,4 +132,49 @@ func (ac *awsCloud) validateRemoveTag(subnetID *string) error {
 	})
 
 	return determinePermissionError(err, "delete tags from subnets")
+}
+
+// validatePeeringPrerequisites checks info to determine if a VPC-Peering should work
+func (ac *awsCloud) validatePeeringPrerequisites(target *awsCloud, reporter api.Reporter) error {
+	reporter.Started("Validating VPC Peering pre-requisites")
+
+	srcVpc, err := ac.getVpc()
+	if err != nil {
+		reporter.Failed(err)
+		return errors.Wrapf(err, "unable to validate vpc peering prerequisites for source")
+	}
+
+	targetVpc, err := target.getVpc()
+	if err != nil {
+		reporter.Failed(err)
+		return errors.Wrapf(err, "unable to validate vpc peering prerequisites for target")
+	}
+
+	overlap, err := checkVpcOverlap(srcVpc, targetVpc)
+	if err != nil {
+		reporter.Failed(err)
+		return err
+	} else if overlap {
+		err = errors.Errorf("source [%v] and target [%v] CIDR Blocks must be different", srcVpc.CidrBlock, targetVpc.CidrBlock)
+		reporter.Failed(err)
+		return err
+	}
+
+	reporter.Succeeded("Validated VPC Peering pre-requisites")
+	return nil
+}
+
+// checkVpcOverlap checks CIDR Blocks of networks A and B overlaps
+func checkVpcOverlap(a *types.Vpc, b *types.Vpc) (bool, error) {
+	_, netA, err := net.ParseCIDR(*a.CidrBlock)
+	if err != nil {
+		return false, err
+	}
+
+	_, netB, err := net.ParseCIDR(*b.CidrBlock)
+	if err != nil {
+		return false, err
+	}
+
+	return netA.Contains(netB.IP) || netB.Contains(netA.IP), nil
 }
