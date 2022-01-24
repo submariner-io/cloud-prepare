@@ -46,6 +46,9 @@ type Cloud interface {
 	// PrepareForSubmariner will prepare the cloud for Submariner to operate on.
 	PrepareForSubmariner(input PrepareForSubmarinerInput, reporter Reporter) error
 
+	// CreateVpcPeering Creates a VPC Peering to the target cloud
+	CreateVpcPeering(target Cloud, reporter Reporter) error
+
 	// CleanupAfterSubmariner will clean up the cloud after Submariner is removed.
 	CleanupAfterSubmariner(reporter Reporter) error
 }

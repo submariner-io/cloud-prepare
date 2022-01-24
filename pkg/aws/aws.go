@@ -101,6 +101,7 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 	reporter.Started(messageValidatePrerequisites)
 
 	err = ac.validatePreparePrerequisites(vpcID)
+
 	if err != nil {
 		reporter.Failed(err)
 		return err
@@ -110,8 +111,8 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 
 	for _, port := range input.InternalPorts {
 		reporter.Started("Opening port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
-
 		err = ac.allowPortInCluster(vpcID, port.Port, port.Protocol)
+
 		if err != nil {
 			reporter.Failed(err)
 			return err
@@ -125,6 +126,35 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 
 func (ac *awsCloud) validatePreparePrerequisites(vpcID string) error {
 	return ac.validateCreateSecGroupRule(vpcID)
+}
+
+// CreateVpcPeering Creates a VPC Peering to the target cloud. Only the same
+// Cloud Provider is supported.
+func (ac *awsCloud) CreateVpcPeering(target api.Cloud, reporter api.Reporter) error {
+	targetCloud, ok := target.(*awsCloud)
+
+	if !ok {
+		err := errors.Errorf("only AWS clients are supported")
+		reporter.Failed(err)
+
+		return err
+	}
+
+	return ac.createAWSPeering(targetCloud, reporter)
+}
+
+// CleanupVpcPeering Removes the VPC Peering with the target cloud and the related Routes.
+func (ac *awsCloud) CleanupVpcPeering(target api.Cloud, reporter api.Reporter) error {
+	targetCloud, ok := target.(*awsCloud)
+
+	if !ok {
+		err := errors.Errorf("only AWS clients are supported")
+		reporter.Failed(err)
+
+		return err
+	}
+
+	return ac.cleanupVpcPeering(targetCloud, reporter)
 }
 
 func (ac *awsCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
@@ -151,6 +181,7 @@ func (ac *awsCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 	reporter.Started("Revoking intra-cluster communication permissions")
 
 	err = ac.revokePortsInCluster(vpcID)
+
 	if err != nil {
 		reporter.Failed(err)
 		return err

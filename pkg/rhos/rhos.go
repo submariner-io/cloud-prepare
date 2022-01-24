@@ -88,3 +88,14 @@ func (rc *rhosCloud) CleanupAfterSubmariner(reporter api.Reporter) error {
 
 	return nil
 }
+
+// CreateVpcPeering Creates a VPC Peering to the target cloud. Only the same
+// Cloud Provider is supported.
+func (rc *rhosCloud) CreateVpcPeering(target api.Cloud, reporter api.Reporter) error {
+	return errors.New("RHOS CreateVpcPeering not implemented")
+}
+
+// CleanupVpcPeering Removes the VPC Peering with the target cloud and the related Routes.
+func (rc *rhosCloud) CleanupVpcPeering(target api.Cloud, reporter api.Reporter) error {
+	return errors.New("RHOS CleanupVpcPeering not implemented")
+}

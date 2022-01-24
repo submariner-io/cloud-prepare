@@ -27,6 +27,15 @@ import (
 )
 
 func (ac *awsCloud) getVpcID() (string, error) {
+	vpc, err := ac.getVpc()
+	if err != nil {
+		return "", errors.Wrapf(err, "unable to retrieve AWS VPC ID")
+	}
+
+	return *vpc.VpcId, nil
+}
+
+func (ac *awsCloud) getVpc() (*types.Vpc, error) {
 	vpcName := ac.withAWSInfo("{infraID}-vpc")
 	filters := []types.Filter{
 		ac.filterByName(vpcName),
@@ -35,12 +44,12 @@ func (ac *awsCloud) getVpcID() (string, error) {
 
 	result, err := ac.client.DescribeVpcs(context.TODO(), &ec2.DescribeVpcsInput{Filters: filters})
 	if err != nil {
-		return "", errors.Wrap(err, "error describing AWS VPCs")
+		return nil, errors.Wrap(err, "error describing AWS VPCs")
 	}
 
 	if len(result.Vpcs) == 0 {
-		return "", newNotFoundError("VPC %s", vpcName)
+		return nil, newNotFoundError("not VPC found for %q", vpcName)
 	}
 
-	return *result.Vpcs[0].VpcId, nil
+	return &result.Vpcs[0], nil
 }

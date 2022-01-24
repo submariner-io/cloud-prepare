@@ -19,10 +19,17 @@ limitations under the License.
 package gcp
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
+	gcpclient "github.com/submariner-io/cloud-prepare/pkg/gcp/client"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/dns/v1"
+	"google.golang.org/api/option"
 )
 
 type gcpCloud struct {
@@ -32,6 +39,50 @@ type gcpCloud struct {
 // NewCloud creates a new api.Cloud instance which can prepare GCP for Submariner to be deployed on it.
 func NewCloud(info CloudInfo) api.Cloud {
 	return &gcpCloud{CloudInfo: info}
+}
+
+// newCloudInfoFromConfig creates a new CloudInfo instance based on an AWS configuration.
+func newCloudInfoFromConfig(gcpClient gcpclient.Interface, projectID, infraID, region string) *CloudInfo {
+	return &CloudInfo{
+		ProjectID: projectID,
+		InfraID:   infraID,
+		Region:    region,
+		Client:    gcpClient,
+	}
+}
+
+// NewCloudInfoFromSettings creates a new CloudInfo instance using the given credentials file and profile.
+func NewCloudInfoFromSettings(credentialsFile, projectID, infraID, region string) (*CloudInfo, error) {
+	creds, err := getGCPCredentials(credentialsFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve GCP credentials")
+	}
+
+	options := []option.ClientOption{
+		option.WithCredentials(creds),
+		option.WithUserAgent("open-cluster-management.io submarineraddon/v1"),
+	}
+
+	gcpClient, err := gcpclient.NewClient(projectID, options)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize GCP Client")
+	}
+
+	return newCloudInfoFromConfig(gcpClient, projectID, infraID, region), nil
+}
+
+func getGCPCredentials(credentialsFile string) (*google.Credentials, error) {
+	authJSON, err := os.ReadFile(credentialsFile)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error reading file %q", credentialsFile)
+	}
+
+	creds, err := google.CredentialsFromJSON(context.TODO(), authJSON, dns.CloudPlatformScope)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error parsing credentials file")
+	}
+
+	return creds, nil
 }
 
 // PrepareForSubmariner prepares submariner cluster environment on GCP.
@@ -49,6 +100,17 @@ func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, re
 		formatPorts(input.InternalPorts), internalIngress.Name)
 
 	return nil
+}
+
+// CreateVpcPeering Creates a VPC Peering to the target cloud. Only the same
+// Cloud Provider is supported.
+func (gc *gcpCloud) CreateVpcPeering(target api.Cloud, reporter api.Reporter) error {
+	return errors.New("GCP CreateVpcPeering not implemented")
+}
+
+// CleanupVpcPeering Removes the VPC Peering with the target cloud and the related Routes.
+func (gc *gcpCloud) CleanupVpcPeering(target api.Cloud, reporter api.Reporter) error {
+	return errors.New("GCP CleanupVpcPeering not implemented")
 }
 
 // CleanupAfterSubmariner clean up submariner cluster environment on GCP.
