@@ -32,37 +32,34 @@ func (ac *awsCloud) createAWSPeering(target *awsCloud, reporter api.Reporter) er
 	err := ac.validatePeeringPrerequisites(target, reporter)
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to validate vpc peering prerequisites")
 	}
 	sourceVpcId, err := ac.getVpcID()
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to retrieve source VPC ID")
 	}
 	targetVpcId, err := target.getVpcID()
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to retrieve target VPC ID")
 	}
 	peering, err := ac.requestPeering(sourceVpcId, targetVpcId, target, reporter)
 	if err != nil {
-		return err
+		reporter.Failed(err)
+		return errors.Wrapf(err, "unable to request VPC peering")
 	}
 	err = target.acceptPeering(peering.VpcPeeringConnectionId, reporter)
 	if err != nil {
 		reporter.Failed(err)
-		return err
-	}
-	if err != nil {
-		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to accept VPC peering")
 	}
 	err = ac.createRoutesForPeering(target, sourceVpcId, targetVpcId, peering, reporter)
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to create routes for VPC peering")
 	}
-	reporter.Succeeded("")
+	reporter.Succeeded("Created VPC Peering")
 	return nil
 }
 
@@ -70,14 +67,18 @@ func (ac *awsCloud) validatePeeringPrerequisites(target *awsCloud, reporter api.
 	reporter.Started("Validating VPC Peering pre-requisites")
 	srcVpc, err := ac.getVpc()
 	if err != nil {
-		return err
+		reporter.Failed(err)
+		return errors.Wrapf(err, "unable to validate vpc peering prerequisites for source")
 	}
 	targetVpc, err := target.getVpc()
 	if err != nil {
-		return err
+		reporter.Failed(err)
+		return errors.Wrapf(err, "unable to validate vpc peering prerequisites for target")
 	}
 	if strings.Compare(*srcVpc.CidrBlock, *targetVpc.CidrBlock) == 0 {
-		return errors.Errorf("source [%v] and target [%v] CIDR Blocks must be different", srcVpc.CidrBlock, targetVpc.CidrBlock)
+		err = errors.Errorf("source [%v] and target [%v] CIDR Blocks must be different", srcVpc.CidrBlock, targetVpc.CidrBlock)
+		reporter.Failed(err)
+		return err
 	}
 	reporter.Succeeded("Validated VPC Peering pre-requisites")
 	return nil
@@ -101,7 +102,7 @@ func (ac *awsCloud) requestPeering(srcVpcId, targetVpcId string, target *awsClou
 	output, err := ac.client.CreateVpcPeeringConnection(context.TODO(), input)
 	if err != nil {
 		reporter.Failed(err)
-		return nil, err
+		return nil, errors.Wrapf(err, "unable to request VPC peering")
 	}
 	peering := output.VpcPeeringConnection
 	reporter.Succeeded("Requested VPC Peering with ID %v", peering.VpcPeeringConnectionId)
@@ -116,7 +117,7 @@ func (ac *awsCloud) acceptPeering(peeringId *string, reporter api.Reporter) erro
 	_, err := ac.client.AcceptVpcPeeringConnection(context.TODO(), input)
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to accept VPC peering connection %v", peeringId)
 	}
 	reporter.Succeeded("Accepted VPC Peering with id: %v", peeringId)
 	return nil
@@ -126,6 +127,10 @@ func (ac *awsCloud) createRoutesForPeering(target *awsCloud, srcVpcId, targetVpc
 	reporter.Started("Create VPC Peering")
 
 	routeTableId, err := ac.getRouteTableId(srcVpcId, reporter)
+	if err != nil {
+		reporter.Failed(err)
+		return errors.Wrapf(err, "unable to create route for %v", srcVpcId)
+	}
 	input := &ec2.CreateRouteInput{
 		RouteTableId:           routeTableId,
 		DestinationCidrBlock:   peering.AccepterVpcInfo.CidrBlock,
@@ -134,10 +139,13 @@ func (ac *awsCloud) createRoutesForPeering(target *awsCloud, srcVpcId, targetVpc
 	_, err = ac.client.CreateRoute(context.TODO(), input)
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to create route for %v", srcVpcId)
 	}
-
 	routeTableId, err = target.getRouteTableId(targetVpcId, reporter)
+	if err != nil {
+		reporter.Failed(err)
+		return errors.Wrapf(err, "unable to create route for %v", targetVpcId)
+	}
 	input = &ec2.CreateRouteInput{
 		RouteTableId:           routeTableId,
 		DestinationCidrBlock:   peering.RequesterVpcInfo.CidrBlock,
@@ -146,7 +154,7 @@ func (ac *awsCloud) createRoutesForPeering(target *awsCloud, srcVpcId, targetVpc
 	_, err = target.client.CreateRoute(context.TODO(), input)
 	if err != nil {
 		reporter.Failed(err)
-		return err
+		return errors.Wrapf(err, "unable to create route for %v", targetVpcId)
 	}
 	reporter.Succeeded("Created Routes for VPC Peering connection %v", peering.VpcPeeringConnectionId)
 	return nil
