@@ -62,7 +62,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	reporter.Succeeded("Opened External ports %q in security group %q on RHOS",
 		formatPorts(input.PublicPorts), groupName)
 
-	reporter.Started("Configuring the required number of gateway pods")
+	reporter.Started("Configuring the required number of Submariner gateway pods")
 
 	gwNodes, err := d.K8sClient.ListGatewayNodes()
 	if err != nil {
@@ -72,7 +72,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 	numGatewayNodes := len(gwNodes.Items)
 
 	if numGatewayNodes == input.Gateways {
-		reporter.Succeeded("Current gateways match the required number of gateways")
+		reporter.Succeeded("Current Submariner gateways match the required number of Submariner gateways")
 		return nil
 	}
 
@@ -94,20 +94,20 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 				continue
 			}
 
-			reporter.Started(fmt.Sprintf("Configuring worker node %q as gateway node", nodes[i].Name))
+			reporter.Started(fmt.Sprintf("Configuring worker node %q as Submariner gateway node", nodes[i].Name))
 
 			err := d.K8sClient.AddGWLabelOnNode(nodes[i].Name)
 			if err != nil {
-				return errors.WithMessagef(err, "failed to label the node %q as gateway node", nodes[i].Name)
+				return errors.WithMessagef(err, "failed to label the node %q as Submariner gateway node", nodes[i].Name)
 			}
 
 			if err := d.openGatewayPort(groupName, nodes[i].Name, computeClient); err != nil {
-				return errors.WithMessage(err, "failed to open the gateway port")
+				return errors.WithMessage(err, "failed to open the Submariner gateway port")
 			}
 
 			gatewayNodesToDeploy--
 			if gatewayNodesToDeploy <= 0 {
-				reporter.Succeeded("Successfully deployed gateway node")
+				reporter.Succeeded("Successfully deployed Submariner gateway node")
 				return nil
 			}
 		}
@@ -122,7 +122,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 }
 
 func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
-	reporter.Started("Removing the gateway configuration from nodes ")
+	reporter.Started("Removing the Submariner gateway configuration from nodes ")
 
 	computeClient, err := openstack.NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
 	if err != nil {
@@ -131,8 +131,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 
 	gwNodesList, err := d.K8sClient.ListGatewayNodes()
 	if err != nil {
-		reporter.Failed(err)
-		return errors.WithMessage(err, "error listing the gateway nodes")
+		return errors.WithMessage(err, "error listing the Submariner gateway nodes")
 	}
 
 	groupName := d.InfraID + gwSecurityGroupSuffix
@@ -141,27 +140,25 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	for i := range gwNodes {
 		err = d.removeGWFirewallRules(groupName, gwNodes[i].Name, computeClient)
 		if err != nil {
-			reporter.Failed(err)
-			return errors.WithMessage(err, "error deleting the gateway secutiy group rules")
+			return errors.WithMessage(err, "error deleting the Submariner gateway security group rules")
 		}
 	}
 
 	err = d.K8sClient.RemoveGWLabelFromWorkerNodes()
 	if err != nil {
-		reporter.Failed(err)
 		return errors.WithMessage(err, "failed to remove labels from worker node")
 	}
 
-	reporter.Succeeded("Successfully removed the gateway configuration from the nodes")
+	reporter.Succeeded("Successfully removed the Submariner gateway configuration from the nodes")
 
 	reporter.Started("Retrieving the Submariner gateway firewall rules")
 
 	err = d.deleteSG(groupName, computeClient)
 	if err != nil {
-		return errors.WithMessage(err, "error deleting the gateway security group")
+		return errors.WithMessage(err, "error deleting the Submariner gateway security group")
 	}
 
-	reporter.Succeeded("Successfully deleted the g/w firewall rules")
+	reporter.Succeeded("Successfully deleted the Submariner Submariner gateway firewall rules")
 
 	return nil
 }

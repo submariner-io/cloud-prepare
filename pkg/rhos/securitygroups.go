@@ -80,11 +80,7 @@ func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec,
 		return true, nil
 	})
 
-	if err != nil {
-		return errors.WithMessagef(err, "failed to open ports")
-	}
-
-	return nil
+	return errors.WithMessagef(err, "failed to open ports")
 }
 
 func (c *CloudInfo) removeInternalFirewallRules(infraID string,
@@ -104,23 +100,19 @@ func (c *CloudInfo) removeInternalFirewallRules(infraID string,
 
 		return true, nil
 	})
-	if err != nil {
-		return errors.WithMessage(err, "failed to removed security group from servers")
-	}
 
-	return nil
+	return errors.WithMessage(err, "failed to removed security group from servers")
 }
 
 func (c *CloudInfo) createGWSecurityGroup(ports []api.PortSpec, groupName string, computeClient *gophercloud.ServiceClient,
 	networkClient *gophercloud.ServiceClient) error {
 	isFound, err := checkIfSecurityGroupPresent(groupName, computeClient)
+	if err != nil {
+		return err
+	}
 
 	if isFound {
 		return nil
-	}
-
-	if err != nil {
-		return err
 	}
 
 	opts := secgroups.CreateOpts{
@@ -158,15 +150,7 @@ func checkIfSecurityGroupPresent(groupName string, computeClient *gophercloud.Se
 		return true, errors.WithMessagef(err, "failed to extract the security group %q from results", groupName)
 	})
 
-	if isFound {
-		return true, nil
-	}
-
-	if err != nil {
-		return false, errors.WithMessagef(err, "error getting the security group : %q", groupName)
-	}
-
-	return false, nil
+	return isFound, errors.WithMessagef(err, "error getting the security group : %q", groupName)
 }
 
 func (c *CloudInfo) openGatewayPort(groupName, nodeName string, computeClient *gophercloud.ServiceClient) error {
@@ -188,11 +172,8 @@ func (c *CloudInfo) openGatewayPort(groupName, nodeName string, computeClient *g
 
 		return true, nil
 	})
-	if err != nil {
-		return errors.WithMessagef(err, "Open gateway ports failed")
-	}
 
-	return nil
+	return errors.WithMessagef(err, "open gateway ports failed")
 }
 
 func (c *CloudInfo) removeGWFirewallRules(groupName, nodeName string, computeClient *gophercloud.ServiceClient) error {
@@ -202,7 +183,7 @@ func (c *CloudInfo) removeGWFirewallRules(groupName, nodeName string, computeCli
 	err := pager.EachPage(func(page pagination.Page) (bool, error) {
 		serverList, err := servers.ExtractServers(page)
 		if err != nil {
-			return false, errors.WithMessagef(err, "getting the server list failed:")
+			return false, errors.WithMessagef(err, "getting the server list failed")
 		}
 		for i := range serverList {
 			err = secgroups.RemoveServer(computeClient, serverList[i].ID, groupName).ExtractErr()
@@ -213,11 +194,8 @@ func (c *CloudInfo) removeGWFirewallRules(groupName, nodeName string, computeCli
 
 		return true, nil
 	})
-	if err != nil {
-		return errors.WithMessagef(err, "removing firewall rules failed for security group %q", groupName)
-	}
 
-	return nil
+	return errors.WithMessagef(err, "removing firewall rules failed for security group %q", groupName)
 }
 
 func (c *CloudInfo) deleteSG(groupName string, computeClient *gophercloud.ServiceClient) error {
@@ -239,15 +217,11 @@ func (c *CloudInfo) deleteSG(groupName string, computeClient *gophercloud.Servic
 		return true, errors.WithMessagef(err, "error finding the uuid for the security group: %q", groupName)
 	})
 
-	if isFound {
+	if err != nil && isFound {
 		err = secgroups.Delete(computeClient, securityGroupID).ExtractErr()
 	}
 
-	if err != nil {
-		return errors.WithMessagef(err, "error deleting the security group %q", groupName)
-	}
-
-	return nil
+	return errors.WithMessagef(err, "error deleting the security group %q", groupName)
 }
 
 func (c *CloudInfo) createSGRule(group, remoteGroupID, remoteIPPrefix string, port uint16,
