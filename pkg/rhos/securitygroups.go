@@ -95,13 +95,22 @@ func (c *CloudInfo) removeInternalFirewallRules(infraID string,
 			return false, errors.WithMessage(err, "getting the server List failed")
 		}
 		for i := range serverList {
-			_ = secgroups.RemoveServer(computeClient, serverList[i].ID, groupName).ExtractErr()
+			err = secgroups.RemoveServer(computeClient, serverList[i].ID, groupName).ExtractErr()
+			if err != nil {
+				notFoundError := &gophercloud.ErrDefault404{}
+				if errors.As(err, notFoundError) {
+					continue
+				}
+
+				return false, errors.WithMessagef(err, "failed to remove the internal firewall for "+
+					"the server: %q ", serverList[i].Name)
+			}
 		}
 
 		return true, nil
 	})
 
-	return errors.WithMessage(err, "failed to removed security group from servers")
+	return errors.WithMessage(err, "failed to remove security group from servers")
 }
 
 func (c *CloudInfo) createGWSecurityGroup(ports []api.PortSpec, groupName string, computeClient *gophercloud.ServiceClient,
@@ -188,7 +197,13 @@ func (c *CloudInfo) removeGWFirewallRules(groupName, nodeName string, computeCli
 		for i := range serverList {
 			err = secgroups.RemoveServer(computeClient, serverList[i].ID, groupName).ExtractErr()
 			if err != nil {
-				return false, errors.WithMessagef(err, "failed to remove the firewall for the server: %q", serverList[i].Name)
+				notFoundError := &gophercloud.ErrDefault404{}
+				if errors.As(err, notFoundError) {
+					continue
+				}
+
+				return false, errors.WithMessagef(err, "failed to remove the firewall for"+
+					" the server: %q", serverList[i].Name)
 			}
 		}
 
@@ -212,12 +227,13 @@ func (c *CloudInfo) deleteSG(groupName string, computeClient *gophercloud.Servic
 			if s.Name == groupName {
 				isFound = true
 				securityGroupID = s.ID
+				return true, nil
 			}
 		}
 		return true, errors.WithMessagef(err, "error finding the uuid for the security group: %q", groupName)
 	})
 
-	if err != nil && isFound {
+	if err == nil && isFound {
 		err = secgroups.Delete(computeClient, securityGroupID).ExtractErr()
 	}
 

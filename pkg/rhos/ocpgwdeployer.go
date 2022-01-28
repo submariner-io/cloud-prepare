@@ -32,8 +32,7 @@ type ocpGatewayDeployer struct {
 	projectID string
 }
 
-// NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP
-// If the supplied cloud is not a RHOS, an error is returned.
+// NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
 func NewOcpGatewayDeployer(info CloudInfo, projectID string) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
 		CloudInfo: info,
@@ -66,7 +65,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 	gwNodes, err := d.K8sClient.ListGatewayNodes()
 	if err != nil {
-		return errors.WithMessagef(err, "Listing the existing gatway nodes failed")
+		return errors.WithMessagef(err, "listing the existing gatway nodes failed")
 	}
 
 	numGatewayNodes := len(gwNodes.Items)
@@ -84,7 +83,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.R
 
 		workerNodes, err := d.K8sClient.ListNodesWithLabel("node-role.kubernetes.io/worker")
 		if err != nil {
-			return errors.WithMessagef(err, "failed to list k8s nodes  in project %q", d.projectID)
+			return errors.WithMessagef(err, "failed to list k8s nodes in project %q", d.projectID)
 		}
 
 		nodes := workerNodes.Items
@@ -140,7 +139,8 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 	for i := range gwNodes {
 		err = d.removeGWFirewallRules(groupName, gwNodes[i].Name, computeClient)
 		if err != nil {
-			return errors.WithMessage(err, "error deleting the Submariner gateway security group rules")
+			return errors.WithMessagef(err, "error deleting the Submariner gateway security group rules from node: %q",
+				gwNodes[i].Name)
 		}
 	}
 
@@ -151,7 +151,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 
 	reporter.Succeeded("Successfully removed the Submariner gateway configuration from the nodes")
 
-	reporter.Started("Retrieving the Submariner gateway firewall rules")
+	reporter.Started("Deleting the Submariner gateway security group")
 
 	err = d.deleteSG(groupName, computeClient)
 	if err != nil {
