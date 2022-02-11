@@ -208,7 +208,7 @@ func (d *ocpGatewayDeployer) deployGWNode(gwNodes *v1.NodeList, gatewayCount int
 
 				err := d.K8sClient.AddGWLabelOnNode(nodes[i].Name)
 				if err != nil {
-					return errors.Wrap(err, fmt.Sprintf("failed to label the node %q as Submariner gateway node", nodes[i].Name))
+					return errors.Wrapf(err, "failed to label the node %q as Submariner gateway node", nodes[i].Name)
 				}
 			}
 
@@ -237,7 +237,7 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 
 	computeClient, err := openstack.NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error creating the compute client for the region: %q", d.Region))
+		return errors.Wrapf(err, "error creating the compute client for the region: %q", d.Region)
 	}
 
 	gwNodesList, err := d.K8sClient.ListGatewayNodes()
@@ -262,16 +262,16 @@ func (d *ocpGatewayDeployer) Cleanup(reporter api.Reporter) error {
 
 			err = d.deleteGateway(strconv.Itoa(i))
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error deleting the Submariner gateway security group rules from node: %q",
-					gwNodes[i].Name))
+				return errors.Wrapf(err, "error deleting the Submariner gateway security group rules from node: %q",
+					gwNodes[i].Name)
 			}
 
 			reporter.Succeeded("Successfully deleted the instance")
 		} else {
 			err = d.removeGWFirewallRules(groupName, gwNodes[i].Name, computeClient)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("error deleting the Submariner gateway security group rules from node: %q",
-					gwNodes[i].Name))
+				return errors.Wrapf(err, "error deleting the Submariner gateway security group rules from node: %q",
+					gwNodes[i].Name)
 			}
 
 			reporter.Started(fmt.Sprintf("Removing the gateway configuration from instance %q", gwNodes[i].Name))
