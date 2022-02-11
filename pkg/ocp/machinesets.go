@@ -105,7 +105,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, ma
 		}
 	}
 
-	return "", fmt.Errorf("could not retrieve the image of one of the worker nodes on gcp infra %q", infraID)
+	return "", errors.Wrap(err, fmt.Sprintf("could not retrieve the image of one of the worker nodes on gcp infra %q", infraID))
 }
 
 func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
