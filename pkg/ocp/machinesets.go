@@ -76,7 +76,6 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, ma
 		return "", err
 	}
 
-	// TODO: After implementing a ListAll method in admiral, modify this code accordingly.
 	for _, nodeName := range workerNodeList {
 		existing, err := machineSetClient.Get(context.TODO(), nodeName, metav1.GetOptions{})
 		if apierrors.IsNotFound(err) {
@@ -105,7 +104,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, ma
 		}
 	}
 
-	return "", fmt.Errorf("could not retrieve the image of one of the worker nodes on rhos infra %q", infraID)
+	return "", fmt.Errorf("could not retrieve the image of one of the worker nodes from the infra %q", infraID)
 }
 
 func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
