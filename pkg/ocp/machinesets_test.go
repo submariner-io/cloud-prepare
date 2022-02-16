@@ -44,10 +44,11 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	)
 
 	var (
-		msClient   dynamic.ResourceInterface
-		dynClient  *fakeClient.FakeDynamicClient
-		deployer   ocp.MachineSetDeployer
-		machineSet *unstructured.Unstructured
+		msClient       dynamic.ResourceInterface
+		dynClient      *fakeClient.FakeDynamicClient
+		deployer       ocp.MachineSetDeployer
+		machineSet     *unstructured.Unstructured
+		workerNodeList = []string{infraID + "-worker-b", infraID + "-worker-c", infraID + "-worker-d"}
 	)
 
 	BeforeEach(func() {
@@ -62,7 +63,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	Context("on GetWorkerNodeImage", func() {
 		When("no worker node exists", func() {
 			It("should return an error", func() {
-				_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+				_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
 				Expect(err).ToNot(Succeed())
 			})
 		})
@@ -89,7 +90,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				})
 
 				It("should return its disk image", func() {
-					image, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+					image, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
 					Expect(err).To(Succeed())
 					Expect(image).To(Equal("some-image"))
 				})
@@ -97,7 +98,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 			Context("and has no disks", func() {
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
 					Expect(err).ToNot(Succeed())
 				})
 			})
@@ -111,7 +112,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				})
 
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
 					Expect(err).To(ContainErrorSubstring(expectedErr))
 				})
 			})

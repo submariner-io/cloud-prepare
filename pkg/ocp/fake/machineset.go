@@ -80,7 +80,7 @@ func (mr *MockMachineSetDeployerMockRecorder) Deploy(machineSet interface{}) *go
 }
 
 // GetWorkerNodeImage mocks base method.
-func (m *MockMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error) {
+func (m *MockMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured, infraID string) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetWorkerNodeImage", machineSet, infraID)
 	ret0, _ := ret[0].(string)

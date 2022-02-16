@@ -252,10 +252,10 @@ func (t *interfaceTestDriver) assertNoLabel(name, key string) {
 
 func assertNodeNames(list *corev1.NodeList, expNodes ...string) {
 	actual := []string{}
+	nodes := list.Items
 
 	for i := range list.Items {
-		node := &list.Items[i]
-		actual = append(actual, node.Name)
+		actual = append(actual, nodes[i].Name)
 	}
 
 	if expNodes == nil {
