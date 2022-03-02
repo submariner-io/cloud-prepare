@@ -35,12 +35,10 @@ import (
 type Interface interface {
 	AuthorizeSecurityGroupIngress(ctx context.Context, params *ec2.AuthorizeSecurityGroupIngressInput,
 		optFns ...func(*ec2.Options)) (*ec2.AuthorizeSecurityGroupIngressOutput, error)
-
 	CreateSecurityGroup(ctx context.Context, params *ec2.CreateSecurityGroupInput,
 		optFns ...func(*ec2.Options)) (*ec2.CreateSecurityGroupOutput, error)
 	CreateTags(ctx context.Context, params *ec2.CreateTagsInput,
 		optFns ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error)
-
 	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput,
 		optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
 	DescribeVpcs(ctx context.Context, params *ec2.DescribeVpcsInput,
@@ -51,11 +49,9 @@ type Interface interface {
 		optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
 	DescribeInstanceTypeOfferings(ctx context.Context, params *ec2.DescribeInstanceTypeOfferingsInput,
 		optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypeOfferingsOutput, error)
-
 	DeleteSecurityGroup(ctx context.Context, params *ec2.DeleteSecurityGroupInput,
 		optFns ...func(*ec2.Options)) (*ec2.DeleteSecurityGroupOutput, error)
 	DeleteTags(ctx context.Context, params *ec2.DeleteTagsInput, optFns ...func(*ec2.Options)) (*ec2.DeleteTagsOutput, error)
-
 	RevokeSecurityGroupIngress(ctx context.Context, params *ec2.RevokeSecurityGroupIngressInput,
 		optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupIngressOutput, error)
 }
