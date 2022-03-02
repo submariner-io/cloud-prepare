@@ -94,7 +94,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, ma
 			}
 		} else {
 			for _, o := range disks {
-				disk := o.(map[string]interface{}) // nolint:forcetypeassert // This is expected to be a map so just panic if not.
+				disk := o.(map[string]interface{})
 
 				image, _, _ := unstructured.NestedString(disk, "image")
 				if image != "" {
