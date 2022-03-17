@@ -2,7 +2,7 @@ output/
 vendor/
 .dapper
 Makefile.dapper
-Dockerfile.*
+/Dockerfile.*
 .idea
 *.coverprofile
 junit.xml
