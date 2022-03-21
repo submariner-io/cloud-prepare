@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.15.0
 	github.com/aws/aws-sdk-go-v2/config v1.15.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.10.0
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.31.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.32.0
 	github.com/aws/smithy-go v1.11.1
 	github.com/golang/mock v1.6.0
 	github.com/gophercloud/gophercloud v0.24.0
@@ -14,7 +14,7 @@ require (
 	github.com/onsi/gomega v1.18.1
 	github.com/pkg/errors v0.9.1
 	github.com/submariner-io/admiral v0.12.0-m3
-	google.golang.org/api v0.71.0
+	google.golang.org/api v0.73.0
 	k8s.io/api v0.19.16
 	k8s.io/apimachinery v0.19.16
 	k8s.io/client-go v0.19.16
