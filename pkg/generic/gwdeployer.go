@@ -21,7 +21,7 @@ package generic
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
+	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	v1 "k8s.io/api/core/v1"
@@ -36,17 +36,16 @@ func NewGatewayDeployer(k8sClient k8s.Interface) api.GatewayDeployer {
 	return &gatewayDeployer{k8sClient: k8sClient}
 }
 
-func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Reporter) error {
+func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, status reporter.Interface) error {
 	gwNodes, err := g.k8sClient.ListGatewayNodes()
 	if err != nil {
-		reporter.Failed(err)
-		return errors.Wrap(err, "error listing the gateway nodes")
+		return status.Error(err, "error listing the gateway nodes")
 	}
 
 	gatewayNodesToDeploy := input.Gateways - len(gwNodes.Items)
 
 	if gatewayNodesToDeploy == 0 {
-		reporter.Succeeded("Current gateways match the desired number of gateways")
+		status.Success("Current gateways match the desired number of gateways")
 		return nil
 	}
 
@@ -54,14 +53,13 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 	// to convert a non-HA deployment to an HA deployment. We are not supporting decreasing the Gateway
 	// nodes (for now) as it might impact the datapath if we accidentally delete the active GW node.
 	if gatewayNodesToDeploy < 0 {
-		reporter.Failed(fmt.Errorf("decreasing the number of Gateway nodes is not currently supported"))
+		status.Failure("Decreasing the number of Gateway nodes is not currently supported")
 		return nil
 	}
 
 	nonGWNodes, err := g.k8sClient.ListNodesWithLabel("!submariner.io/gateway")
 	if err != nil {
-		reporter.Failed(err)
-		return errors.Wrap(err, "error listing the gateway nodes")
+		return status.Error(err, "error listing the gateway nodes")
 	}
 
 	for i := range nonGWNodes.Items {
@@ -73,33 +71,31 @@ func (g *gatewayDeployer) Deploy(input api.GatewayDeployInput, reporter api.Repo
 
 		err = g.k8sClient.AddGWLabelOnNode(node.Name)
 		if err != nil {
-			reporter.Failed(err)
-			return errors.Wrapf(err, "error adding the gateway label on node %q", node.Name)
+			return status.Error(err, "error adding the gateway label on node %q", node.Name)
 		}
 
 		gatewayNodesToDeploy--
 
 		if gatewayNodesToDeploy <= 0 {
-			reporter.Succeeded("Successfully deployed gateway nodes")
+			status.Success("Successfully deployed gateway nodes")
 			return nil
 		}
 	}
 
 	err = fmt.Errorf("there are an insufficient number of worker nodes (%d) to satisfy the desired number of gateways (%d)",
 		len(nonGWNodes.Items), input.Gateways)
-	reporter.Failed(err)
+	status.Failure(err.Error())
 
 	return err
 }
 
-func (g *gatewayDeployer) Cleanup(reporter api.Reporter) error {
+func (g *gatewayDeployer) Cleanup(status reporter.Interface) error {
 	err := g.k8sClient.RemoveGWLabelFromWorkerNodes()
 	if err != nil {
-		reporter.Failed(err)
-		return errors.Wrap(err, "error removing the gateway label from all worker nodes")
+		return status.Error(err, "error removing the gateway label from all worker nodes")
 	}
 
-	reporter.Succeeded("Successfully removed Submariner gateway label from worker nodes")
+	status.Success("Successfully removed Submariner gateway label from worker nodes")
 
 	return nil
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp"
 	"google.golang.org/api/compute/v1"
@@ -55,7 +56,7 @@ func testPrepareForSubmariner() {
 					Protocol: "UDP",
 				},
 			},
-		}, api.NewLoggingReporter())
+		}, reporter.Stdout())
 	})
 
 	When("the firewall rule doesn't exist", func() {
@@ -146,7 +147,7 @@ func testCleanupAfterSubmariner() {
 	var retError error
 
 	JustBeforeEach(func() {
-		retError = t.cloud.CleanupAfterSubmariner(api.NewLoggingReporter())
+		retError = t.cloud.CleanupAfterSubmariner(reporter.Stdout())
 	})
 
 	Context("on success", func() {

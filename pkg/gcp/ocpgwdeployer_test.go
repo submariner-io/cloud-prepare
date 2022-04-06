@@ -27,6 +27,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
@@ -247,7 +248,7 @@ func testCleanup() {
 
 	JustBeforeEach(func() {
 		t.gcpClient.EXPECT().DeleteFirewallRule(projectID, publicPortsRuleName).Return(deleteFirewallRule)
-		retError = t.gwDeployer.Cleanup(api.NewLoggingReporter())
+		retError = t.gwDeployer.Cleanup(reporter.Stdout())
 	})
 
 	It("should delete the firewall rule", func() {
@@ -430,7 +431,7 @@ func (t *gatewayDeployerTestDriver) doDeploy() error {
 				Protocol: "UDP",
 			},
 		},
-	}, api.NewLoggingReporter())
+	}, reporter.Stdout())
 }
 
 func (t *gatewayDeployerTestDriver) getLabeledNodes() []string {

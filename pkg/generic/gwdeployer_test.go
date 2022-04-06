@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/fake"
+	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/generic"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
@@ -180,7 +181,7 @@ var _ = Describe("GatewayDeployer", func() {
 		})
 
 		It("should unlabel all gateway nodes", func() {
-			Expect(t.gwDeployer.Cleanup(api.NewLoggingReporter())).To(Succeed())
+			Expect(t.gwDeployer.Cleanup(reporter.Stdout())).To(Succeed())
 			t.awaitLabeledNodes(0)
 		})
 
@@ -191,7 +192,7 @@ var _ = Describe("GatewayDeployer", func() {
 			})
 
 			It("should return an error", func() {
-				Expect(t.gwDeployer.Cleanup(api.NewLoggingReporter())).ToNot(Succeed())
+				Expect(t.gwDeployer.Cleanup(reporter.Stdout())).ToNot(Succeed())
 			})
 		})
 	})
@@ -253,7 +254,7 @@ func (t *gatewayDeployerTestDriver) awaitLabeledNodes(expCount int) {
 }
 
 func (t *gatewayDeployerTestDriver) doDeploy() error {
-	return t.gwDeployer.Deploy(api.GatewayDeployInput{Gateways: t.numGateways}, api.NewLoggingReporter())
+	return t.gwDeployer.Deploy(api.GatewayDeployInput{Gateways: t.numGateways}, reporter.Stdout())
 }
 
 func newNonMasterNode(name string) *corev1.Node {
