@@ -46,7 +46,8 @@ type ocpGatewayDeployer struct {
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
 func NewOcpGatewayDeployer(info CloudInfo, msDeployer ocp.MachineSetDeployer, instanceType, image string,
-	dedicatedGWNode bool, k8sClient k8s.Interface) api.GatewayDeployer {
+	dedicatedGWNode bool, k8sClient k8s.Interface,
+) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
 		CloudInfo:       info,
 		msDeployer:      msDeployer,

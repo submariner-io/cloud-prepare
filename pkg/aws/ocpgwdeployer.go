@@ -143,7 +143,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 }
 
 func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api.GatewayDeployInput,
-	publicSubnets []types.Subnet) error {
+	publicSubnets []types.Subnet,
+) error {
 	var errs []error
 	var subnets []types.Subnet
 
