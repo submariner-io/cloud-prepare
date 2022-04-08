@@ -70,7 +70,8 @@ func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (dynamic.Resourc
 }
 
 func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured,
-	infraID string) (string, error) {
+	infraID string,
+) (string, error) {
 	machineSetClient, err := msd.clientFor(machineSet)
 	if err != nil {
 		return "", err

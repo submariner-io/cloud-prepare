@@ -48,7 +48,8 @@ type ocpGatewayDeployer struct {
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
 func NewOcpGatewayDeployer(info CloudInfo, msDeployer ocp.MachineSetDeployer, projectID, instanceType, image, cloudName string,
-	dedicatedGWNode bool) api.GatewayDeployer {
+	dedicatedGWNode bool,
+) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
 		CloudInfo:       info,
 		projectID:       projectID,
@@ -168,7 +169,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 }
 
 func (d *ocpGatewayDeployer) deployGWNode(gwNodes *v1.NodeList, gatewayCount int, groupName string,
-	computeClient *gophercloud.ServiceClient, status reporter.Interface) error {
+	computeClient *gophercloud.ServiceClient, status reporter.Interface,
+) error {
 	numGatewayNodes := len(gwNodes.Items)
 
 	if numGatewayNodes == gatewayCount {
@@ -212,7 +214,8 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gatewayNodesToDeploy int, sta
 }
 
 func (d *ocpGatewayDeployer) tagExistingNode(groupName string, computeClient *gophercloud.ServiceClient,
-	gatewayNodesToDeploy int, status reporter.Interface) error {
+	gatewayNodesToDeploy int, status reporter.Interface,
+) error {
 	workerNodes, err := d.K8sClient.ListNodesWithLabel("node-role.kubernetes.io/worker")
 	if err != nil {
 		return status.Error(err, "failed to list k8s nodes in project %q", d.projectID)
