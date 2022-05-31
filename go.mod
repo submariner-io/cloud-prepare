@@ -16,7 +16,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/pkg/errors v0.9.1
-	github.com/submariner-io/admiral v0.13.0-m2
+	github.com/submariner-io/admiral v0.13.0-m2.0.20220531023241-52265c4cda05
 	google.golang.org/api v0.83.0
 	k8s.io/api v0.19.16
 	k8s.io/apimachinery v0.19.16
