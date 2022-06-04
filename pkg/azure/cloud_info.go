@@ -185,6 +185,38 @@ func (c *CloudInfo) createGWSecurityGroup(infraID string, ports []api.PortSpec, 
 
 // TODO Make this private once gwdeployer is done
 
+func (c *CloudInfo) openGWSecurityGroup(interfaceName, groupName string, sgClient *network.SecurityGroupsClient,
+	nwClient *network.InterfacesClient,
+) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	nwSecurityGroup, err := sgClient.Get(ctx, c.BaseGroupName, groupName, "")
+	if err != nil {
+		return errors.Wrapf(err, "error getting the submariner gateway security group %q", groupName)
+	}
+
+	nwInterface, err := nwClient.Get(ctx, c.BaseGroupName, interfaceName, "")
+	if err != nil {
+		return errors.Wrapf(err, "error getting the interfaces %q from resource group %q", interfaceName, c.BaseGroupName)
+	}
+
+	nwInterface.InterfacePropertiesFormat.NetworkSecurityGroup = &nwSecurityGroup
+
+	future, err := nwClient.CreateOrUpdate(ctx, c.BaseGroupName, *nwInterface.Name, nwInterface)
+	if err != nil {
+		return errors.Wrapf(err, "adding  security group %q to interface %q failed", groupName,
+			*nwInterface.ID)
+	}
+
+	err = future.WaitForCompletionRef(ctx, sgClient.Client)
+	if err != nil {
+		return errors.Wrapf(err, "updating  interface  %q failed", *nwInterface.Name)
+	}
+
+	return errors.Wrapf(err, "waiting for the submariner gateway security group  %q to be updated failed", groupName)
+}
+
 func (c *CloudInfo) removeGWSecurityGroup(infraID string, sgClient *network.SecurityGroupsClient,
 	nwClient *network.InterfacesClient,
 ) error {

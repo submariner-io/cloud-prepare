@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-12-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-03-01/network"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
@@ -38,9 +39,10 @@ import (
 )
 
 const (
-	submarinerGatewayGW  = "subgw"
-	azureVirtualMachines = "virtualMachines"
-	topologyLabel        = "topology.kubernetes.io/zone"
+	submarinerGatewayGW      = "subgw"
+	azureVirtualMachines     = "virtualMachines"
+	topologyLabel            = "topology.kubernetes.io/zone"
+	submarinerGatewayNodeTag = "submariner-io-gateway-node"
 )
 
 type ocpGatewayDeployer struct {
@@ -78,16 +80,18 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 		return errors.Wrap(err, "error getting the gateway node")
 	}
 
-	networkClient := getNsgClient(d.SubscriptionID, d.Authorizer)
-	if err := d.createGWSecurityGroup(d.InfraID, input.PublicPorts, networkClient); err != nil {
-		return status.Error(err, "creating gateway security group failed")
-	}
-
 	gatewayNodesToDeploy := input.Gateways - len(gwNodes.Items)
 
 	if gatewayNodesToDeploy == 0 {
 		status.Success("Current gateways match the required number of gateways")
 		return nil
+	}
+
+	nsgClient := getNsgClient(d.SubscriptionID, d.Authorizer)
+	nwClient := getInterfacesClient(d.SubscriptionID, d.Authorizer)
+
+	if err := d.createGWSecurityGroup(d.InfraID, input.PublicPorts, nsgClient); err != nil {
+		return status.Error(err, "creating gateway security group failed")
 	}
 
 	// Currently, we only support increasing the number of Gateway nodes which could be a valid use-case
@@ -119,7 +123,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 			}
 		}
 	} else {
-		status.Failure("Not Implemented")
+		return d.tagExistingNode(nsgClient, nwClient, gatewayNodesToDeploy, status)
 	}
 
 	if gatewayNodesToDeploy != 0 {
@@ -127,6 +131,51 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	}
 
 	status.Success("Deployed gateway node")
+
+	return nil
+}
+
+func (d *ocpGatewayDeployer) tagExistingNode(nsgClient *network.SecurityGroupsClient, nwClient *network.InterfacesClient,
+	gatewayNodesToDeploy int, status reporter.Interface,
+) error {
+	groupName := d.InfraID + externalSecurityGroupSuffix
+
+	workerNodes, err := d.K8sClient.ListNodesWithLabel("node-role.kubernetes.io/worker")
+	if err != nil {
+		return status.Error(err, "failed to list k8s nodes in ResorceGroup %q", d.BaseGroupName)
+	}
+
+	nodes := workerNodes.Items
+	for i := range nodes {
+		alreadyTagged := nodes[i].GetLabels()[submarinerGatewayNodeTag]
+		if alreadyTagged == "true" {
+			continue
+		}
+
+		status.Start("Configuring worker node %q as Submariner gateway node", nodes[i].Name)
+
+		err := d.K8sClient.AddGWLabelOnNode(nodes[i].Name)
+		if err != nil {
+			return status.Error(err, "failed to label the node %q as Submariner gateway node", nodes[i].Name)
+		}
+
+		interfaceName := nodes[i].Name + "-nic"
+		if err = d.openGWSecurityGroup(interfaceName, groupName, nsgClient, nwClient); err != nil {
+			return status.Error(err, "failed to open the Submariner gateway port")
+		}
+
+		gatewayNodesToDeploy--
+		if gatewayNodesToDeploy <= 0 {
+			status.Success("Successfully deployed Submariner gateway node")
+			status.End()
+
+			return nil
+		}
+
+		if gatewayNodesToDeploy > 0 {
+			return status.Error(err, "there are insufficient nodes to deploy the required number of gateways")
+		}
+	}
 
 	return nil
 }
@@ -255,19 +304,22 @@ func (d *ocpGatewayDeployer) deleteGateway() error {
 
 	for i := 0; i < len(gwNodesList); i++ {
 		if !strings.Contains(gwNodesList[i].Name, submarinerGatewayGW) {
-			continue
+			err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodesList[i])
+			if err != nil {
+				return errors.Wrapf(err, "failed to remove labels from worker node")
+			}
+		} else {
+			machineSetName := gwNodesList[i].Name[:strings.LastIndex(gwNodesList[i].Name, "-")]
+			prefix := machineSetName[:strings.LastIndex(gwNodesList[i].Name, "-")]
+			zone := machineSetName[strings.LastIndex(gwNodesList[i].Name, "-")-1:]
+
+			machineSet, err := d.initMachineSet(prefix, zone)
+			if err != nil {
+				return err
+			}
+
+			return errors.Wrapf(d.msDeployer.Delete(machineSet), "error deleting machine set %q", machineSet.GetName())
 		}
-
-		machineSetName := gwNodesList[i].Name[:strings.LastIndex(gwNodesList[i].Name, "-")]
-		prefix := machineSetName[:strings.LastIndex(gwNodesList[i].Name, "-")]
-		zone := machineSetName[strings.LastIndex(gwNodesList[i].Name, "-")-1:]
-
-		machineSet, err := d.initMachineSet(prefix, zone)
-		if err != nil {
-			return err
-		}
-
-		return errors.Wrapf(d.msDeployer.Delete(machineSet), "error deleting machine set %q", machineSet.GetName())
 	}
 
 	return nil
