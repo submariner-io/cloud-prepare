@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.45.0
 	github.com/aws/smithy-go v1.11.2
 	github.com/golang/mock v1.6.0
-	github.com/gophercloud/gophercloud v0.24.0
+	github.com/gophercloud/gophercloud v0.25.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/pkg/errors v0.9.1
