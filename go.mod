@@ -3,7 +3,7 @@ module github.com/submariner-io/cloud-prepare
 go 1.17
 
 require (
-	github.com/Azure/azure-sdk-for-go v63.4.0+incompatible
+	github.com/Azure/azure-sdk-for-go v65.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.27
 	github.com/Azure/go-autorest/autorest/to v0.4.0
 	github.com/aws/aws-sdk-go-v2 v1.16.4
