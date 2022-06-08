@@ -73,25 +73,41 @@ func NewOcpGatewayDeployer(info *CloudInfo, cloud api.Cloud, msDeployer ocp.Mach
 }
 
 func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporter.Interface) error {
+	if input.Gateways == 0 {
+		return nil
+	}
+
 	status.Start("Deploying gateway node")
+
+	nsgClient := getNsgClient(d.SubscriptionID, d.Authorizer)
+	nwClient := getInterfacesClient(d.SubscriptionID, d.Authorizer)
+	pubIPClient := getIPClient(d.SubscriptionID, d.Authorizer)
+	groupName := d.InfraID + externalSecurityGroupSuffix
 
 	gwNodes, err := d.azure.K8sClient.ListGatewayNodes()
 	if err != nil {
 		return errors.Wrap(err, "error getting the gateway node")
 	}
 
-	gatewayNodesToDeploy := input.Gateways - len(gwNodes.Items)
+	// Open the g/w ports and assign public-ip if not already done for manually tagged nodes if any
+	gwNodeItems := gwNodes.Items
+	gatewayNodesToDeploy := input.Gateways - len(gwNodeItems)
+
+	if len(gwNodeItems) != 0 || gatewayNodesToDeploy != 0 {
+		if err := d.createGWSecurityGroup(groupName, input.PublicPorts, nsgClient); err != nil {
+			return status.Error(err, "creating gateway security group failed")
+		}
+	}
+
+	for i := range gwNodeItems {
+		if err = d.prepareGWInterface(gwNodeItems[i].Name, groupName, nsgClient, nwClient, pubIPClient); err != nil {
+			return status.Error(err, "failed to open the Submariner gateway port for already existing nodes")
+		}
+	}
 
 	if gatewayNodesToDeploy == 0 {
 		status.Success("Current gateways match the required number of gateways")
 		return nil
-	}
-
-	nsgClient := getNsgClient(d.SubscriptionID, d.Authorizer)
-	nwClient := getInterfacesClient(d.SubscriptionID, d.Authorizer)
-
-	if err := d.createGWSecurityGroup(d.InfraID, input.PublicPorts, nsgClient); err != nil {
-		return status.Error(err, "creating gateway security group failed")
 	}
 
 	// Currently, we only support increasing the number of Gateway nodes which could be a valid use-case
@@ -102,41 +118,50 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 		return nil
 	}
 
+	if d.dedicatedGWNode {
+		err = d.deployDedicatedGWNode(gwNodeItems, gatewayNodesToDeploy, status)
+	} else {
+		err = d.tagExistingNode(nsgClient, nwClient, pubIPClient, gatewayNodesToDeploy, status)
+	}
+
+	if err != nil {
+		status.Success("Deployed gateway node")
+	}
+
+	return err
+}
+
+func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []v1.Node, gatewayNodesToDeploy int, status reporter.Interface,
+) error {
 	az, err := d.getAvailabilityZones(gwNodes)
 	if err != nil || az.Size() == 0 {
 		return status.Error(err, "error getting the availability zones for region %q", d.Region)
 	}
 
-	if d.dedicatedGWNode {
-		for _, zone := range az.Elements() {
-			status.Start("Deploying dedicated gateway node")
+	for _, zone := range az.Elements() {
+		status.Start("Deploying dedicated gateway node")
 
-			err = d.deployGateway(zone)
-			if err != nil {
-				return status.Error(err, "error deploying gateway for zone %q", zone)
-			}
-
-			gatewayNodesToDeploy--
-			if gatewayNodesToDeploy <= 0 {
-				status.Success("Successfully deployed gateway node")
-				return nil
-			}
+		err := d.deployGateway(zone)
+		if err != nil {
+			return status.Error(err, "error deploying gateway for zone %q", zone)
 		}
-	} else {
-		return d.tagExistingNode(nsgClient, nwClient, gatewayNodesToDeploy, status)
+
+		gatewayNodesToDeploy--
+		if gatewayNodesToDeploy <= 0 {
+			status.Success("Successfully deployed gateway node")
+			return nil
+		}
 	}
 
 	if gatewayNodesToDeploy != 0 {
 		return status.Error(err, "not enough zones available in the region %q to deploy required number of gateway nodes", d.Region)
 	}
 
-	status.Success("Deployed gateway node")
-
 	return nil
 }
 
 func (d *ocpGatewayDeployer) tagExistingNode(nsgClient *network.SecurityGroupsClient, nwClient *network.InterfacesClient,
-	gatewayNodesToDeploy int, status reporter.Interface,
+	pubIPClient *network.PublicIPAddressesClient, gatewayNodesToDeploy int, status reporter.Interface,
 ) error {
 	groupName := d.InfraID + externalSecurityGroupSuffix
 
@@ -159,8 +184,7 @@ func (d *ocpGatewayDeployer) tagExistingNode(nsgClient *network.SecurityGroupsCl
 			return status.Error(err, "failed to label the node %q as Submariner gateway node", nodes[i].Name)
 		}
 
-		interfaceName := nodes[i].Name + "-nic"
-		if err = d.openGWSecurityGroup(interfaceName, groupName, nsgClient, nwClient); err != nil {
+		if err = d.prepareGWInterface(nodes[i].Name, groupName, nsgClient, nwClient, pubIPClient); err != nil {
 			return status.Error(err, "failed to open the Submariner gateway port")
 		}
 
@@ -171,10 +195,10 @@ func (d *ocpGatewayDeployer) tagExistingNode(nsgClient *network.SecurityGroupsCl
 
 			return nil
 		}
+	}
 
-		if gatewayNodesToDeploy > 0 {
-			return status.Error(err, "there are insufficient nodes to deploy the required number of gateways")
-		}
+	if gatewayNodesToDeploy > 0 {
+		return status.Error(err, "there are insufficient nodes to deploy the required number of gateways")
 	}
 
 	return nil
@@ -218,11 +242,11 @@ func (d *ocpGatewayDeployer) initMachineSet(name, zone string) (*unstructured.Un
 		return nil, err
 	}
 
-	unstructDecoder := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	unStructDecoder := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 
 	machineSet := &unstructured.Unstructured{}
 
-	_, _, err = unstructDecoder.Decode(gatewayYAML, nil, machineSet)
+	_, _, err = unStructDecoder.Decode(gatewayYAML, nil, machineSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "error converting YAML to machine set")
 	}
@@ -241,9 +265,8 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
-func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodesList *v1.NodeList) (stringset.Interface, error) {
+func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []v1.Node) (stringset.Interface, error) {
 	zonesWithSubmarinerGW := stringset.New()
-	gwNodes := gwNodesList.Items
 
 	for i := range gwNodes {
 		zonesWithSubmarinerGW.Add(gwNodes[i].GetLabels()[topologyLabel])
@@ -280,7 +303,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 	nsgClient := getNsgClient(d.SubscriptionID, d.Authorizer)
 	nwClient := getInterfacesClient(d.SubscriptionID, d.Authorizer)
 
-	if err := d.removeGWSecurityGroup(d.InfraID, nsgClient, nwClient); err != nil {
+	if err := d.cleanupGWInterface(d.InfraID, nsgClient, nwClient); err != nil {
 		return status.Error(err, "deleting gateway security group failed")
 	}
 
@@ -301,12 +324,23 @@ func (d *ocpGatewayDeployer) deleteGateway() error {
 	}
 
 	gwNodesList := gwNodes.Items
+	pubIPClient := getIPClient(d.SubscriptionID, d.Authorizer)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
 
 	for i := 0; i < len(gwNodesList); i++ {
 		if !strings.Contains(gwNodesList[i].Name, submarinerGatewayGW) {
 			err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodesList[i])
 			if err != nil {
 				return errors.Wrapf(err, "failed to remove labels from worker node")
+			}
+
+			publicIPName := gwNodesList[i].Name + "-pub"
+
+			err = d.DeletePublicIP(ctx, pubIPClient, publicIPName)
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete public-ip")
 			}
 		} else {
 			machineSetName := gwNodesList[i].Name[:strings.LastIndex(gwNodesList[i].Name, "-")]
@@ -330,4 +364,11 @@ func getResourceSkuClient(subscriptionID string, authorizer autorest.Authorizer)
 	resourceSkusClient.Authorizer = authorizer
 
 	return &resourceSkusClient
+}
+
+func getIPClient(subscriptionID string, authorizer autorest.Authorizer) *network.PublicIPAddressesClient {
+	ipClient := network.NewPublicIPAddressesClient(subscriptionID)
+	ipClient.Authorizer = authorizer
+
+	return &ipClient
 }
