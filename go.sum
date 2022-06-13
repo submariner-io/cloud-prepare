@@ -107,8 +107,9 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/asaskevich/govalidator v0.0.0-20180720115003-f9ffefc3facf/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
 github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a/go.mod h1:lB+ZfQJz7igIIfQNfa7Ml4HSf2uFQQRzpGGRXenZAgY=
-github.com/aws/aws-sdk-go-v2 v1.16.4 h1:swQTEQUyJF/UkEA94/Ga55miiKFoXmm/Zd67XHgmjSg=
 github.com/aws/aws-sdk-go-v2 v1.16.4/go.mod h1:ytwTPBG6fXTZLxxeeCCWj2/EMYp/xDUgX+OET6TLNNU=
+github.com/aws/aws-sdk-go-v2 v1.16.5 h1:Ah9h1TZD9E2S1LzHpViBO3Jz9FPL5+rmflmb8hXirtI=
+github.com/aws/aws-sdk-go-v2 v1.16.5/go.mod h1:Wh7MEsmEApyL5hrWzpDkba4gwAPc5/piwLVLFnCxp48=
 github.com/aws/aws-sdk-go-v2/config v1.15.9 h1:TK5yNEnFDQ9iaO04gJS/3Y+eW8BioQiCUafW75/Wc3Q=
 github.com/aws/aws-sdk-go-v2/config v1.15.9/go.mod h1:rv/l/TbZo67kp99v/3Kb0qV6Fm1KEtKyruEV2GvVfgs=
 github.com/aws/aws-sdk-go-v2/credentials v1.12.4 h1:xggwS+qxCukXRVXJBJWQJGyUsvuxGC8+J1kKzv2cxuw=
@@ -129,8 +130,9 @@ github.com/aws/aws-sdk-go-v2/service/sso v1.11.7 h1:suAGD+RyiHWPPihZzY+jw4mCZlOF
 github.com/aws/aws-sdk-go-v2/service/sso v1.11.7/go.mod h1:TFVe6Rr2joVLsYQ1ABACXgOC6lXip/qpX2x5jWg/A9w=
 github.com/aws/aws-sdk-go-v2/service/sts v1.16.6 h1:aYToU0/iazkMY67/BYLt3r6/LT/mUtarLAF5mGof1Kg=
 github.com/aws/aws-sdk-go-v2/service/sts v1.16.6/go.mod h1:rP1rEOKAGZoXp4iGDxSXFvODAtXpm34Egf0lL0eshaQ=
-github.com/aws/smithy-go v1.11.2 h1:eG/N+CcUMAvsdffgMvjMKwfyDzIkjM6pfxMJ8Mzc6mE=
 github.com/aws/smithy-go v1.11.2/go.mod h1:3xHYmszWVx2c0kIwQeEVf9uSm4fYZt67FBJnwub1bgM=
+github.com/aws/smithy-go v1.11.3 h1:DQixirEFM9IaKxX1olZ3ke3nvxRS2xMDteKIDWxozW8=
+github.com/aws/smithy-go v1.11.3/go.mod h1:Tg+OJXh4MB2R/uN61Ko2f6hTZwB/ZYGOtib8J3gBHzA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
