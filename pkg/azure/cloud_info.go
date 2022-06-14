@@ -146,10 +146,11 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix, protocol string, port 
 	}
 }
 
-func (c *CloudInfo) createGWSecurityGroup(infraID string, ports []api.PortSpec, sgClient *network.SecurityGroupsClient) error {
-	groupName := infraID + externalSecurityGroupSuffix
+func (c *CloudInfo) createGWSecurityGroup(groupName string, ports []api.PortSpec, sgClient *network.SecurityGroupsClient) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
 
-	isFound := checkIfSecurityGroupPresent(groupName, sgClient, c.BaseGroupName)
+	isFound := checkIfSecurityGroupPresent(ctx, groupName, sgClient, c.BaseGroupName)
 	if isFound {
 		return nil
 	}
@@ -170,9 +171,6 @@ func (c *CloudInfo) createGWSecurityGroup(infraID string, ports []api.PortSpec, 
 		},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
-
 	future, err := sgClient.CreateOrUpdate(ctx, c.BaseGroupName, groupName, nwSecurityGroup)
 	if err != nil {
 		return errors.Wrapf(err, "creating security group %q failed", groupName)
@@ -183,20 +181,76 @@ func (c *CloudInfo) createGWSecurityGroup(infraID string, ports []api.PortSpec, 
 	return errors.Wrapf(err, "Error creating  security group %v ", groupName)
 }
 
-// TODO Make this private once gwdeployer is done
+func (c *CloudInfo) prepareGWInterface(nodeName, groupName string, nsgClient *network.SecurityGroupsClient,
+	nwClient *network.InterfacesClient, pubIPClient *network.PublicIPAddressesClient,
+) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
 
-func (c *CloudInfo) removeGWSecurityGroup(infraID string, sgClient *network.SecurityGroupsClient,
+	nwSecurityGroup, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, "")
+	if err != nil {
+		return errors.Wrapf(err, "error getting the submariner gateway security group %q", groupName)
+	}
+
+	publicIPName := nodeName + "-pub"
+
+	var pubIP network.PublicIPAddress
+
+	pubIP, err = getPublicIP(ctx, publicIPName, pubIPClient, c.BaseGroupName)
+
+	if err != nil {
+		var err error
+
+		pubIP, err = c.CreatePublicIP(ctx, publicIPName, pubIPClient)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create public IP %q", publicIPName)
+		}
+	}
+
+	interfaceName := nodeName + "-nic"
+
+	nwInterface, err := nwClient.Get(ctx, c.BaseGroupName, interfaceName, "")
+	if err != nil {
+		return errors.Wrapf(err, "error getting the interfaces %q from resource group %q", interfaceName, c.BaseGroupName)
+	}
+
+	nwInterface.InterfacePropertiesFormat.NetworkSecurityGroup = &nwSecurityGroup
+
+	nwInterfaceIPConfiguration := *nwInterface.InterfacePropertiesFormat.IPConfigurations
+	for i := range nwInterfaceIPConfiguration {
+		if nwInterfaceIPConfiguration[i].Primary != nil && *nwInterfaceIPConfiguration[i].Primary {
+			nwInterfaceIPConfiguration[i].PublicIPAddress = &pubIP
+			break
+		}
+	}
+
+	future, err := nwClient.CreateOrUpdate(ctx, c.BaseGroupName, *nwInterface.Name, nwInterface)
+	if err != nil {
+		return errors.Wrapf(err, "adding security group %q and public IP %q to interface %q failed", *nwSecurityGroup.Name,
+			*pubIP.Name, *nwInterface.ID)
+	}
+
+	err = future.WaitForCompletionRef(ctx, nwClient.Client)
+	if err != nil {
+		return errors.Wrapf(err, "updating interface %q failed", *nwInterface.Name)
+	}
+
+	return errors.Wrapf(err, "waiting for the g/w interface %q to be updated failed", interfaceName)
+}
+
+func (c *CloudInfo) cleanupGWInterface(infraID string, sgClient *network.SecurityGroupsClient,
 	nwClient *network.InterfacesClient,
 ) error {
 	groupName := infraID + externalSecurityGroupSuffix
-	isFound := checkIfSecurityGroupPresent(groupName, sgClient, c.BaseGroupName)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	isFound := checkIfSecurityGroupPresent(ctx, groupName, sgClient, c.BaseGroupName)
 
 	if !isFound {
 		return nil
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
 
 	nwSecurityGroup, err := sgClient.Get(ctx, c.BaseGroupName, groupName, "")
 	if err != nil {
@@ -222,6 +276,9 @@ func (c *CloudInfo) removeGWSecurityGroup(infraID string, sgClient *network.Secu
 			}
 
 			interfaceWithSG.InterfacePropertiesFormat.NetworkSecurityGroup = nil
+			if interfaceWithSG.InterfacePropertiesFormat.IPConfigurations != nil {
+				removePublicIP(*interfaceWithSG.InterfacePropertiesFormat.IPConfigurations)
+			}
 
 			future, err := nwClient.CreateOrUpdate(ctx, c.BaseGroupName, *interfaceWithSG.Name, interfaceWithSG)
 			if err != nil {
@@ -254,11 +311,73 @@ func (c *CloudInfo) removeGWSecurityGroup(infraID string, sgClient *network.Secu
 	return errors.WithMessage(err, "failed to remove the submariner gateway security group from servers")
 }
 
-func checkIfSecurityGroupPresent(groupName string, networkClient *network.SecurityGroupsClient, baseGroupName string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
+func removePublicIP(nwInterfaceIPConfiguration []network.InterfaceIPConfiguration) {
+	for i := range nwInterfaceIPConfiguration {
+		if nwInterfaceIPConfiguration[i].Primary != nil && *nwInterfaceIPConfiguration[i].Primary {
+			nwInterfaceIPConfiguration[i].PublicIPAddress = nil
+			break
+		}
+	}
+}
 
+func checkIfSecurityGroupPresent(ctx context.Context, groupName string, networkClient *network.SecurityGroupsClient,
+	baseGroupName string,
+) bool {
 	_, err := networkClient.Get(ctx, baseGroupName, groupName, "")
 
 	return err == nil
+}
+
+func getPublicIP(ctx context.Context, publicIPName string, pubIPClient *network.PublicIPAddressesClient, baseGroupName string,
+) (network.PublicIPAddress, error) {
+	publicIP, err := pubIPClient.Get(ctx, baseGroupName, publicIPName, "")
+
+	return publicIP, errors.Wrapf(err, "error getting public ip: %q", publicIPName)
+}
+
+func (c *CloudInfo) CreatePublicIP(ctx context.Context, ipName string, ipClient *network.PublicIPAddressesClient,
+) (ip network.PublicIPAddress, err error) {
+	future, err := ipClient.CreateOrUpdate(
+		ctx,
+		c.BaseGroupName,
+		ipName,
+		network.PublicIPAddress{
+			Name: to.StringPtr(ipName),
+			PublicIPAddressPropertiesFormat: &network.PublicIPAddressPropertiesFormat{
+				PublicIPAddressVersion:   network.IPVersionIPv4,
+				PublicIPAllocationMethod: network.IPAllocationMethodStatic,
+			},
+			Location: &c.Region,
+			Sku: &network.PublicIPAddressSku{
+				Name: network.PublicIPAddressSkuNameStandard,
+			},
+		},
+	)
+	if err != nil {
+		return ip, errors.Wrapf(err, "cannot create public ip address: %q", ipName)
+	}
+
+	err = future.WaitForCompletionRef(ctx, ipClient.Client)
+	if err != nil {
+		return ip, errors.Wrapf(err, "cannot get public ip address create or update future response: %q", ipName)
+	}
+
+	ipAddress, err := future.Result(*ipClient)
+
+	return ipAddress, errors.Wrapf(err, "Error getting the public ip %q", ipName)
+}
+
+func (c *CloudInfo) DeletePublicIP(ctx context.Context, ipClient *network.PublicIPAddressesClient, ipName string,
+) (err error) {
+	future, err := ipClient.Delete(ctx, c.BaseGroupName, ipName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete public ip : %q", ipName)
+	}
+
+	err = future.WaitForCompletionRef(ctx, ipClient.Client)
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove the public ip : %q", ipName)
+	}
+
+	return nil
 }
