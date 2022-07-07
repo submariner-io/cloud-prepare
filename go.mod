@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-sdk-for-go v65.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.27
 	github.com/Azure/go-autorest/autorest/to v0.4.0
-	github.com/aws/aws-sdk-go-v2 v1.16.6
+	github.com/aws/aws-sdk-go-v2 v1.16.7
 	github.com/aws/aws-sdk-go-v2/config v1.15.12
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.7
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.46.0
