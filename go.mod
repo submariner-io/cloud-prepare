@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.16.7
 	github.com/aws/aws-sdk-go-v2/config v1.15.13
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.8
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.47.2
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.49.0
 	github.com/aws/smithy-go v1.12.0
 	github.com/golang/mock v1.6.0
 	github.com/gophercloud/gophercloud v0.25.0
