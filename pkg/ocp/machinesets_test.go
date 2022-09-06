@@ -39,8 +39,9 @@ import (
 
 var _ = Describe("K8s MachineSetDeployer", func() {
 	const (
-		infraID        = "test-infraID"
-		machineSetName = "test-machineset"
+		infraID             = "test-infraID"
+		machineSetName      = "test-machineset-submariner"
+		machineSetNameOther = "test-machineset-other"
 	)
 
 	var (
@@ -55,7 +56,9 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 		machineSet = newMachineSet()
 		restMapper, gvr := test.GetRESTMapperAndGroupVersionResourceFor(machineSet)
 
-		dynClient = fakeClient.NewSimpleDynamicClient(scheme.Scheme)
+		dynClient = fakeClient.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, map[schema.GroupVersionResource]string{
+			*gvr: "MachineSetList",
+		})
 		deployer = ocp.NewK8sMachinesetDeployer(restMapper, dynClient)
 		msClient = dynClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
 	})
@@ -164,6 +167,35 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 		When("the machine set does not exist", func() {
 			It("should not return an error", func() {
 				Expect(deployer.Delete(machineSet)).To(Succeed())
+			})
+		})
+	})
+
+	Context("on List", func() {
+		When("matching and non-matching machine sets exist", func() {
+			BeforeEach(func() {
+				machineSet.SetName(machineSetName)
+				_, err := msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				Expect(err).To(Succeed())
+				machineSet.SetName(machineSetNameOther)
+				_, err = msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				Expect(err).To(Succeed())
+			})
+
+			It("should return only the matching machine set", func() {
+				machineSetList, err := deployer.List(machineSet, "submariner")
+				Expect(err).To(Succeed())
+
+				Expect(len(machineSetList)).To(Equal(1))
+				Expect(machineSetList[0].GetName()).To(Equal(machineSetName))
+			})
+		})
+
+		When("a matching machine set does not exist", func() {
+			It("should not return an error", func() {
+				machineSetList, err := deployer.List(machineSet, "submariner")
+				Expect(err).To(Succeed())
+				Expect(len(machineSetList)).To(Equal(0))
 			})
 		})
 	})
