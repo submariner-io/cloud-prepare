@@ -93,3 +93,18 @@ func (mr *MockMachineSetDeployerMockRecorder) GetWorkerNodeImage(machineSet, inf
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkerNodeImage", reflect.TypeOf((*MockMachineSetDeployer)(nil).GetWorkerNodeImage), machineSet, infraID)
 }
+
+// List mocks base method
+func (m *MockMachineSetDeployer) List(machineSet *unstructured.Unstructured, name string) ([]unstructured.Unstructured, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", machineSet, name)
+	ret0, _ := ret[0].([]unstructured.Unstructured)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List
+func (mr *MockMachineSetDeployerMockRecorder) List(machineSet, name interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockMachineSetDeployer)(nil).List), machineSet, name)
+}
