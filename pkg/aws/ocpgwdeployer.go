@@ -36,9 +36,10 @@ import (
 )
 
 type ocpGatewayDeployer struct {
-	aws          *awsCloud
-	msDeployer   ocp.MachineSetDeployer
-	instanceType string
+	aws             *awsCloud
+	msDeployer      ocp.MachineSetDeployer
+	instanceType    string
+	useLoadBalancer bool
 }
 
 var PreferredInstances = []string{"c5d.large", "m5n.large"}
@@ -62,6 +63,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
 
+	d.useLoadBalancer = input.UseLoadBalancer
+
 	vpcID, err := d.aws.getVpcID()
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
@@ -83,14 +86,18 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 
 	status.Success(messageValidatedPrerequisites)
 
-	status.Start("Creating Submariner gateway security group")
+	gatewaySG := ""
 
-	gatewaySG, err := d.aws.createGatewaySG(vpcID, input.PublicPorts)
-	if err != nil {
-		return status.Error(err, "unable to create gateway")
+	if !d.useLoadBalancer {
+		status.Start("Creating Submariner gateway security group")
+
+		gatewaySG, err = d.aws.createGatewaySG(vpcID, input.PublicPorts)
+		if err != nil {
+			return status.Error(err, "unable to create gateway")
+		}
+
+		status.Success("Created Submariner gateway security group %s", gatewaySG)
 	}
-
-	status.Success("Created Submariner gateway security group %s", gatewaySG)
 
 	subnets, err := d.aws.getSubnetsSupportingInstanceType(publicSubnets, d.instanceType)
 	if err != nil {
@@ -157,6 +164,10 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 		return utilerrors.NewAggregate(errs)
 	}
 
+	if d.useLoadBalancer {
+		return nil
+	}
+
 	// If instanceType is not specified, auto-select the most suitable one.
 	if d.instanceType == "" {
 		for _, instanceType := range PreferredInstances {
@@ -191,13 +202,14 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 }
 
 type machineSetConfig struct {
-	AZ            string
-	AMIId         string
-	InfraID       string
-	InstanceType  string
-	Region        string
-	SecurityGroup string
-	PublicSubnet  string
+	AZ              string
+	AMIId           string
+	InfraID         string
+	InstanceType    string
+	Region          string
+	SecurityGroup   string
+	PublicSubnet    string
+	UseLoadBalancer bool
 }
 
 func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
@@ -238,13 +250,14 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 	}
 
 	tplVars := machineSetConfig{
-		AZ:            *publicSubnet.AvailabilityZone,
-		AMIId:         amiID,
-		InfraID:       d.aws.infraID,
-		InstanceType:  d.instanceType,
-		Region:        d.aws.region,
-		SecurityGroup: gatewaySecurityGroup,
-		PublicSubnet:  extractName(publicSubnet.Tags),
+		AZ:              *publicSubnet.AvailabilityZone,
+		AMIId:           amiID,
+		InfraID:         d.aws.infraID,
+		InstanceType:    d.instanceType,
+		Region:          d.aws.region,
+		SecurityGroup:   gatewaySecurityGroup,
+		PublicSubnet:    extractName(publicSubnet.Tags),
+		UseLoadBalancer: d.useLoadBalancer,
 	}
 
 	err = tpl.Execute(&buf, tplVars)

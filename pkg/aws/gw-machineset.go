@@ -65,12 +65,14 @@ spec:
                 - name: tag:Name
                   values:
                     - {{.InfraID}}-worker-sg
+          {{- if not .UseLoadBalancer }}
                     - {{.SecurityGroup}}
           subnet:
             filters:
               - name: tag:Name
                 values:
                   - {{.PublicSubnet}}
+          {{- end }}
           tags:
             - name: kubernetes.io/cluster/{{.InfraID}}
               value: owned
