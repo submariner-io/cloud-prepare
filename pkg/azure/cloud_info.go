@@ -52,22 +52,22 @@ type CloudInfo struct {
 	K8sClient       k8s.Interface
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getNsgClient() (*armnetwork.SecurityGroupsClient, error) {
 	return armnetwork.NewSecurityGroupsClient(c.SubscriptionID, c.TokenCredential, nil)
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getInterfacesClient() (*armnetwork.InterfacesClient, error) {
 	return armnetwork.NewInterfacesClient(c.SubscriptionID, c.TokenCredential, nil)
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getPublicIPClient() (*armnetwork.PublicIPAddressesClient, error) {
 	return armnetwork.NewPublicIPAddressesClient(c.SubscriptionID, c.TokenCredential, nil)
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getResourceSKUClient() (*armcompute.ResourceSKUsClient, error) {
 	return armcompute.NewResourceSKUsClient(c.SubscriptionID, c.TokenCredential, nil)
 }
