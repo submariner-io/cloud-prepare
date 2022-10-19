@@ -533,7 +533,7 @@ func labelNode(node *corev1.Node) *corev1.Node {
 	return node
 }
 
-// nolint:gocritic // Error: "consider `machineSets' to be of non-pointer type"
+//nolint:gocritic // Error: "consider `machineSets' to be of non-pointer type"
 func machineSetFn(machineSets *map[string]*unstructured.Unstructured) func(ms *unstructured.Unstructured) error {
 	*machineSets = map[string]*unstructured.Unstructured{}
 
