@@ -180,10 +180,6 @@ func (f *fakeAWSClientBase) expectCreateSecurityGroup(name, retGroupID string) {
 						Key:   awssdk.String("Name"),
 						Value: awssdk.String(name),
 					},
-					{
-						Key:   awssdk.String("kubernetes.io/cluster/" + infraID),
-						Value: awssdk.String("owned"),
-					},
 				},
 			},
 		},
