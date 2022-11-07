@@ -15,7 +15,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/gophercloud/gophercloud v1.0.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.23.0
+	github.com/onsi/gomega v1.24.0
 	github.com/pkg/errors v0.9.1
 	github.com/submariner-io/admiral v0.14.0-m2
 	google.golang.org/api v0.102.0
