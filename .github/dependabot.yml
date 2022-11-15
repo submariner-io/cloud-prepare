@@ -26,6 +26,4 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     ignore:
-      - dependency-name: k8s.io/*
-      - dependency-name: sigs.k8s.io/*
       - dependency-name: github.com/submariner-io/*
