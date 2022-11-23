@@ -312,10 +312,6 @@ func newDescribeSecurityGroupsInput(vpcID, name string) *ec2.DescribeSecurityGro
 				Name:   awssdk.String("tag:Name"),
 				Values: []string{name},
 			},
-			{
-				Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
-				Values: []string{"owned"},
-			},
 		},
 	}
 }
