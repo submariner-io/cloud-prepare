@@ -27,7 +27,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/admiral/pkg/stringset"
@@ -36,6 +35,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -318,7 +318,7 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []v1.Node) (stringset.
 	}
 
 	pager := resourceSKUClient.NewListPager(&armcompute.ResourceSKUsClientListOptions{
-		Filter: to.StringPtr(d.azure.Region),
+		Filter: pointer.String(d.azure.Region),
 	})
 
 	eligibleZonesForSubmarinerGW := stringset.New()
