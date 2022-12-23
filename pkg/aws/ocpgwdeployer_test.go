@@ -24,7 +24,7 @@ import (
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/admiral/pkg/stringset"
@@ -42,8 +42,11 @@ var _ = Describe("OCP GatewayDeployer", func() {
 func testDeploy() {
 	t := newGatewayDeployerTestDriver()
 
+	var deployCall *gomock.Call
+
 	JustBeforeEach(func() {
-		t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&t.machineSets)).Times(t.numGateways)
+		deployCall = t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&t.machineSets))
+
 		t.expectDescribePublicSubnets(t.subnets...)
 
 		for i := range t.subnets {
@@ -64,6 +67,8 @@ func testDeploy() {
 		})
 
 		JustBeforeEach(func() {
+			deployCall.Times(t.numGateways)
+
 			for i := range t.expectedSubnetsTagged {
 				t.expectCreateGatewayTags(*t.expectedSubnetsTagged[i].SubnetId)
 			}
@@ -116,6 +121,7 @@ func testDeploy() {
 
 	Context("", func() {
 		JustBeforeEach(func() {
+			deployCall.AnyTimes()
 			t.doDeploy()
 		})
 
@@ -160,7 +166,6 @@ func testDeploy() {
 			BeforeEach(func() {
 				t.authorizeSecurityGroupIngressErr = errors.New("mock error")
 				t.expectAuthorizeSecurityGroupIngress(gatewayGroupID, newPublicSGRule(100, "TCP"))
-				t.expectAuthorizeSecurityGroupIngress(gatewayGroupID, newPublicSGRule(200, "UDP"))
 			})
 
 			It("should return an error", func() {
