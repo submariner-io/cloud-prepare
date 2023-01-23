@@ -189,8 +189,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
-github.com/submariner-io/admiral v0.15.0-m1.0.20230107102340-0981d1750b04 h1:GJS8gfoMm+gl6OWDHzSyxFjecqWXMbl7ot7ku4A1o3Q=
-github.com/submariner-io/admiral v0.15.0-m1.0.20230107102340-0981d1750b04/go.mod h1:7M6AzC/PJaVDb/c5BuQIdgklmtyzKGIIxctkOtwLqtA=
+github.com/submariner-io/admiral v0.15.0-m2 h1:5xyFwjyd/1aCkAEd+E0sZIZdD9Z3L1uIkkLdZtu32ng=
+github.com/submariner-io/admiral v0.15.0-m2/go.mod h1:A939fnN3wDeKfrRSL+68mlUjRFvDj40bfGA+YQNlKSQ=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
