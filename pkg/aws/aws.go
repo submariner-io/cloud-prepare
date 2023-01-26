@@ -88,7 +88,7 @@ func DefaultProfile() string {
 	return "default"
 }
 
-func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, status reporter.Interface) error {
+func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
 
@@ -108,7 +108,7 @@ func (ac *awsCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, st
 
 	status.Success(messageValidatedPrerequisites)
 
-	for _, port := range input.InternalPorts {
+	for _, port := range ports {
 		status.Start("Opening port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
 
 		err = ac.allowPortInCluster(vpcID, port.Port, port.Protocol)
@@ -126,7 +126,7 @@ func (ac *awsCloud) validatePreparePrerequisites(vpcID string) error {
 	return ac.validateCreateSecGroupRule(vpcID)
 }
 
-func (ac *awsCloud) CleanupAfterSubmariner(status reporter.Interface) error {
+func (ac *awsCloud) ClosePorts(status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
 

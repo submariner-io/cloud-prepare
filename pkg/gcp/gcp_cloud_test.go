@@ -35,26 +35,24 @@ import (
 const ingressRuleName = "test-infraID-submariner-internal-ports-ingress"
 
 var _ = Describe("Cloud", func() {
-	Describe("PrepareForSubmariner", testPrepareForSubmariner)
-	Describe("CleanupAfterSubmariner", testCleanupAfterSubmariner)
+	Describe("OpenPorts", testOpenPorts)
+	Describe("ClosePorts", testClosePorts)
 })
 
-func testPrepareForSubmariner() {
+func testOpenPorts() {
 	t := newCloudTestDriver()
 
 	var retError error
 
 	JustBeforeEach(func() {
-		retError = t.cloud.PrepareForSubmariner(api.PrepareForSubmarinerInput{
-			InternalPorts: []api.PortSpec{
-				{
-					Port:     100,
-					Protocol: "TCP",
-				},
-				{
-					Port:     200,
-					Protocol: "UDP",
-				},
+		retError = t.cloud.OpenPorts([]api.PortSpec{
+			{
+				Port:     100,
+				Protocol: "TCP",
+			},
+			{
+				Port:     200,
+				Protocol: "UDP",
 			},
 		}, reporter.Stdout())
 	})
@@ -141,13 +139,13 @@ func testPrepareForSubmariner() {
 	})
 }
 
-func testCleanupAfterSubmariner() {
+func testClosePorts() {
 	t := newCloudTestDriver()
 
 	var retError error
 
 	JustBeforeEach(func() {
-		retError = t.cloud.CleanupAfterSubmariner(reporter.Stdout())
+		retError = t.cloud.ClosePorts(reporter.Stdout())
 	})
 
 	Context("on success", func() {

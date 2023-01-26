@@ -26,18 +26,13 @@ type PortSpec struct {
 	Protocol string
 }
 
-type PrepareForSubmarinerInput struct {
-	// List of ports to open inside the cluster for proper communication between Submariner services.
-	InternalPorts []PortSpec
-}
-
 // Cloud is a potential cloud for installing Submariner on.
 type Cloud interface {
-	// PrepareForSubmariner will prepare the cloud for Submariner to operate on.
-	PrepareForSubmariner(input PrepareForSubmarinerInput, status reporter.Interface) error
+	// OpenPorts inside the cloud for submariner to communicate through.
+	OpenPorts(ports []PortSpec, status reporter.Interface) error
 
-	// CleanupAfterSubmariner will clean up the cloud after Submariner is removed.
-	CleanupAfterSubmariner(status reporter.Interface) error
+	// ClosePorts will close any internal ports that were opened, after Submariner is removed.
+	ClosePorts(status reporter.Interface) error
 }
 
 type GatewayDeployInput struct {
