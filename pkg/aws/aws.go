@@ -89,8 +89,14 @@ func DefaultProfile() string {
 }
 
 func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
-	status.Start(messageRetrieveVPCID)
 	defer status.End()
+
+	if len(ports) == 0 {
+		status.Warning("Ignoring attempt to open ports with no ports given")
+		return nil
+	}
+
+	status.Start(messageRetrieveVPCID)
 
 	vpcID, err := ac.getVpcID()
 	if err != nil {

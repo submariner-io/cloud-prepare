@@ -38,6 +38,13 @@ func NewCloud(info *CloudInfo) api.Cloud {
 }
 
 func (az *azureCloud) OpenPorts(ports []api.PortSpec, reporter reporterInterface.Interface) error {
+	defer reporter.End()
+
+	if len(ports) == 0 {
+		reporter.Warning("Ignoring attempt to open ports with no ports given")
+		return nil
+	}
+
 	reporter.Start("Opening internal ports for intra-cluster communications on Azure")
 
 	nsgClient, err := az.getNsgClient()

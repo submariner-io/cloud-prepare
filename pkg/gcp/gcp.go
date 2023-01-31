@@ -36,9 +36,15 @@ func NewCloud(info CloudInfo) api.Cloud {
 }
 
 func (gc *gcpCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
+	defer status.End()
+
+	if len(ports) == 0 {
+		status.Warning("Ignoring attempt to open ports with no ports given")
+		return nil
+	}
+
 	// Create the inbound firewall rule for submariner internal ports.
 	status.Start("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(ports))
-	defer status.End()
 
 	internalIngress := newInternalFirewallRule(gc.ProjectID, gc.InfraID, ports)
 	if err := gc.openPorts(internalIngress); err != nil {

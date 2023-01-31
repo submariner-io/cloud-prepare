@@ -44,8 +44,14 @@ func NewCloud(info CloudInfo) api.Cloud {
 }
 
 func (rc *rhosCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
-	status.Start("Opening internal ports for intra-cluster communications on RHOS")
 	defer status.End()
+
+	if len(ports) == 0 {
+		status.Warning("Ignoring attempt to open ports with no ports given")
+		return nil
+	}
+
+	status.Start("Opening internal ports for intra-cluster communications on RHOS")
 
 	computeClient, err := openstack.NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
 	if err != nil {
