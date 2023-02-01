@@ -193,7 +193,7 @@ func testDeploy() {
 		var machineSets map[string]*unstructured.Unstructured
 
 		BeforeEach(func() {
-			t.msDeployer.EXPECT().GetWorkerNodeImage(gomock.Any(), infraID).Return("test-image", nil).AnyTimes()
+			t.msDeployer.EXPECT().GetWorkerNodeImage(gomock.Any(), gomock.Any(), infraID).Return("test-image", nil).AnyTimes()
 			t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&machineSets)).Times(2)
 
 			t.dedicatedGWNode = true

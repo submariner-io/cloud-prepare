@@ -26,15 +26,21 @@ import (
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/resource"
 	"github.com/submariner-io/admiral/pkg/util"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 )
 
 //go:generate mockgen -source=./machinesets.go -destination=./fake/machineset.go -package=fake
+
+const (
+	SubmarinerGatewayLabel = "submariner.io/gateway"
+)
 
 // MachineSetDeployer can deploy and delete machinesets from OCP.
 type MachineSetDeployer interface {
@@ -45,11 +51,14 @@ type MachineSetDeployer interface {
 	// If an empty workerNodeList is passed, the API will internally query the worker nodes.
 	GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured, infraID string) (string, error)
 
-	// List will list all the machinesets that contains name.
-	List(machineSet *unstructured.Unstructured, name string) ([]unstructured.Unstructured, error)
+	// List will list all the machineSets that have the submariner.io/gateway set to "true".
+	List() ([]unstructured.Unstructured, error)
 
 	// Delete will remove the given machineset.
 	Delete(machineSet *unstructured.Unstructured) error
+
+	// Delete will remove the machineset with given name.
+	DeleteByName(name, namespace string) error
 }
 
 type k8sMachineSetDeployer struct {
@@ -72,6 +81,18 @@ func (msd *k8sMachineSetDeployer) clientFor(obj runtime.Object) (dynamic.Resourc
 	}
 
 	return msd.dynamicClient.Resource(*gvr).Namespace(machineSet.GetNamespace()), nil
+}
+
+func (msd *k8sMachineSetDeployer) clientForMsd(nameSpace string) dynamic.ResourceInterface {
+	groupName := "machine.openshift.io"
+	version := schema.GroupVersion{Group: groupName, Version: "v1beta1"}
+	machinesetGVR := schema.GroupVersionResource{
+		Group:    groupName,
+		Version:  version.Version,
+		Resource: "machinesets",
+	}
+
+	return msd.dynamicClient.Resource(machinesetGVR).Namespace(nameSpace)
 }
 
 func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured,
@@ -157,11 +178,19 @@ func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) 
 	return errors.Wrapf(err, "error deleting machine set %q", machineSet.GetName())
 }
 
-func (msd *k8sMachineSetDeployer) List(machineSet *unstructured.Unstructured, name string) ([]unstructured.Unstructured, error) {
-	machineSetClient, err := msd.clientFor(machineSet)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create machinesetclient")
+func (msd *k8sMachineSetDeployer) DeleteByName(name, namespace string) error {
+	machineSetClient := msd.clientForMsd(namespace)
+
+	err := machineSetClient.Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if apierrors.IsNotFound(err) {
+		return nil
 	}
+
+	return errors.Wrapf(err, "error deleting machine set %q", name)
+}
+
+func (msd *k8sMachineSetDeployer) List() ([]unstructured.Unstructured, error) {
+	machineSetClient := msd.clientForMsd("")
 
 	machineSetList, err := machineSetClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -172,11 +201,36 @@ func (msd *k8sMachineSetDeployer) List(machineSet *unstructured.Unstructured, na
 	machinesetItems := machineSetList.Items
 
 	for i := range machinesetItems {
-		machineName, _, _ := unstructured.NestedString(machinesetItems[i].Object, "metadata", "name")
-		if strings.Contains(machineName, name) {
+		labels, _, err := unstructured.NestedStringMap(machinesetItems[i].Object, "spec", "template", "spec", "metadata", "labels")
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get label from machineset ")
+		}
+
+		if labels[SubmarinerGatewayLabel] == "true" {
 			resultList = append(resultList, machinesetItems[i])
 		}
 	}
 
 	return resultList, nil
+}
+
+func RemoveDuplicates(machineSets []unstructured.Unstructured, gwNodes []v1.Node) []v1.Node {
+	var resultNode []v1.Node
+
+	for i := 0; i < len(gwNodes); i++ {
+		addToResult := true
+
+		for i := 0; i < len(machineSets); i++ {
+			if strings.Contains(gwNodes[i].GetName(), machineSets[i].GetName()) {
+				addToResult = false
+				break
+			}
+		}
+
+		if addToResult {
+			resultNode = append(resultNode, gwNodes[i])
+		}
+	}
+
+	return resultNode
 }
