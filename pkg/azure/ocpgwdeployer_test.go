@@ -34,10 +34,10 @@ func TestAzure(t *testing.T) {
 var _ = Describe("OCP Gateway Deployer", func() {
 	Describe("MachineName", func() {
 		It("should be at most 40 characters in length", func() {
-			Expect(len(azure.MachineName("acmqe-clc-auto-azure6-fd55b", "centralus", "3"))).To(BeNumerically("<=", 40))
-			Expect(len(azure.MachineName("acmqe-clc-auto-azure6-fd55b", "centraleurope", "3"))).To(BeNumerically("<=", 40))
-			Expect(len(azure.MachineName("acmqe-clc-auto-azure6-fd55b", "centralus", "bigzone"))).To(BeNumerically("<=", 40))
-			Expect(azure.MachineName("acmqe-clc-auto-azure6-fd55b", "us", "1")).To(HavePrefix("acmqe-clc-auto-azure6-fd55b"))
+			Expect(len(azure.MachineName("centralus"))).To(BeNumerically("<=", 20))
+			Expect(len(azure.MachineName("centraleurope"))).To(BeNumerically("<=", 20))
+			Expect(len(azure.MachineName("centralus"))).To(BeNumerically("<=", 20))
+			Expect(azure.MachineName("us")).To(HavePrefix("subgw-us-"))
 		})
 	})
 })
