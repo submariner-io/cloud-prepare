@@ -39,9 +39,8 @@ import (
 
 var _ = Describe("K8s MachineSetDeployer", func() {
 	const (
-		infraID             = "test-infraID"
-		machineSetName      = "test-machineset-submariner"
-		machineSetNameOther = "test-machineset-other"
+		infraID        = "test-infraID"
+		machineSetName = "test-machineset-submariner"
 	)
 
 	var (
@@ -53,7 +52,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	)
 
 	BeforeEach(func() {
-		machineSet = newMachineSet()
+		machineSet = newMachineSet("true")
 		restMapper, gvr := test.GetRESTMapperAndGroupVersionResourceFor(machineSet)
 
 		dynClient = fakeClient.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, map[schema.GroupVersionResource]string{
@@ -177,13 +176,13 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				machineSet.SetName(machineSetName)
 				_, err := msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
-				machineSet.SetName(machineSetNameOther)
+				machineSet = newMachineSet("false")
 				_, err = msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
 			})
 
 			It("should return only the matching machine set", func() {
-				machineSetList, err := deployer.List(machineSet, "submariner")
+				machineSetList, err := deployer.List()
 				Expect(err).To(Succeed())
 
 				Expect(len(machineSetList)).To(Equal(1))
@@ -193,7 +192,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 		When("a matching machine set does not exist", func() {
 			It("should not return an error", func() {
-				machineSetList, err := deployer.List(machineSet, "submariner")
+				machineSetList, err := deployer.List()
 				Expect(err).To(Succeed())
 				Expect(len(machineSetList)).To(Equal(0))
 			})
@@ -201,14 +200,26 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	})
 })
 
-func newMachineSet() *unstructured.Unstructured {
+func newMachineSet(isGateway string) *unstructured.Unstructured {
 	ms := &unstructured.Unstructured{}
-	ms.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "machine.openshift.io",
-		Version: "v1beta1",
-		Kind:    "MachineSet",
+	ms.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "machine.openshift.io/v1beta1",
+		"kind":       "MachineSet",
+		"metadata": map[string]interface{}{
+			"namespace": "test-ns",
+		},
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							ocp.SubmarinerGatewayLabel: isGateway,
+						},
+					},
+				},
+			},
+		},
 	})
-	ms.SetNamespace("test-ns")
 
 	return ms
 }
