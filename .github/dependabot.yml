@@ -23,20 +23,10 @@ updates:
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: weekly
+      interval: monthly
     ignore:
       # Our own dependencies are handled during releases
       - dependency-name: github.com/submariner-io/*
-      # These are checked monthly below
-      - dependency-name: github.com/aws/aws-sdk-go-v2/*
-      - dependency-name: github.com/Azure/azure-sdk-for-go/*
       # These are included by k8s.io/client-go
       - dependency-name: k8s.io/api
       - dependency-name: k8s.io/apimachinery
-  - package-ecosystem: gomod
-    directory: "/"
-    schedule:
-      interval: monthly
-    allow:
-      - dependency-name: github.com/aws/aws-sdk-go-v2/*
-      - dependency-name: github.com/Azure/azure-sdk-for-go/*
