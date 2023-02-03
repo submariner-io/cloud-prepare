@@ -30,3 +30,5 @@ updates:
       # These are included by k8s.io/client-go
       - dependency-name: k8s.io/api
       - dependency-name: k8s.io/apimachinery
+      # This is included by github.com/aws/aws-sdk-go-v2/config
+      - dependency-name: github.com/aws/aws-sdk-go-v2/credentials
