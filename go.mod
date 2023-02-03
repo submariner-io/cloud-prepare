@@ -17,7 +17,7 @@ require (
 	github.com/onsi/gomega v1.26.0
 	github.com/pkg/errors v0.9.1
 	github.com/submariner-io/admiral v0.15.0-m2
-	google.golang.org/api v0.108.0
+	google.golang.org/api v0.109.0
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
