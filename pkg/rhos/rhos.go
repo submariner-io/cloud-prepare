@@ -43,7 +43,7 @@ func NewCloud(info CloudInfo) api.Cloud {
 	}
 }
 
-func (rc *rhosCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, status reporter.Interface) error {
+func (rc *rhosCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
 	status.Start("Opening internal ports for intra-cluster communications on RHOS")
 	defer status.End()
 
@@ -57,16 +57,16 @@ func (rc *rhosCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, s
 		return status.Error(err, "error creating the network client")
 	}
 
-	if err := rc.openInternalPorts(rc.InfraID, input.InternalPorts, computeClient, networkClient); err != nil {
+	if err := rc.openInternalPorts(rc.InfraID, ports, computeClient, networkClient); err != nil {
 		return status.Error(err, "unable to open ports")
 	}
 
-	status.Success("Opened internal ports %q for intra-cluster communications on RHOS", formatPorts(input.InternalPorts))
+	status.Success("Opened internal ports %q for intra-cluster communications on RHOS", formatPorts(ports))
 
 	return nil
 }
 
-func (rc *rhosCloud) CleanupAfterSubmariner(status reporter.Interface) error {
+func (rc *rhosCloud) ClosePorts(status reporter.Interface) error {
 	status.Start("Revoking intra-cluster communication permissions")
 
 	computeClient, err := openstack.NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
