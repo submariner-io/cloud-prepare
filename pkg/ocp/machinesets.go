@@ -98,12 +98,11 @@ func (msd *k8sMachineSetDeployer) clientForMsd(nameSpace string) dynamic.Resourc
 func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured,
 	infraID string,
 ) (string, error) {
-	var machineSetClient dynamic.ResourceInterface
+	machineSetClient := msd.clientForMsd("openshift-machine-api")
 
-	if machineSet == nil {
-		machineSetClient = msd.clientForMsd("openshift-machine-api")
-	} else {
+	if machineSet != nil {
 		var err error
+
 		machineSetClient, err = msd.clientFor(machineSet)
 		if err != nil {
 			return "", err
@@ -131,16 +130,14 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, ma
 			return "", errors.Wrapf(err, "error retrieving machine set %q", nodeName)
 		}
 
-		labels, found, _ := unstructured.NestedStringMap(existing.Object, "spec", "template", "metadata", "labels")
-		if found {
+		if labels, found, _ := unstructured.NestedStringMap(existing.Object, "spec", "template", "metadata", "labels"); found {
 			role := labels["machine.openshift.io/cluster-api-machine-role"]
 			if strings.Compare(strings.ToLower(role), "worker") != 0 {
 				continue
 			}
 		}
 
-		image := getImageFromMachineSet(existing)
-		if image != "" {
+		if image := getImageFromMachineSet(existing); image != "" {
 			return image, nil
 		}
 	}
@@ -150,27 +147,25 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, ma
 
 func getImageFromMachineSet(existing *unstructured.Unstructured) string {
 	disks, _, _ := unstructured.NestedSlice(existing.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
-	if len(disks) == 0 {
-		image, _, _ := unstructured.NestedString(existing.Object, "spec", "template", "spec", "providerSpec", "value", "image")
+	for _, o := range disks {
+		disk := o.(map[string]interface{})
+
+		image, _, _ := unstructured.NestedString(disk, "image")
 		if image != "" {
 			return image
 		}
+	}
 
-		// For MachineSets deployed in Azure.
-		image, _, _ = unstructured.NestedString(existing.Object, "spec", "template", "spec", "providerSpec",
-			"value", "image", "resourceID")
-		if image != "" {
-			return image
-		}
-	} else {
-		for _, o := range disks {
-			disk := o.(map[string]interface{})
+	image, _, _ := unstructured.NestedString(existing.Object, "spec", "template", "spec", "providerSpec", "value", "image")
+	if image != "" {
+		return image
+	}
 
-			image, _, _ := unstructured.NestedString(disk, "image")
-			if image != "" {
-				return image
-			}
-		}
+	// For MachineSets deployed in Azure.
+	image, _, _ = unstructured.NestedString(existing.Object, "spec", "template", "spec", "providerSpec",
+		"value", "image", "resourceID")
+	if image != "" {
+		return image
 	}
 
 	return ""
