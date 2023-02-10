@@ -95,7 +95,7 @@ func (msd *k8sMachineSetDeployer) clientForMsd(nameSpace string) dynamic.Resourc
 	return msd.dynamicClient.Resource(machinesetGVR).Namespace(nameSpace)
 }
 
-func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured,
+func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeNames []string, machineSet *unstructured.Unstructured,
 	infraID string,
 ) (string, error) {
 	machineSetClient := msd.clientForMsd("openshift-machine-api")
@@ -109,35 +109,40 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, ma
 		}
 	}
 
-	if len(workerNodeList) == 0 {
+	var workerNodes []unstructured.Unstructured
+
+	if len(workerNodeNames) == 0 {
 		nodeList, err := machineSetClient.List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return "", errors.Wrapf(err, "error listing the machineSets")
 		}
 
-		for _, machineName := range nodeList.Items {
-			workerNodeList = append(workerNodeList, machineName.GetName())
+		workerNodes = nodeList.Items
+	} else {
+		workerNodes = []unstructured.Unstructured{}
+
+		for i := range workerNodeNames {
+			workerNode, err := machineSetClient.Get(context.TODO(), workerNodeNames[i], metav1.GetOptions{})
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			if err != nil {
+				return "", errors.Wrapf(err, "error retrieving machine set %q", workerNodeNames[i])
+			}
+
+			workerNodes = append(workerNodes, *workerNode)
 		}
 	}
 
-	for _, nodeName := range workerNodeList {
-		existing, err := machineSetClient.Get(context.TODO(), nodeName, metav1.GetOptions{})
-		if apierrors.IsNotFound(err) {
-			continue
-		}
-
-		if err != nil {
-			return "", errors.Wrapf(err, "error retrieving machine set %q", nodeName)
-		}
-
-		if labels, found, _ := unstructured.NestedStringMap(existing.Object, "spec", "template", "metadata", "labels"); found {
+	for i := range workerNodes {
+		if labels, found, _ := unstructured.NestedStringMap(workerNodes[i].Object, "spec", "template", "metadata", "labels"); found {
 			role := labels["machine.openshift.io/cluster-api-machine-role"]
 			if strings.Compare(strings.ToLower(role), "worker") != 0 {
 				continue
 			}
 		}
 
-		if image := getImageFromMachineSet(existing); image != "" {
+		if image := getImageFromMachineSet(&workerNodes[i]); image != "" {
 			return image, nil
 		}
 	}
