@@ -125,7 +125,12 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	}
 
 	if d.dedicatedGWNode {
-		err = d.deployDedicatedGWNode(machineSets, gatewayNodesToDeploy, status)
+		image, imageErr := d.msDeployer.GetWorkerNodeImage(nil, nil, d.InfraID)
+		if imageErr != nil {
+			return errors.Wrap(imageErr, "error retrieving worker node image")
+		}
+
+		err = d.deployDedicatedGWNode(machineSets, gatewayNodesToDeploy, image, status)
 	} else {
 		err = d.tagExistingNode(nsgClient, nwClient, pubIPClient, gatewayNodesToDeploy, status)
 	}
@@ -138,7 +143,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 }
 
 func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstructured, gatewayNodesToDeploy int,
-	status reporter.Interface,
+	image string, status reporter.Interface,
 ) error {
 	az, err := d.getAvailabilityZones(gwNodes)
 	if err != nil || az.Size() == 0 {
@@ -148,7 +153,7 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstru
 	for _, zone := range az.Elements() {
 		status.Start("Deploying dedicated gateway node")
 
-		err := d.deployGateway(zone)
+		err := d.deployGateway(zone, image)
 		if err != nil {
 			return status.Error(err, "error deploying gateway for zone %q", zone)
 		}
@@ -217,9 +222,10 @@ type machineSetConfig struct {
 	InfraID      string
 	InstanceType string
 	Region       string
+	Image        string
 }
 
-func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone string) ([]byte, error) {
+func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone, image string) ([]byte, error) {
 	var buf bytes.Buffer
 
 	tpl, err := template.New("").Parse(machineSetYAML)
@@ -233,6 +239,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone string) ([]byte, error) 
 		InstanceType: d.instanceType,
 		Region:       d.azure.Region,
 		AZ:           zone,
+		Image:        image,
 	}
 
 	err = tpl.Execute(&buf, tplVars)
@@ -243,8 +250,8 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone string) ([]byte, error) 
 	return buf.Bytes(), nil
 }
 
-func (d *ocpGatewayDeployer) initMachineSet(name, zone string) (*unstructured.Unstructured, error) {
-	gatewayYAML, err := d.loadGatewayYAML(name, zone)
+func (d *ocpGatewayDeployer) initMachineSet(name, zone, image string) (*unstructured.Unstructured, error) {
+	gatewayYAML, err := d.loadGatewayYAML(name, zone, image)
 	if err != nil {
 		return nil, err
 	}
@@ -261,8 +268,8 @@ func (d *ocpGatewayDeployer) initMachineSet(name, zone string) (*unstructured.Un
 	return machineSet, nil
 }
 
-func (d *ocpGatewayDeployer) deployGateway(zone string) error {
-	machineSet, err := d.initMachineSet(MachineName(d.azure.Region), zone)
+func (d *ocpGatewayDeployer) deployGateway(zone, image string) error {
+	machineSet, err := d.initMachineSet(MachineName(d.azure.Region), zone, image)
 	if err != nil {
 		return err
 	}
