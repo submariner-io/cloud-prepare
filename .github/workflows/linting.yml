@@ -33,6 +33,19 @@ jobs:
           flags: 'i'
           error: 'Fixup commits should be squashed into the commits under review'
 
+  code-gen:
+    name: Mock Code Generation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+      - name: Remove generated files
+        run: rm -f pkg/aws/client/fake/client.go pkg/gcp/client/fake/client.go pkg/ocp/fake/machineset.go
+      - name: Run code generation
+        run: make pkg/aws/client/fake/client.go pkg/gcp/client/fake/client.go pkg/ocp/fake/machineset.go
+      - name: Verify generated code matches committed code
+        run: git add -A && git diff --staged --exit-code
+
   gitlint:
     name: Commit Message(s)
     runs-on: ubuntu-latest

@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-//go:generate mockgen -source=./machinesets.go -destination=./fake/machineset.go -package=fake
+//go:generate mockgen -source=./machinesets.go -destination=./fake/machineset.go -package=fake -copyright_file=../../.header
 
 const (
 	SubmarinerGatewayLabel = "submariner.io/gateway"
