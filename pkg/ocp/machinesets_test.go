@@ -44,11 +44,10 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	)
 
 	var (
-		msClient       dynamic.ResourceInterface
-		dynClient      *fakeClient.FakeDynamicClient
-		deployer       ocp.MachineSetDeployer
-		machineSet     *unstructured.Unstructured
-		workerNodeList = []string{infraID + "-worker-b", infraID + "-worker-c", infraID + "-worker-d"}
+		msClient   dynamic.ResourceInterface
+		dynClient  *fakeClient.FakeDynamicClient
+		deployer   ocp.MachineSetDeployer
+		machineSet *unstructured.Unstructured
 	)
 
 	BeforeEach(func() {
@@ -65,7 +64,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	Context("on GetWorkerNodeImage", func() {
 		When("no worker node exists", func() {
 			It("should return an error", func() {
-				_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+				_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 				Expect(err).ToNot(Succeed())
 			})
 		})
@@ -92,7 +91,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				})
 
 				It("should return its disk image", func() {
-					image, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+					image, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 					Expect(err).To(Succeed())
 					Expect(image).To(Equal("some-image"))
 				})
@@ -100,7 +99,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 			Context("and has no disks", func() {
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 					Expect(err).ToNot(Succeed())
 				})
 			})
@@ -109,12 +108,12 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				var expectedErr error
 
 				BeforeEach(func() {
-					expectedErr = errors.New("fake Get error")
-					fake.NewFailingReactor(&dynClient.Fake).SetFailOnGet(expectedErr)
+					expectedErr = errors.New("fake List error")
+					fake.NewFailingReactor(&dynClient.Fake).SetFailOnList(expectedErr)
 				})
 
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 					Expect(err).To(ContainErrorSubstring(expectedErr))
 				})
 			})

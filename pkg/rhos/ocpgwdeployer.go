@@ -120,9 +120,7 @@ func (d *ocpGatewayDeployer) deployGateway(index string) error {
 	}
 
 	if d.image == "" {
-		workerNodeList := []string{}
-
-		d.image, err = d.msDeployer.GetWorkerNodeImage(workerNodeList, machineSet, d.InfraID)
+		d.image, err = d.msDeployer.GetWorkerNodeImage(machineSet, d.InfraID)
 		if err != nil {
 			return errors.Wrap(err, "error getting the worker image")
 		}
