@@ -48,8 +48,7 @@ type MachineSetDeployer interface {
 	Deploy(machineSet *unstructured.Unstructured) error
 
 	// GetWorkerNodeImage returns the image used by OCP worker nodes.
-	// If an empty workerNodeList is passed, the API will internally query the worker nodes.
-	GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured, infraID string) (string, error)
+	GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error)
 
 	// List will list all the machineSets that have the submariner.io/gateway set to "true".
 	List() ([]unstructured.Unstructured, error)
@@ -95,8 +94,7 @@ func (msd *k8sMachineSetDeployer) clientForMsd(nameSpace string) dynamic.Resourc
 	return msd.dynamicClient.Resource(machinesetGVR).Namespace(nameSpace)
 }
 
-func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeNames []string, machineSet *unstructured.Unstructured,
-	infraID string,
+func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string,
 ) (string, error) {
 	machineSetClient := msd.clientForMsd("openshift-machine-api")
 
@@ -109,40 +107,20 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(workerNodeNames []string, m
 		}
 	}
 
-	var workerNodes []unstructured.Unstructured
-
-	if len(workerNodeNames) == 0 {
-		nodeList, err := machineSetClient.List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			return "", errors.Wrapf(err, "error listing the machineSets")
-		}
-
-		workerNodes = nodeList.Items
-	} else {
-		workerNodes = []unstructured.Unstructured{}
-
-		for i := range workerNodeNames {
-			workerNode, err := machineSetClient.Get(context.TODO(), workerNodeNames[i], metav1.GetOptions{})
-			if apierrors.IsNotFound(err) {
-				continue
-			}
-			if err != nil {
-				return "", errors.Wrapf(err, "error retrieving machine set %q", workerNodeNames[i])
-			}
-
-			workerNodes = append(workerNodes, *workerNode)
-		}
+	nodeList, err := machineSetClient.List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return "", errors.Wrapf(err, "error listing the machineSets")
 	}
 
-	for i := range workerNodes {
-		if labels, found, _ := unstructured.NestedStringMap(workerNodes[i].Object, "spec", "template", "metadata", "labels"); found {
+	for i := range nodeList.Items {
+		if labels, found, _ := unstructured.NestedStringMap(nodeList.Items[i].Object, "spec", "template", "metadata", "labels"); found {
 			role := labels["machine.openshift.io/cluster-api-machine-role"]
 			if strings.Compare(strings.ToLower(role), "worker") != 0 {
 				continue
 			}
 		}
 
-		if image := getImageFromMachineSet(&workerNodes[i]); image != "" {
+		if image := getImageFromMachineSet(&nodeList.Items[i]); image != "" {
 			return image, nil
 		}
 	}

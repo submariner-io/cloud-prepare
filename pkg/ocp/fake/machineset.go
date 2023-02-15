@@ -90,18 +90,18 @@ func (mr *MockMachineSetDeployerMockRecorder) Deploy(machineSet interface{}) *go
 }
 
 // GetWorkerNodeImage mocks base method.
-func (m *MockMachineSetDeployer) GetWorkerNodeImage(workerNodeList []string, machineSet *unstructured.Unstructured, infraID string) (string, error) {
+func (m *MockMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetWorkerNodeImage", workerNodeList, machineSet, infraID)
+	ret := m.ctrl.Call(m, "GetWorkerNodeImage", machineSet, infraID)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetWorkerNodeImage indicates an expected call of GetWorkerNodeImage.
-func (mr *MockMachineSetDeployerMockRecorder) GetWorkerNodeImage(workerNodeList, machineSet, infraID interface{}) *gomock.Call {
+func (mr *MockMachineSetDeployerMockRecorder) GetWorkerNodeImage(machineSet, infraID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkerNodeImage", reflect.TypeOf((*MockMachineSetDeployer)(nil).GetWorkerNodeImage), workerNodeList, machineSet, infraID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkerNodeImage", reflect.TypeOf((*MockMachineSetDeployer)(nil).GetWorkerNodeImage), machineSet, infraID)
 }
 
 // List mocks base method.

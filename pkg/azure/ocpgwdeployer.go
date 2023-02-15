@@ -125,7 +125,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	}
 
 	if d.dedicatedGWNode {
-		image, imageErr := d.msDeployer.GetWorkerNodeImage(nil, nil, d.InfraID)
+		image, imageErr := d.msDeployer.GetWorkerNodeImage(nil, d.InfraID)
 		if imageErr != nil {
 			return errors.Wrap(imageErr, "error retrieving worker node image")
 		}
