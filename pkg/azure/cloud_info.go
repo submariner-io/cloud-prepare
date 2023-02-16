@@ -29,7 +29,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
-	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	"k8s.io/utils/pointer"
 )
 
@@ -49,7 +48,6 @@ type CloudInfo struct {
 	Region          string
 	BaseGroupName   string
 	TokenCredential azcore.TokenCredential
-	K8sClient       k8s.Interface
 }
 
 //nolint:wrapcheck // Let the caller wrap it.
@@ -211,64 +209,6 @@ func (c *CloudInfo) createGWSecurityGroup(groupName string, ports []api.PortSpec
 	return errors.Wrapf(err, "Error creating  security group %v ", groupName)
 }
 
-func (c *CloudInfo) prepareGWInterface(nodeName, groupName string, nsgClient *armnetwork.SecurityGroupsClient,
-	nwClient *armnetwork.InterfacesClient, pubIPClient *armnetwork.PublicIPAddressesClient,
-) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
-
-	nwSecurityGroup, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, nil)
-	if err != nil {
-		return errors.Wrapf(err, "error getting the submariner gateway security group %q", groupName)
-	}
-
-	publicIPName := nodeName + "-pub"
-
-	var pubIP armnetwork.PublicIPAddress
-
-	pubIP, err = c.getPublicIP(ctx, publicIPName, pubIPClient)
-
-	if err != nil {
-		var err error
-
-		pubIP, err = c.createPublicIP(ctx, publicIPName, pubIPClient)
-		if err != nil {
-			return errors.Wrapf(err, "failed to create public IP %q", publicIPName)
-		}
-	}
-
-	interfaceName := nodeName + "-nic"
-
-	nwInterface, err := nwClient.Get(ctx, c.BaseGroupName, interfaceName, nil)
-	if err != nil {
-		return errors.Wrapf(err, "error getting the interfaces %q from resource group %q", interfaceName, c.BaseGroupName)
-	}
-
-	if nwInterface.Properties == nil {
-		nwInterface.Properties = &armnetwork.InterfacePropertiesFormat{}
-	}
-
-	nwInterface.Properties.NetworkSecurityGroup = &nwSecurityGroup.SecurityGroup
-
-	for i := range nwInterface.Properties.IPConfigurations {
-		props := nwInterface.Properties.IPConfigurations[i].Properties
-		if props != nil && props.Primary != nil && *props.Primary {
-			nwInterface.Properties.IPConfigurations[i].Properties.PublicIPAddress = &pubIP
-			break
-		}
-	}
-
-	poller, err := nwClient.BeginCreateOrUpdate(ctx, c.BaseGroupName, *nwInterface.Name, nwInterface.Interface, nil)
-	if err != nil {
-		return errors.Wrapf(err, "adding security group %q and public IP %q to interface %q failed", *nwSecurityGroup.Name,
-			*pubIP.Name, *nwInterface.ID)
-	}
-
-	_, err = poller.PollUntilDone(ctx, nil)
-
-	return errors.Wrapf(err, "updating interface %q failed", *nwInterface.Name)
-}
-
 func (c *CloudInfo) cleanupGWInterface(infraID string, nsgClient *armnetwork.SecurityGroupsClient,
 	nwClient *armnetwork.InterfacesClient,
 ) error {
@@ -359,46 +299,6 @@ func (c *CloudInfo) checkIfSecurityGroupPresent(ctx context.Context, groupName s
 	_, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, nil)
 
 	return err == nil
-}
-
-func (c *CloudInfo) getPublicIP(ctx context.Context, publicIPName string, pubIPClient *armnetwork.PublicIPAddressesClient,
-) (armnetwork.PublicIPAddress, error) {
-	resp, err := pubIPClient.Get(ctx, c.BaseGroupName, publicIPName, nil)
-
-	return resp.PublicIPAddress, errors.Wrapf(err, "error getting public ip: %q", publicIPName)
-}
-
-func (c *CloudInfo) createPublicIP(ctx context.Context, ipName string, ipClient *armnetwork.PublicIPAddressesClient,
-) (ip armnetwork.PublicIPAddress, err error) {
-	ipVersion := armnetwork.IPVersionIPv4
-	ipAllocMethod := armnetwork.IPAllocationMethodStatic
-	skuName := armnetwork.PublicIPAddressSKUNameStandard
-
-	poller, err := ipClient.BeginCreateOrUpdate(
-		ctx,
-		c.BaseGroupName,
-		ipName,
-		armnetwork.PublicIPAddress{
-			Name: pointer.String(ipName),
-			Properties: &armnetwork.PublicIPAddressPropertiesFormat{
-				PublicIPAddressVersion:   &ipVersion,
-				PublicIPAllocationMethod: &ipAllocMethod,
-			},
-			Location: &c.Region,
-			SKU: &armnetwork.PublicIPAddressSKU{
-				Name: &skuName,
-			},
-		}, nil)
-	if err != nil {
-		return ip, errors.Wrapf(err, "cannot create public ip address: %q", ipName)
-	}
-
-	resp, err := poller.PollUntilDone(ctx, nil)
-	if err != nil {
-		return ip, errors.Wrapf(err, "cannot get public ip address create or update response: %q", ipName)
-	}
-
-	return resp.PublicIPAddress, nil
 }
 
 func (c *CloudInfo) deletePublicIP(ctx context.Context, ipClient *armnetwork.PublicIPAddressesClient, ipName string) (err error) {

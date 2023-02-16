@@ -26,7 +26,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/resource"
 	"github.com/submariner-io/admiral/pkg/util"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -213,25 +212,4 @@ func (msd *k8sMachineSetDeployer) List() ([]unstructured.Unstructured, error) {
 	}
 
 	return resultList, nil
-}
-
-func RemoveDuplicates(machineSets []unstructured.Unstructured, gwNodes []v1.Node) []v1.Node {
-	var resultNode []v1.Node
-
-	for i := 0; i < len(gwNodes); i++ {
-		addToResult := true
-
-		for i := 0; i < len(machineSets); i++ {
-			if strings.Contains(gwNodes[i].GetName(), machineSets[i].GetName()) {
-				addToResult = false
-				break
-			}
-		}
-
-		if addToResult {
-			resultNode = append(resultNode, gwNodes[i])
-		}
-	}
-
-	return resultNode
 }

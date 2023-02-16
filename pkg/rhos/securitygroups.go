@@ -26,14 +26,12 @@ import (
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
-	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 )
 
 type CloudInfo struct {
-	Client    *gophercloud.ProviderClient
-	InfraID   string
-	Region    string
-	K8sClient k8s.Interface
+	Client  *gophercloud.ProviderClient
+	InfraID string
+	Region  string
 }
 
 func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec,
@@ -173,36 +171,6 @@ func checkIfSecurityGroupPresent(groupName string, computeClient *gophercloud.Se
 	})
 
 	return isFound, errors.WithMessagef(err, "error getting the security group : %q", groupName)
-}
-
-func (c *CloudInfo) openGatewayPort(groupName, nodeName string, computeClient *gophercloud.ServiceClient) error {
-	opts := servers.ListOpts{Name: nodeName}
-	pager := servers.List(computeClient, opts)
-
-	err := pager.EachPage(func(page pagination.Page) (bool, error) {
-		serverList, err := servers.ExtractServers(page)
-		if err != nil {
-			return false, errors.WithMessagef(err, "getting the server List failed for node %q", nodeName)
-		}
-		for i := range serverList {
-			securityGroups := serverList[i].SecurityGroups
-			for j := range securityGroups {
-				existingGroupName, ok := securityGroups[j]["name"]
-				if ok && existingGroupName == groupName {
-					return true, nil
-				}
-			}
-			err = secgroups.AddServer(computeClient, serverList[i].ID, groupName).ExtractErr()
-			if err != nil {
-				return false, errors.WithMessagef(err, "adding security group %q to the server %q failed",
-					groupName, serverList[i].Name)
-			}
-		}
-
-		return true, nil
-	})
-
-	return errors.WithMessagef(err, "open gateway ports failed")
 }
 
 func (c *CloudInfo) removeFirewallRulesFromGW(groupName, nodeName string, computeClient *gophercloud.ServiceClient) error {

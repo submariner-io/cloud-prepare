@@ -30,7 +30,6 @@ import (
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp"
-	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -77,118 +76,6 @@ func testDeploy() {
 		t.assertIngressRule(actualRule)
 	})
 
-	When("one gateway is requested", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				newNode("node-1", zone1, instance1),
-				newNode("node-2", "other", "other"),
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node-3",
-					},
-				},
-			}
-
-			t.expInstanceTagged(zone1, t.instances[zone1][0])
-			t.numGateways = 1
-		})
-
-		It("should label one gateway node", func() {
-			Expect(retError).To(Succeed())
-			t.assertLabeledNodes("node-1")
-		})
-	})
-
-	When("two gateways are requested", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				newNode("node-1", zone1, instance1),
-			}
-
-			t.expInstanceTagged(zone1, t.instances[zone1][0])
-			t.numGateways = 2
-		})
-
-		Context("", func() {
-			BeforeEach(func() {
-				t.nodes = append(t.nodes, newNode("node-2", zone2, instance2))
-				t.expInstanceTagged(zone2, t.instances[zone2][0])
-			})
-
-			It("should label two gateway nodes", func() {
-				Expect(retError).To(Succeed())
-				t.assertLabeledNodes("node-1", "node-2")
-			})
-		})
-
-		Context("and there's an insufficient number of available nodes", func() {
-			It("should partially label the gateways", func() {
-				Expect(retError).ToNot(Succeed())
-				t.assertLabeledNodes("node-1")
-			})
-		})
-	})
-
-	When("the requested number of gateways is increased", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				newNode("node-1", zone1, instance1),
-				newNode("node-2", zone2, instance2),
-			}
-
-			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
-			t.expInstanceTagged(zone2, t.instances[zone2][0])
-			t.numGateways = 2
-		})
-
-		It("should label the additional gateway nodes", func() {
-			Expect(retError).To(Succeed())
-			t.assertLabeledNodes("node-2")
-		})
-	})
-
-	When("the requested number of gateways is decreased", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				labelNode(newNode("node-1", zone1, instance1)),
-				labelNode(newNode("node-2", zone2, instance2)),
-			}
-
-			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
-			t.instances[zone2][0].Tags.Items = []string{submarinerGatewayNodeTag}
-			t.numGateways = 1
-		})
-
-		It("should do nothing", func() {
-			Expect(retError).To(Succeed())
-			t.assertLabeledNodes("node-1", "node-2")
-		})
-	})
-
-	When("the requested number of gateway nodes are already labeled", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				labelNode(newNode("node-1", zone1, instance1)),
-				labelNode(newNode("node-2", zone2, instance2)),
-			}
-
-			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
-			t.instances[zone2][0].Tags.Items = []string{submarinerGatewayNodeTag}
-			t.numGateways = 2
-		})
-
-		It("should not try to update them", func() {
-			Expect(retError).To(Succeed())
-
-			actualActions := t.kubeClient.Fake.Actions()
-			for i := range actualActions {
-				if actualActions[i].GetResource().Resource == "nodes" {
-					Expect(actualActions[i].GetVerb()).ToNot(Equal("update"))
-				}
-			}
-		})
-	})
-
 	When("dedicated gateway nodes are requested", func() {
 		var machineSets map[string]*unstructured.Unstructured
 
@@ -196,7 +83,6 @@ func testDeploy() {
 			t.msDeployer.EXPECT().GetWorkerNodeImage(gomock.Any(), infraID).Return("test-image", nil).AnyTimes()
 			t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&machineSets)).Times(2)
 
-			t.dedicatedGWNode = true
 			t.numGateways = 2
 		})
 
@@ -255,26 +141,6 @@ func testCleanup() {
 		Expect(retError).To(Succeed())
 	})
 
-	Context("with preexisting nodes labeled as gateways", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				labelNode(newNode("node-1", zone1, instance1)),
-				labelNode(newNode("node-2", zone2, instance2)),
-			}
-
-			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
-			t.instances[zone2][0].Tags.Items = []string{submarinerGatewayNodeTag}
-
-			t.expInstanceUntagged(zone1, t.instances[zone1][0])
-			t.expInstanceUntagged(zone2, t.instances[zone2][0])
-		})
-
-		It("should unlabel them", func() {
-			Expect(retError).To(Succeed())
-			t.assertLabeledNodes()
-		})
-	})
-
 	Context("with dedicated nodes deployed as gateways", func() {
 		var machineSets map[string]*unstructured.Unstructured
 
@@ -320,15 +186,14 @@ func testCleanup() {
 
 type gatewayDeployerTestDriver struct {
 	fakeGCPClientBase
-	numGateways     int
-	dedicatedGWNode bool
-	image           string
-	kubeClient      *kubeFake.Clientset
-	msDeployer      *ocpFake.MockMachineSetDeployer
-	nodes           []*corev1.Node
-	zones           []*compute.Zone
-	instances       map[string][]*compute.Instance
-	gwDeployer      api.GatewayDeployer
+	numGateways int
+	image       string
+	kubeClient  *kubeFake.Clientset
+	msDeployer  *ocpFake.MockMachineSetDeployer
+	nodes       []*corev1.Node
+	zones       []*compute.Zone
+	instances   map[string][]*compute.Instance
+	gwDeployer  api.GatewayDeployer
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
@@ -336,8 +201,6 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 
 	BeforeEach(func() {
 		t.beforeEach()
-
-		t.nodes = []*corev1.Node{}
 
 		t.zones = []*compute.Zone{
 			{
@@ -372,7 +235,6 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 			},
 		}
 
-		t.dedicatedGWNode = false
 		t.image = ""
 		t.msDeployer = ocpFake.NewMockMachineSetDeployer(t.mockCtrl)
 		t.kubeClient = kubeFake.NewSimpleClientset()
@@ -412,7 +274,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 			Region:    region,
 			ProjectID: projectID,
 			Client:    t.gcpClient,
-		}, t.msDeployer, instanceType, t.image, t.dedicatedGWNode, k8s.NewInterface(t.kubeClient))
+		}, t.msDeployer, instanceType, t.image)
 	})
 
 	return t
@@ -434,30 +296,6 @@ func (t *gatewayDeployerTestDriver) doDeploy() error {
 	}, reporter.Stdout())
 }
 
-func (t *gatewayDeployerTestDriver) getLabeledNodes() []string {
-	found := []string{}
-
-	for _, expected := range t.nodes {
-		actual, err := t.kubeClient.CoreV1().Nodes().Get(context.TODO(), expected.Name, metav1.GetOptions{})
-		Expect(err).To(Succeed())
-
-		if actual.Labels["submariner.io/gateway"] == "true" {
-			found = append(found, actual.Name)
-		}
-	}
-
-	return found
-}
-
-func (t *gatewayDeployerTestDriver) assertLabeledNodes(expNodes ...string) {
-	actual := t.getLabeledNodes()
-	Expect(actual).To(HaveLen(len(expNodes)))
-
-	for _, n := range expNodes {
-		Expect(actual).To(ContainElement(n))
-	}
-}
-
 func (t *gatewayDeployerTestDriver) assertIngressRule(rule *compute.Firewall) {
 	Expect(rule.Name).To(Equal(publicPortsRuleName))
 	Expect(rule.Direction).To(Equal("INGRESS"))
@@ -470,22 +308,6 @@ func (t *gatewayDeployerTestDriver) assertIngressRule(rule *compute.Firewall) {
 		IPProtocol: "UDP",
 		Ports:      []string{"200"},
 	}))
-}
-
-func (t *gatewayDeployerTestDriver) expInstanceTagged(zone string, instance *compute.Instance) {
-	t.gcpClient.EXPECT().UpdateInstanceNetworkTags(projectID, zone, instance.Name, &compute.Tags{
-		Items: []string{submarinerGatewayNodeTag},
-	})
-
-	t.gcpClient.EXPECT().ConfigurePublicIPOnInstance(instance)
-}
-
-func (t *gatewayDeployerTestDriver) expInstanceUntagged(zone string, instance *compute.Instance) {
-	t.gcpClient.EXPECT().UpdateInstanceNetworkTags(projectID, zone, instance.Name, &compute.Tags{
-		Items: []string{},
-	})
-
-	t.gcpClient.EXPECT().DeletePublicIPOnInstance(instance)
 }
 
 func (t *gatewayDeployerTestDriver) assertMachineSet(ms *unstructured.Unstructured, expImage string) {
@@ -511,26 +333,6 @@ func (t *gatewayDeployerTestDriver) assertMachineSet(ms *unstructured.Unstructur
 	Expect(disks).To(HaveLen(1))
 	image, _, _ := unstructured.NestedString(disks[0].(map[string]interface{}), "image")
 	Expect(image).To(Equal(expImage))
-}
-
-func newNode(name, withZone, withInstance string) *corev1.Node {
-	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-			Labels: map[string]string{
-				"topology.kubernetes.io/zone":    withZone,
-				"node-role.kubernetes.io/worker": "",
-			},
-			Annotations: map[string]string{
-				"machine.openshift.io/machine": "east/" + withInstance,
-			},
-		},
-	}
-}
-
-func labelNode(node *corev1.Node) *corev1.Node {
-	node.Labels["submariner.io/gateway"] = "true"
-	return node
 }
 
 //nolint:gocritic // Error: "consider `machineSets' to be of non-pointer type"
