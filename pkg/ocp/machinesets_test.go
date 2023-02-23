@@ -31,6 +31,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	fakeClient "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -54,7 +55,9 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 		machineSet = newMachineSet("true")
 		restMapper, gvr := test.GetRESTMapperAndGroupVersionResourceFor(machineSet)
 
-		dynClient = fakeClient.NewSimpleDynamicClient(scheme.Scheme)
+		dynClient = fakeClient.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, map[schema.GroupVersionResource]string{
+			*gvr: "MachineSetList",
+		})
 		deployer = ocp.NewK8sMachinesetDeployer(restMapper, dynClient)
 		msClient = dynClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
 	})
