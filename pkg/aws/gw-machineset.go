@@ -42,6 +42,7 @@ spec:
       metadata:
         labels:
           submariner.io/gateway: "true"
+          node-role.kubernetes.io/infra: ""
       taints:
         - effect: NoSchedule
           key: node-role.submariner.io/gateway
