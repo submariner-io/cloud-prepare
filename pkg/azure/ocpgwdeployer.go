@@ -28,11 +28,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
-	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
 )
@@ -146,11 +146,11 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstru
 	image string, status reporter.Interface,
 ) error {
 	az, err := d.getAvailabilityZones(gwNodes)
-	if err != nil || az.Size() == 0 {
+	if err != nil || az.Len() == 0 {
 		return status.Error(err, "error getting the availability zones for region %q", d.Region)
 	}
 
-	for _, zone := range az.Elements() {
+	for _, zone := range az.UnsortedList() {
 		status.Start("Deploying dedicated gateway node")
 
 		err := d.deployGateway(zone, image)
@@ -291,8 +291,8 @@ func MachineName(region string) string {
 	return submarinerGatewayGW + region + "-" + string(uuid.NewUUID())[0:6]
 }
 
-func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstructured) (stringset.Interface, error) {
-	zonesWithSubmarinerGW := stringset.New()
+func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstructured) (sets.Set[string], error) {
+	zonesWithSubmarinerGW := sets.New[string]()
 
 	for i := range gwNodes {
 		zone, _, err := unstructured.NestedString(gwNodes[i].Object, "spec", "template", "spec", "providerSpec", "value", "zone")
@@ -300,7 +300,7 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstruc
 			return nil, errors.Wrap(err, "error getting the zone from the existing node")
 		}
 
-		zonesWithSubmarinerGW.Add(zone)
+		zonesWithSubmarinerGW.Insert(zone)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
@@ -315,7 +315,7 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstruc
 		Filter: pointer.String(d.azure.Region),
 	})
 
-	eligibleZonesForSubmarinerGW := stringset.New()
+	eligibleZonesForSubmarinerGW := sets.New[string]()
 
 	for pager.More() {
 		nextResult, err := pager.NextPage(ctx)
@@ -326,8 +326,8 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstruc
 		for _, resourceSKU := range nextResult.Value {
 			if *resourceSKU.ResourceType == azureVirtualMachines && *resourceSKU.Name == d.instanceType {
 				for _, zone := range resourceSKU.LocationInfo[0].Zones {
-					if !zonesWithSubmarinerGW.Contains(d.azure.Region + "-" + *zone) {
-						eligibleZonesForSubmarinerGW.Add(*zone)
+					if !zonesWithSubmarinerGW.Has(d.azure.Region + "-" + *zone) {
+						eligibleZonesForSubmarinerGW.Insert(*zone)
 					}
 				}
 			}
