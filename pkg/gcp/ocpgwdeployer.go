@@ -26,13 +26,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
-	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"google.golang.org/api/compute/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 type ocpGatewayDeployer struct {
@@ -91,7 +91,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	}
 
 	if d.dedicatedGWNode {
-		for _, zone := range eligibleZonesForGW.Elements() {
+		for _, zone := range eligibleZonesForGW.UnsortedList() {
 			status.Start("Deploying dedicated gateway node in zone %q", zone)
 
 			err = d.deployGateway(zone)
@@ -108,7 +108,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	} else {
 		// Query the list of instances in the eligibleZones of the current region and if it's a worker node,
 		// configure the instance as Submariner Gateway node.
-		for _, zone := range eligibleZonesForGW.Elements() {
+		for _, zone := range eligibleZonesForGW.UnsortedList() {
 			workerNodes, err := d.k8sClient.ListNodesWithLabel("topology.kubernetes.io/zone=" + zone + ",node-role.kubernetes.io/worker")
 			if err != nil {
 				return status.Error(err, "failed to list k8s nodes in zone %q of project %q", zone, d.ProjectID)
@@ -141,13 +141,13 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	// We try to deploy a single Gateway node per zone (in the selected region). If the numGateways
 	// is more than the number of Zones, its treated as an error.
 	err = fmt.Errorf("there are an insufficient number of zones (%d) to deploy the desired number of gateways (%d)",
-		eligibleZonesForGW.Size(), input.Gateways)
+		eligibleZonesForGW.Len(), input.Gateways)
 	status.Failure(err.Error())
 
 	return err
 }
 
-func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interface) (int, stringset.Interface, error) {
+func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interface) (int, sets.Set[string], error) {
 	zones, err := d.retrieveZones(status)
 	if err != nil {
 		return 0, nil, err
@@ -156,8 +156,8 @@ func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interf
 	status.Start("Verifying if current gateways match the required number of gateways")
 	defer status.End()
 
-	zonesWithSubmarinerGW := stringset.New()
-	eligibleZonesForGW := stringset.New()
+	zonesWithSubmarinerGW := sets.New[string]()
+	eligibleZonesForGW := sets.New[string]()
 
 	for _, zone := range zones.Items {
 		// The list of zones include zones from all the regions, so filter out the zones that do
@@ -180,17 +180,17 @@ func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interf
 			// A GatewayNode will always be tagged with submarinerGatewayNodeTag when deployed with OCPMachineSet
 			// as well as when an existing worker node is updated as a Gateway node.
 			if d.isInstanceGatewayNode(instance) {
-				zonesWithSubmarinerGW.Add(zone.Name)
+				zonesWithSubmarinerGW.Insert(zone.Name)
 				break
 			}
 		}
 
-		if !zonesWithSubmarinerGW.Contains(zone.Name) {
-			eligibleZonesForGW.Add(zone.Name)
+		if !zonesWithSubmarinerGW.Has(zone.Name) {
+			eligibleZonesForGW.Insert(zone.Name)
 		}
 	}
 
-	return zonesWithSubmarinerGW.Size(), eligibleZonesForGW, nil
+	return zonesWithSubmarinerGW.Len(), eligibleZonesForGW, nil
 }
 
 type machineSetConfig struct {

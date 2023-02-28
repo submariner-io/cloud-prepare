@@ -27,11 +27,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/reporter"
-	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var _ = Describe("OCP GatewayDeployer", func() {
@@ -50,7 +50,7 @@ func testDeploy() {
 		t.expectDescribePublicSubnets(t.subnets...)
 
 		for i := range t.subnets {
-			if t.zonesWithInstanceTypeOfferings.Contains(*t.subnets[i].AvailabilityZone) {
+			if t.zonesWithInstanceTypeOfferings.Has(*t.subnets[i].AvailabilityZone) {
 				t.expectDescribeInstanceTypeOfferings(t.expectedInstanceType(), *t.subnets[i].AvailabilityZone, types.InstanceTypeOffering{})
 			} else {
 				t.expectDescribeInstanceTypeOfferings(t.expectedInstanceType(), *t.subnets[i].AvailabilityZone)
@@ -89,8 +89,8 @@ func testDeploy() {
 
 		Context("and the first subnet doesn't have an instance type offering", func() {
 			BeforeEach(func() {
-				t.zonesWithInstanceTypeOfferings.RemoveAll()
-				t.zonesWithInstanceTypeOfferings.Add(availabilityZone2)
+				t.zonesWithInstanceTypeOfferings.Delete(t.zonesWithInstanceTypeOfferings.UnsortedList()...)
+				t.zonesWithInstanceTypeOfferings.Insert(availabilityZone2)
 				t.expectedSubnetsDeployed = []types.Subnet{t.subnets[1]}
 				t.expectedSubnetsTagged = t.expectedSubnetsDeployed
 			})
@@ -252,7 +252,7 @@ type gatewayDeployerTestDriver struct {
 	expectedSubnetsDeployed        []types.Subnet
 	expectedSubnetsTagged          []types.Subnet
 	gatewayGroupID                 string
-	zonesWithInstanceTypeOfferings stringset.Interface
+	zonesWithInstanceTypeOfferings sets.Set[string]
 	machineSets                    map[string]*unstructured.Unstructured
 	retError                       error
 	msDeployer                     *ocpFake.MockMachineSetDeployer
@@ -272,10 +272,10 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		t.expectedSubnetsDeployed = []types.Subnet{t.subnets[0]}
 		t.expectedSubnetsTagged = []types.Subnet{t.subnets[0]}
 		t.gatewayGroupID = gatewayGroupID
-		t.zonesWithInstanceTypeOfferings = stringset.New()
+		t.zonesWithInstanceTypeOfferings = sets.New[string]()
 
 		for i := range t.subnets {
-			t.zonesWithInstanceTypeOfferings.Add(*t.subnets[i].AvailabilityZone)
+			t.zonesWithInstanceTypeOfferings.Insert(*t.subnets[i].AvailabilityZone)
 		}
 	})
 
