@@ -89,8 +89,7 @@ func testDeploy() {
 
 		Context("and the first subnet doesn't have an instance type offering", func() {
 			BeforeEach(func() {
-				t.zonesWithInstanceTypeOfferings.Delete(t.zonesWithInstanceTypeOfferings.UnsortedList()...)
-				t.zonesWithInstanceTypeOfferings.Insert(availabilityZone2)
+				t.zonesWithInstanceTypeOfferings = sets.New(availabilityZone2)
 				t.expectedSubnetsDeployed = []types.Subnet{t.subnets[1]}
 				t.expectedSubnetsTagged = t.expectedSubnetsDeployed
 			})
