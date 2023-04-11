@@ -3,7 +3,7 @@ module github.com/submariner-io/cloud-prepare
 go 1.19
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.3.1
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.5.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute v1.0.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork v1.1.0
 	github.com/aws/aws-sdk-go-v2 v1.17.8
@@ -26,7 +26,7 @@ require (
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.0 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.1.2 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.32 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.26 // indirect
