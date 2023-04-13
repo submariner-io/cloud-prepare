@@ -162,7 +162,8 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 		}
 
 		result, err := ac.client.CreateSecurityGroup(context.TODO(), input)
-		if err != nil {
+
+		if err != nil && !isAWSError(err, "InvalidGroup.Duplicate") {
 			return "", errors.Wrap(err, "error creating AWS security group")
 		}
 
