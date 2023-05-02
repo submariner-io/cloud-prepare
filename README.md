@@ -18,33 +18,24 @@ These capabilities aim to be idempotent, so in case of failure or other necessit
 
 The API defines a `Reporter` type which has the capability to report on the latest operation performed in the cloud.
 
-### Prepare a cloud for Submariner
+### Open internal ports for Submariner
 
-The `PrepareForSubmarinerInput` function takes the number of gateways, the internal ports used for intra-cluster communication between
-Submariner components, and the public ports used for inter-cluster communication between Submariner gateways.
+The `OpenPorts` function opens the internal ports used for intra-cluster communication between Submariner components.
 
 ```go
-	input := api.PrepareForSubmarinerInput{
-		InternalPorts: []api.PortSpec{
-			{Port: vxlanPort, Protocol: "udp"},
-			{Port: metricsPort, Protocol: "tcp"},
-		},
-		PublicPorts: []api.PortSpec{
-			{Port: nattPort, Protocol: "udp"},
-			{Port: natDiscoveryPort, Protocol: "udp"},
-		},
-		Gateways: gateways,
-	}
-	err := cloud.PrepareForSubmariner(input, reporter)
+	err := cloud.OpenPorts([]api.PortSpec{
+            {Port: vxlanPort, Protocol: "udp"},
+            {Port: metricsPort, Protocol: "tcp"},
+        }, reporter)
 
 ```
 
-### Clean up a cloud after Submariner has been uninstalled
+### Close internal ports after Submariner has been uninstalled
 
-The `CleanupAfterSubmariner` function reverses all the preparation work previously done by the library.
+The `ClosePorts` function closes all internal ports previously opened by the library.
 
 ```go
-	err := cloud.CleanupAfterSubmariner(reporter)
+	err := cloud.ClosePorts(reporter)
 ```
 
 ## Supported Cloud Providers

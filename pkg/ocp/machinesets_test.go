@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,7 @@ import (
 	"context"
 	"errors"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/fake"
 	. "github.com/submariner-io/admiral/pkg/gomega"
@@ -40,22 +40,23 @@ import (
 var _ = Describe("K8s MachineSetDeployer", func() {
 	const (
 		infraID        = "test-infraID"
-		machineSetName = "test-machineset"
+		machineSetName = "test-machineset-submariner"
 	)
 
 	var (
-		msClient       dynamic.ResourceInterface
-		dynClient      *fakeClient.FakeDynamicClient
-		deployer       ocp.MachineSetDeployer
-		machineSet     *unstructured.Unstructured
-		workerNodeList = []string{infraID + "-worker-b", infraID + "-worker-c", infraID + "-worker-d"}
+		msClient   dynamic.ResourceInterface
+		dynClient  *fakeClient.FakeDynamicClient
+		deployer   ocp.MachineSetDeployer
+		machineSet *unstructured.Unstructured
 	)
 
 	BeforeEach(func() {
-		machineSet = newMachineSet()
+		machineSet = newMachineSet("true")
 		restMapper, gvr := test.GetRESTMapperAndGroupVersionResourceFor(machineSet)
 
-		dynClient = fakeClient.NewSimpleDynamicClient(scheme.Scheme)
+		dynClient = fakeClient.NewSimpleDynamicClientWithCustomListKinds(scheme.Scheme, map[schema.GroupVersionResource]string{
+			*gvr: "MachineSetList",
+		})
 		deployer = ocp.NewK8sMachinesetDeployer(restMapper, dynClient)
 		msClient = dynClient.Resource(*gvr).Namespace(machineSet.GetNamespace())
 	})
@@ -63,7 +64,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	Context("on GetWorkerNodeImage", func() {
 		When("no worker node exists", func() {
 			It("should return an error", func() {
-				_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+				_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 				Expect(err).ToNot(Succeed())
 			})
 		})
@@ -90,7 +91,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				})
 
 				It("should return its disk image", func() {
-					image, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+					image, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 					Expect(err).To(Succeed())
 					Expect(image).To(Equal("some-image"))
 				})
@@ -98,7 +99,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 			Context("and has no disks", func() {
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 					Expect(err).ToNot(Succeed())
 				})
 			})
@@ -107,12 +108,12 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				var expectedErr error
 
 				BeforeEach(func() {
-					expectedErr = errors.New("fake Get error")
-					fake.NewFailingReactor(&dynClient.Fake).SetFailOnGet(expectedErr)
+					expectedErr = errors.New("fake List error")
+					fake.NewFailingReactor(&dynClient.Fake).SetFailOnList(expectedErr)
 				})
 
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(workerNodeList, machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
 					Expect(err).To(ContainErrorSubstring(expectedErr))
 				})
 			})
@@ -167,16 +168,57 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 			})
 		})
 	})
+
+	Context("on List", func() {
+		When("matching and non-matching machine sets exist", func() {
+			BeforeEach(func() {
+				machineSet.SetName(machineSetName)
+				_, err := msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				Expect(err).To(Succeed())
+				machineSet = newMachineSet("false")
+				_, err = msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				Expect(err).To(Succeed())
+			})
+
+			It("should return only the matching machine set", func() {
+				machineSetList, err := deployer.List()
+				Expect(err).To(Succeed())
+
+				Expect(len(machineSetList)).To(Equal(1))
+				Expect(machineSetList[0].GetName()).To(Equal(machineSetName))
+			})
+		})
+
+		When("a matching machine set does not exist", func() {
+			It("should not return an error", func() {
+				machineSetList, err := deployer.List()
+				Expect(err).To(Succeed())
+				Expect(len(machineSetList)).To(Equal(0))
+			})
+		})
+	})
 })
 
-func newMachineSet() *unstructured.Unstructured {
+func newMachineSet(isGateway string) *unstructured.Unstructured {
 	ms := &unstructured.Unstructured{}
-	ms.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "machine.openshift.io",
-		Version: "v1beta1",
-		Kind:    "MachineSet",
+	ms.SetUnstructuredContent(map[string]interface{}{
+		"apiVersion": "machine.openshift.io/v1beta1",
+		"kind":       "MachineSet",
+		"metadata": map[string]interface{}{
+			"namespace": "test-ns",
+		},
+		"spec": map[string]interface{}{
+			"template": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							ocp.SubmarinerGatewayLabel: isGateway,
+						},
+					},
+				},
+			},
+		},
 	})
-	ms.SetNamespace("test-ns")
 
 	return ms
 }

@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -25,25 +25,26 @@ metadata:
     machine.openshift.io/cluster-api-cluster: {{.InfraID}}
     machine.openshift.io/cluster-api-machine-role: worker
     machine.openshift.io/cluster-api-machine-type: worker
-  name: {{.InfraID}}-submariner-gw-{{.Index}}
+  name: {{.InfraID}}-submariner-gw-{{.UUID}}
   namespace: openshift-machine-api
 spec:
   replicas: 1
   selector:
     matchLabels:
       machine.openshift.io/cluster-api-cluster: {{.InfraID}}
-      machine.openshift.io/cluster-api-machineset: {{.InfraID}}-submariner-gw-{{.Index}}
+      machine.openshift.io/cluster-api-machineset: {{.InfraID}}-submariner-gw-{{.UUID}}
   template:
     metadata:
       labels:
         machine.openshift.io/cluster-api-cluster: {{.InfraID}}
         machine.openshift.io/cluster-api-machine-role: worker
         machine.openshift.io/cluster-api-machine-type: worker
-        machine.openshift.io/cluster-api-machineset: {{.InfraID}}-submariner-gw-{{.Index}}
+        machine.openshift.io/cluster-api-machineset: {{.InfraID}}-submariner-gw-{{.UUID}}
     spec:
       metadata:
         labels:
           submariner.io/gateway: "true"
+          node-role.kubernetes.io/infra: ""
       taints:
         - effect: NoSchedule
           key: node-role.submariner.io/gateway
@@ -65,12 +66,11 @@ spec:
                 name: {{.InfraID}}-nodes
                 tags: openshiftClusterID={{.InfraID}}
           securityGroups:
-          - filter: {}
-            name: {{.InfraID}}-worker
-          - filter: {}
-            name: {{.InfraID}}-submariner-gw-sg
-          - filter: {}
-            name: {{.InfraID}}-submariner-internal-sg
+          - name: {{.InfraID}}-worker
+          {{- if .UseSubmarinerInternalSG }}
+          - name: {{.InfraID}}-submariner-internal-sg
+          {{- end }}
+          - name: {{.InfraID}}-submariner-gw-sg
           serverMetadata:
             Name: {{.InfraID}}-worker
             openshiftClusterID: {{.InfraID}}

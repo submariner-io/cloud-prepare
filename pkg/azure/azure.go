@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -37,7 +37,7 @@ func NewCloud(info *CloudInfo) api.Cloud {
 	}
 }
 
-func (az *azureCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, reporter reporterInterface.Interface) error {
+func (az *azureCloud) OpenPorts(ports []api.PortSpec, reporter reporterInterface.Interface) error {
 	reporter.Start("Opening internal ports for intra-cluster communications on Azure")
 
 	nsgClient, err := az.getNsgClient()
@@ -45,17 +45,16 @@ func (az *azureCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, 
 		return reporter.Error(err, "Failed to get network security groups client")
 	}
 
-	if err := az.openInternalPorts(az.InfraID, input.InternalPorts, nsgClient); err != nil {
+	if err := az.openInternalPorts(az.InfraID, ports, nsgClient); err != nil {
 		return reporter.Error(err, "Failed to open internal ports")
 	}
 
-	reporter.Success("Opened internal ports %q for intra-cluster communications on Azure",
-		formatPorts(input.InternalPorts))
+	reporter.Success("Opened internal ports %q for intra-cluster communications on Azure", formatPorts(ports))
 
 	return nil
 }
 
-func (az *azureCloud) CleanupAfterSubmariner(reporter reporterInterface.Interface) error {
+func (az *azureCloud) ClosePorts(reporter reporterInterface.Interface) error {
 	reporter.Start("Revoking intra-cluster communication permissions")
 
 	nsgClient, err := az.getNsgClient()

@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,10 +27,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -52,22 +52,22 @@ type CloudInfo struct {
 	K8sClient       k8s.Interface
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getNsgClient() (*armnetwork.SecurityGroupsClient, error) {
 	return armnetwork.NewSecurityGroupsClient(c.SubscriptionID, c.TokenCredential, nil)
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getInterfacesClient() (*armnetwork.InterfacesClient, error) {
 	return armnetwork.NewInterfacesClient(c.SubscriptionID, c.TokenCredential, nil)
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getPublicIPClient() (*armnetwork.PublicIPAddressesClient, error) {
 	return armnetwork.NewPublicIPAddressesClient(c.SubscriptionID, c.TokenCredential, nil)
 }
 
-// nolint:wrapcheck // Let the caller wrap it.
+//nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getResourceSKUClient() (*armcompute.ResourceSKUsClient, error) {
 	return armcompute.NewResourceSKUsClient(c.SubscriptionID, c.TokenCredential, nil)
 }
@@ -161,16 +161,16 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix string, protocol armnet
 	access := armnetwork.SecurityRuleAccessAllow
 
 	return &armnetwork.SecurityRule{
-		Name: to.StringPtr(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
+		Name: pointer.String(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
 		Properties: &armnetwork.SecurityRulePropertiesFormat{
 			Protocol:                 &protocol,
-			DestinationPortRange:     to.StringPtr(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
-			SourceAddressPrefix:      to.StringPtr(allNetworkCIDR),
-			DestinationAddressPrefix: to.StringPtr(allNetworkCIDR),
-			SourcePortRange:          to.StringPtr("*"),
+			DestinationPortRange:     pointer.String(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
+			SourceAddressPrefix:      pointer.String(allNetworkCIDR),
+			DestinationAddressPrefix: pointer.String(allNetworkCIDR),
+			SourcePortRange:          pointer.String("*"),
 			Access:                   &access,
 			Direction:                &ruleDirection,
-			Priority:                 to.Int32Ptr(priority),
+			Priority:                 pointer.Int32(priority),
 		},
 	}
 }
@@ -195,7 +195,7 @@ func (c *CloudInfo) createGWSecurityGroup(groupName string, ports []api.PortSpec
 
 	nwSecurityGroup := armnetwork.SecurityGroup{
 		Name:     &groupName,
-		Location: to.StringPtr(c.Region),
+		Location: pointer.String(c.Region),
 		Properties: &armnetwork.SecurityGroupPropertiesFormat{
 			SecurityRules: securityRules,
 		},
@@ -379,7 +379,7 @@ func (c *CloudInfo) createPublicIP(ctx context.Context, ipName string, ipClient 
 		c.BaseGroupName,
 		ipName,
 		armnetwork.PublicIPAddress{
-			Name: to.StringPtr(ipName),
+			Name: pointer.String(ipName),
 			Properties: &armnetwork.PublicIPAddressPropertiesFormat{
 				PublicIPAddressVersion:   &ipVersion,
 				PublicIPAllocationMethod: &ipAllocMethod,

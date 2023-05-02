@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,9 +31,9 @@ import (
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 type ocpGatewayDeployer struct {
@@ -62,17 +62,18 @@ func NewOcpGatewayDeployer(info CloudInfo, msDeployer ocp.MachineSetDeployer, pr
 }
 
 type machineSetConfig struct {
-	Index               string
-	InfraID             string
-	ProjectID           string
-	InstanceType        string
-	Region              string
-	Image               string
-	SubmarinerGWNodeTag string
-	CloudName           string
+	UUID                    string
+	InfraID                 string
+	ProjectID               string
+	InstanceType            string
+	Region                  string
+	Image                   string
+	SubmarinerGWNodeTag     string
+	CloudName               string
+	UseSubmarinerInternalSG bool
 }
 
-func (d *ocpGatewayDeployer) loadGatewayYAML(index, image string) ([]byte, error) {
+func (d *ocpGatewayDeployer) loadGatewayYAML(uuidGW, image string, useInternalSG bool) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// TODO: Not working properly, but we should revisit this as it makes more sense
@@ -83,14 +84,15 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(index, image string) ([]byte, error
 	}
 
 	tplVars := machineSetConfig{
-		Index:               index,
-		InfraID:             d.InfraID,
-		ProjectID:           d.projectID,
-		InstanceType:        d.instanceType,
-		Region:              d.Region,
-		CloudName:           d.cloudName,
-		Image:               image,
-		SubmarinerGWNodeTag: submarinerGatewayNodeTag,
+		UUID:                    uuidGW,
+		InfraID:                 d.InfraID,
+		ProjectID:               d.projectID,
+		InstanceType:            d.instanceType,
+		Region:                  d.Region,
+		CloudName:               d.cloudName,
+		Image:                   image,
+		SubmarinerGWNodeTag:     submarinerGatewayNodeTag,
+		UseSubmarinerInternalSG: useInternalSG,
 	}
 
 	err = tpl.Execute(&buf, tplVars)
@@ -101,8 +103,8 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(index, image string) ([]byte, error
 	return buf.Bytes(), nil
 }
 
-func (d *ocpGatewayDeployer) initMachineSet(index string) (*unstructured.Unstructured, error) {
-	gatewayYAML, err := d.loadGatewayYAML(index, d.image)
+func (d *ocpGatewayDeployer) initMachineSet(useInternalSG bool) (*unstructured.Unstructured, error) {
+	gatewayYAML, err := d.loadGatewayYAML(string(uuid.NewUUID())[0:6], d.image, useInternalSG)
 	if err != nil {
 		return nil, err
 	}
@@ -114,21 +116,19 @@ func (d *ocpGatewayDeployer) initMachineSet(index string) (*unstructured.Unstruc
 	return machineSet, errors.Wrap(err, "error decoding message gateway yaml")
 }
 
-func (d *ocpGatewayDeployer) deployGateway(index string) error {
-	machineSet, err := d.initMachineSet(index)
+func (d *ocpGatewayDeployer) deployGateway(useInternalSG bool) error {
+	machineSet, err := d.initMachineSet(useInternalSG)
 	if err != nil {
 		return err
 	}
 
 	if d.image == "" {
-		workerNodeList := []string{}
-
-		d.image, err = d.msDeployer.GetWorkerNodeImage(workerNodeList, machineSet, d.InfraID)
+		d.image, err = d.msDeployer.GetWorkerNodeImage(machineSet, d.InfraID)
 		if err != nil {
 			return errors.Wrap(err, "error getting the worker image")
 		}
 
-		machineSet, err = d.initMachineSet(index)
+		machineSet, err = d.initMachineSet(useInternalSG)
 		if err != nil {
 			return err
 		}
@@ -156,10 +156,17 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 		return status.Error(err, "creating gateway security group failed")
 	}
 
+	machineSets, err := d.msDeployer.List()
+	if err != nil {
+		return status.Error(err, "error getting the gateway machinesets")
+	}
+
 	gwNodes, err := d.K8sClient.ListGatewayNodes()
 	if err != nil {
 		return status.Error(err, "listing the existing gateway nodes failed")
 	}
+
+	gwNodeItems := gwNodes.Items
 
 	gwNodesList := gwNodes.Items
 	for i := range gwNodesList {
@@ -172,19 +179,21 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	status.Success("Opened external ports %q in security group %q on RHOS for existing g/w nodes",
 		formatPorts(input.PublicPorts), groupName)
 
-	return d.deployGWNode(gwNodes, input.Gateways, groupName, computeClient, status)
-}
+	taggedExistingNodes := ocp.RemoveDuplicates(machineSets, gwNodeItems)
+	gatewayNodesToDeploy := input.Gateways - len(machineSets) - len(taggedExistingNodes)
 
-func (d *ocpGatewayDeployer) deployGWNode(gwNodes *v1.NodeList, gatewayCount int, groupName string,
-	computeClient *gophercloud.ServiceClient, status reporter.Interface,
-) error {
-	numGatewayNodes := len(gwNodes.Items)
-
-	if numGatewayNodes == gatewayCount {
+	if gatewayNodesToDeploy == 0 {
 		status.Success("Current Submariner gateways match the required number of Submariner gateways")
 		return nil
 	}
 
+	return d.deployGWNode(input.Gateways, groupName, computeClient,
+		len(machineSets)+len(taggedExistingNodes), status)
+}
+
+func (d *ocpGatewayDeployer) deployGWNode(gatewayCount int, groupName string,
+	computeClient *gophercloud.ServiceClient, numGatewayNodes int, status reporter.Interface,
+) error {
 	// Currently, we only support increasing the number of Gateway nodes which could be a valid use-case
 	// to convert a non-HA deployment to an HA deployment. We are not supporting decreasing the Gateway
 	// nodes (for now) as it might impact the datapath if we accidentally delete the active GW node.
@@ -194,7 +203,15 @@ func (d *ocpGatewayDeployer) deployGWNode(gwNodes *v1.NodeList, gatewayCount int
 		gatewayNodesToDeploy := gatewayCount - numGatewayNodes
 
 		if d.dedicatedGWNode {
-			err = d.deployDedicatedGWNode(gatewayNodesToDeploy, status)
+			groupName := d.InfraID + internalSecurityGroupSuffix
+
+			isFound, errSG := checkIfSecurityGroupPresent(groupName, computeClient)
+
+			if errSG != nil {
+				return errSG
+			}
+
+			err = d.deployDedicatedGWNode(gatewayNodesToDeploy, isFound, status)
 		} else {
 			err = d.tagExistingNode(groupName, computeClient, gatewayNodesToDeploy, status)
 		}
@@ -203,12 +220,14 @@ func (d *ocpGatewayDeployer) deployGWNode(gwNodes *v1.NodeList, gatewayCount int
 	return err
 }
 
-func (d *ocpGatewayDeployer) deployDedicatedGWNode(gatewayNodesToDeploy int, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) deployDedicatedGWNode(gatewayNodesToDeploy int, useInternalSG bool,
+	status reporter.Interface,
+) error {
 	for i := 0; i < gatewayNodesToDeploy; i++ {
 		gwNodeName := d.InfraID + "-submariner-gw" + strconv.Itoa(i)
 		status.Start("Deploying dedicated Submariner gateway node %s", gwNodeName)
 
-		err := d.deployGateway(strconv.Itoa(i))
+		err := d.deployGateway(useInternalSG)
 		if err != nil {
 			return status.Error(err, "unable to deploy gateway")
 		}
@@ -268,24 +287,45 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 		return status.Error(err, "error creating the compute client for the region: %q", d.Region)
 	}
 
+	groupName := d.InfraID + gwSecurityGroupSuffix
+
+	machineSetList, err := d.msDeployer.List()
+	if err != nil {
+		return status.Error(err, "error listing the Submariner gateway nodes")
+	}
+
+	// cleaning up the dedicated g/w nodes
+	for i := range machineSetList {
+		status.Start("Removing the Submariner gateway security group rules from node %q",
+			machineSetList[i].GetName())
+
+		err = d.removeFirewallRulesFromGW(groupName, machineSetList[i].GetName(), computeClient)
+		if err != nil {
+			return status.Error(err, "error deleting the security group rules")
+		}
+
+		status.Success("Successfully removed security group rules from node %q",
+			machineSetList[i].GetName())
+
+		status.Start(fmt.Sprintf("Deleting the gateway instance %q", machineSetList[i].GetName()))
+
+		err = d.msDeployer.DeleteByName(machineSetList[i].GetName(), machineSetList[i].GetNamespace())
+		if err != nil {
+			return status.Error(err, "error deleting the gateway instance from node: %q",
+				machineSetList[i].GetName())
+		}
+
+		status.Success("Successfully deleted the instance")
+	}
+
 	gwNodesList, err := d.K8sClient.ListGatewayNodes()
 	if err != nil {
 		return status.Error(err, "error listing the Submariner gateway nodes")
 	}
 
-	groupName := d.InfraID + gwSecurityGroupSuffix
-	gwNodes := gwNodesList.Items
+	gwNodes := ocp.RemoveDuplicates(machineSetList, gwNodesList.Items)
 
 	for i := range gwNodes {
-		// Check if the instance belongs to the cluster (identified via infraID) we are operating on.
-		if !strings.HasPrefix(gwNodes[i].Name, d.InfraID) {
-			continue
-		}
-
-		// If the instance name matches with d.InfraID + "-submariner-gw-", it implies that
-		// the gateway node was deployed using the OCPMachineSet API otherwise it's an existing worker node.
-		prefix := d.InfraID + "-submariner-gw-"
-
 		status.Start("Deleting the Submariner gateway security group rules from node %q", gwNodes[i].Name)
 
 		err = d.removeFirewallRulesFromGW(groupName, gwNodes[i].Name, computeClient)
@@ -293,30 +333,19 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 			return status.Error(err, "error deleting the security group rules")
 		}
 
-		if strings.HasPrefix(gwNodes[i].Name, prefix) {
-			status.Start(fmt.Sprintf("Deleting the gateway instance %q", gwNodes[i].Name))
+		status.Success("Successfully removed security group rules from node %q",
+			gwNodes[i].Name)
 
-			err = d.deleteGateway(strconv.Itoa(i))
-			if err != nil {
-				return status.Error(err, "error deleting the gateway instance from node: %q",
-					gwNodes[i].Name)
-			}
+		status.Start(fmt.Sprintf("Removing Submariner gateway label from instance %q", gwNodes[i].Name))
 
-			status.Success("Successfully deleted the instance")
-		} else {
-			status.Start(fmt.Sprintf("Removing the gateway configuration from instance %q", gwNodes[i].Name))
-			err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodes[i])
-			if err != nil {
-				return status.Error(err, "failed to remove labels from worker node")
-			}
+		err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodes[i])
 
-			status.Success("Successfully reconfigured the instance")
+		if err != nil {
+			return status.Error(err, "failed to cleanup gateway node %q"+gwNodes[i].Name)
 		}
-
-		status.End()
 	}
 
-	status.Success("Successfully removed the Submariner gateway configuration from the nodes")
+	status.Success("Successfully cleaned up Submariner gateway nodes")
 
 	status.Start("Deleting the Submariner gateway security group")
 
@@ -338,13 +367,4 @@ func formatPorts(ports []api.PortSpec) string {
 	}
 
 	return strings.Join(portStrs, ", ")
-}
-
-func (d *ocpGatewayDeployer) deleteGateway(index string) error {
-	machineSet, err := d.initMachineSet(index)
-	if err != nil {
-		return err
-	}
-
-	return errors.Wrap(d.msDeployer.Delete(machineSet), "error deleting the submariner gateway node")
 }

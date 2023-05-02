@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,14 +24,14 @@ import (
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/reporter"
-	"github.com/submariner-io/admiral/pkg/stringset"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var _ = Describe("OCP GatewayDeployer", func() {
@@ -42,12 +42,15 @@ var _ = Describe("OCP GatewayDeployer", func() {
 func testDeploy() {
 	t := newGatewayDeployerTestDriver()
 
+	var deployCall *gomock.Call
+
 	JustBeforeEach(func() {
-		t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&t.machineSets)).Times(t.numGateways)
+		deployCall = t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&t.machineSets))
+
 		t.expectDescribePublicSubnets(t.subnets...)
 
 		for i := range t.subnets {
-			if t.zonesWithInstanceTypeOfferings.Contains(*t.subnets[i].AvailabilityZone) {
+			if t.zonesWithInstanceTypeOfferings.Has(*t.subnets[i].AvailabilityZone) {
 				t.expectDescribeInstanceTypeOfferings(t.expectedInstanceType(), *t.subnets[i].AvailabilityZone, types.InstanceTypeOffering{})
 			} else {
 				t.expectDescribeInstanceTypeOfferings(t.expectedInstanceType(), *t.subnets[i].AvailabilityZone)
@@ -64,6 +67,8 @@ func testDeploy() {
 		})
 
 		JustBeforeEach(func() {
+			deployCall.Times(t.numGateways)
+
 			for i := range t.expectedSubnetsTagged {
 				t.expectCreateGatewayTags(*t.expectedSubnetsTagged[i].SubnetId)
 			}
@@ -84,8 +89,7 @@ func testDeploy() {
 
 		Context("and the first subnet doesn't have an instance type offering", func() {
 			BeforeEach(func() {
-				t.zonesWithInstanceTypeOfferings.RemoveAll()
-				t.zonesWithInstanceTypeOfferings.Add(availabilityZone2)
+				t.zonesWithInstanceTypeOfferings = sets.New(availabilityZone2)
 				t.expectedSubnetsDeployed = []types.Subnet{t.subnets[1]}
 				t.expectedSubnetsTagged = t.expectedSubnetsDeployed
 			})
@@ -116,6 +120,7 @@ func testDeploy() {
 
 	Context("", func() {
 		JustBeforeEach(func() {
+			deployCall.AnyTimes()
 			t.doDeploy()
 		})
 
@@ -160,7 +165,6 @@ func testDeploy() {
 			BeforeEach(func() {
 				t.authorizeSecurityGroupIngressErr = errors.New("mock error")
 				t.expectAuthorizeSecurityGroupIngress(gatewayGroupID, newPublicSGRule(100, "TCP"))
-				t.expectAuthorizeSecurityGroupIngress(gatewayGroupID, newPublicSGRule(200, "UDP"))
 			})
 
 			It("should return an error", func() {
@@ -247,7 +251,7 @@ type gatewayDeployerTestDriver struct {
 	expectedSubnetsDeployed        []types.Subnet
 	expectedSubnetsTagged          []types.Subnet
 	gatewayGroupID                 string
-	zonesWithInstanceTypeOfferings stringset.Interface
+	zonesWithInstanceTypeOfferings sets.Set[string]
 	machineSets                    map[string]*unstructured.Unstructured
 	retError                       error
 	msDeployer                     *ocpFake.MockMachineSetDeployer
@@ -267,10 +271,10 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		t.expectedSubnetsDeployed = []types.Subnet{t.subnets[0]}
 		t.expectedSubnetsTagged = []types.Subnet{t.subnets[0]}
 		t.gatewayGroupID = gatewayGroupID
-		t.zonesWithInstanceTypeOfferings = stringset.New()
+		t.zonesWithInstanceTypeOfferings = sets.New[string]()
 
 		for i := range t.subnets {
-			t.zonesWithInstanceTypeOfferings.Add(*t.subnets[i].AvailabilityZone)
+			t.zonesWithInstanceTypeOfferings.Insert(*t.subnets[i].AvailabilityZone)
 		}
 	})
 
@@ -366,7 +370,7 @@ func (t *gatewayDeployerTestDriver) testDeploySuccess(msgPrefix, msgSuffix strin
 	})
 }
 
-// nolint:gocritic // Error: "consider `machineSets' to be of non-pointer type"
+//nolint:gocritic // Error: "consider `machineSets' to be of non-pointer type"
 func machineSetFn(machineSets *map[string]*unstructured.Unstructured) func(ms *unstructured.Unstructured) error {
 	*machineSets = map[string]*unstructured.Unstructured{}
 

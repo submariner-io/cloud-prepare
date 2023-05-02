@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@ package aws_test
 import (
 	"errors"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
@@ -29,11 +29,11 @@ import (
 )
 
 var _ = Describe("Cloud", func() {
-	Describe("PrepareForSubmariner", testPrepareForSubmariner)
-	Describe("CleanupAfterSubmariner", testCleanupAfterSubmariner)
+	Describe("OpenPorts", testOpenPorts)
+	Describe("ClosePorts", testClosePorts)
 })
 
-func testPrepareForSubmariner() {
+func testOpenPorts() {
 	t := newCloudTestDriver()
 
 	var retError error
@@ -41,16 +41,14 @@ func testPrepareForSubmariner() {
 	JustBeforeEach(func() {
 		t.expectDescribeVpcs(t.vpcID)
 
-		retError = t.cloud.PrepareForSubmariner(api.PrepareForSubmarinerInput{
-			InternalPorts: []api.PortSpec{
-				{
-					Port:     100,
-					Protocol: "TCP",
-				},
-				{
-					Port:     200,
-					Protocol: "UDP",
-				},
+		retError = t.cloud.OpenPorts([]api.PortSpec{
+			{
+				Port:     100,
+				Protocol: "TCP",
+			},
+			{
+				Port:     200,
+				Protocol: "UDP",
 			},
 		}, reporter.Stdout())
 	})
@@ -109,7 +107,7 @@ func testPrepareForSubmariner() {
 	})
 }
 
-func testCleanupAfterSubmariner() {
+func testClosePorts() {
 	t := newCloudTestDriver()
 
 	var retError error
@@ -117,7 +115,7 @@ func testCleanupAfterSubmariner() {
 	JustBeforeEach(func() {
 		t.expectDescribeVpcs(t.vpcID)
 
-		retError = t.cloud.CleanupAfterSubmariner(reporter.Stdout())
+		retError = t.cloud.ClosePorts(reporter.Stdout())
 	})
 
 	Context("on success", func() {

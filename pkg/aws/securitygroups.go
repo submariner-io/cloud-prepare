@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,7 +48,6 @@ func (ac *awsCloud) getSecurityGroup(vpcID, name string) (types.SecurityGroup, e
 	filters := []types.Filter{
 		ec2Filter("vpc-id", vpcID),
 		ac.filterByName(name),
-		ac.filterByCurrentCluster(),
 	}
 
 	result, err := ac.client.DescribeSecurityGroups(context.TODO(), &ec2.DescribeSecurityGroupsInput{
@@ -157,14 +156,14 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 					ResourceType: types.ResourceTypeSecurityGroup,
 					Tags: []types.Tag{
 						ec2Tag("Name", groupName),
-						ec2Tag(ac.withAWSInfo("kubernetes.io/cluster/{infraID}"), "owned"),
 					},
 				},
 			},
 		}
 
 		result, err := ac.client.CreateSecurityGroup(context.TODO(), input)
-		if err != nil {
+
+		if err != nil && !isAWSError(err, "InvalidGroup.Duplicate") {
 			return "", errors.Wrap(err, "error creating AWS security group")
 		}
 
@@ -209,7 +208,7 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 			GroupId: gatewayGroupID,
 		})
 
-		return err // nolint:wrapcheck // Let the caller wrap it.
+		return err //nolint:wrapcheck // Let the caller wrap it.
 	})
 
 	if isAWSError(err, "InvalidPermission.NotFound") {

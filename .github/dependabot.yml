@@ -4,23 +4,36 @@ updates:
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
-      interval: weekly
+      interval: monthly
   - package-ecosystem: github-actions
     directory: '/'
     target-branch: "release-0.12"
     schedule:
-      interval: weekly
+      interval: monthly
   - package-ecosystem: github-actions
     directory: '/'
     target-branch: "release-0.13"
     schedule:
-      interval: weekly
+      interval: monthly
+  - package-ecosystem: github-actions
+    directory: '/'
+    target-branch: "release-0.14"
+    schedule:
+      interval: monthly
+  - package-ecosystem: github-actions
+    directory: '/'
+    target-branch: "release-0.15"
+    schedule:
+      interval: monthly
   - package-ecosystem: gomod
     directory: "/"
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
+      interval: monthly
     ignore:
-      - dependency-name: k8s.io/*
-      - dependency-name: sigs.k8s.io/*
+      # Our own dependencies are handled during releases
       - dependency-name: github.com/submariner-io/*
+      # These are included by k8s.io/client-go
+      - dependency-name: k8s.io/api
+      - dependency-name: k8s.io/apimachinery
+      # This is included by github.com/aws/aws-sdk-go-v2/config
+      - dependency-name: github.com/aws/aws-sdk-go-v2/credentials

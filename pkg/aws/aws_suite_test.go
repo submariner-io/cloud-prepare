@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,7 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
@@ -180,10 +180,6 @@ func (f *fakeAWSClientBase) expectCreateSecurityGroup(name, retGroupID string) {
 						Key:   awssdk.String("Name"),
 						Value: awssdk.String(name),
 					},
-					{
-						Key:   awssdk.String("kubernetes.io/cluster/" + infraID),
-						Value: awssdk.String("owned"),
-					},
 				},
 			},
 		},
@@ -315,10 +311,6 @@ func newDescribeSecurityGroupsInput(vpcID, name string) *ec2.DescribeSecurityGro
 			{
 				Name:   awssdk.String("tag:Name"),
 				Values: []string{name},
-			},
-			{
-				Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
-				Values: []string{"owned"},
 			},
 		},
 	}

@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,25 +35,23 @@ func NewCloud(info CloudInfo) api.Cloud {
 	return &gcpCloud{CloudInfo: info}
 }
 
-// PrepareForSubmariner prepares submariner cluster environment on GCP.
-func (gc *gcpCloud) PrepareForSubmariner(input api.PrepareForSubmarinerInput, status reporter.Interface) error {
+func (gc *gcpCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
 	// Create the inbound firewall rule for submariner internal ports.
-	status.Start("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(input.InternalPorts))
+	status.Start("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(ports))
 	defer status.End()
 
-	internalIngress := newInternalFirewallRule(gc.ProjectID, gc.InfraID, input.InternalPorts)
+	internalIngress := newInternalFirewallRule(gc.ProjectID, gc.InfraID, ports)
 	if err := gc.openPorts(internalIngress); err != nil {
 		return status.Error(err, "unable to open ports")
 	}
 
 	status.Success("Opened internal ports %q with firewall rule %q on GCP",
-		formatPorts(input.InternalPorts), internalIngress.Name)
+		formatPorts(ports), internalIngress.Name)
 
 	return nil
 }
 
-// CleanupAfterSubmariner clean up submariner cluster environment on GCP.
-func (gc *gcpCloud) CleanupAfterSubmariner(status reporter.Interface) error {
+func (gc *gcpCloud) ClosePorts(status reporter.Interface) error {
 	// Delete the inbound and outbound firewall rules to close submariner internal ports.
 	internalIngressName := generateRuleName(gc.InfraID, internalPortsRuleName)
 
