@@ -48,6 +48,9 @@ type GatewayDeployInput struct {
 
 	// Use service of type LoadBalancer to deploy Submariner
 	UseLoadBalancer bool
+
+	// Specifies if the underlying deployment is air-gapped.
+	AirGapped bool
 }
 
 // GatewayDeployer will deploy and cleanup dedicated gateways according to the requested policy.
