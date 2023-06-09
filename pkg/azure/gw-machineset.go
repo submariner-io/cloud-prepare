@@ -70,7 +70,7 @@ spec:
             managedDisk:
               storageAccountType: Premium_LRS
             osType: Linux
-          publicIP: true
+          publicIP: {{.PublicIP}}
           publicLoadBalancer: ""
           resourceGroup: {{.InfraID}}-rg
           sshPrivateKey: ""
