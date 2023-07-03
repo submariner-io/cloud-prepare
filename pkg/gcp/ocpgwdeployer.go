@@ -32,7 +32,7 @@ import (
 	"google.golang.org/api/compute/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/set"
 )
 
 type ocpGatewayDeployer struct {
@@ -147,7 +147,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	return err
 }
 
-func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interface) (int, sets.Set[string], error) {
+func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interface) (int, set.Set[string], error) {
 	zones, err := d.retrieveZones(status)
 	if err != nil {
 		return 0, nil, err
@@ -156,8 +156,8 @@ func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interf
 	status.Start("Verifying if current gateways match the required number of gateways")
 	defer status.End()
 
-	zonesWithSubmarinerGW := sets.New[string]()
-	eligibleZonesForGW := sets.New[string]()
+	zonesWithSubmarinerGW := set.New[string]()
+	eligibleZonesForGW := set.New[string]()
 
 	for _, zone := range zones.Items {
 		// The list of zones include zones from all the regions, so filter out the zones that do
