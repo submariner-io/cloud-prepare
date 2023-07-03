@@ -31,7 +31,7 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/utils/set"
 )
 
 var _ = Describe("OCP GatewayDeployer", func() {
@@ -89,7 +89,7 @@ func testDeploy() {
 
 		Context("and the first subnet doesn't have an instance type offering", func() {
 			BeforeEach(func() {
-				t.zonesWithInstanceTypeOfferings = sets.New(availabilityZone2)
+				t.zonesWithInstanceTypeOfferings = set.New(availabilityZone2)
 				t.expectedSubnetsDeployed = []types.Subnet{t.subnets[1]}
 				t.expectedSubnetsTagged = t.expectedSubnetsDeployed
 			})
@@ -251,7 +251,7 @@ type gatewayDeployerTestDriver struct {
 	expectedSubnetsDeployed        []types.Subnet
 	expectedSubnetsTagged          []types.Subnet
 	gatewayGroupID                 string
-	zonesWithInstanceTypeOfferings sets.Set[string]
+	zonesWithInstanceTypeOfferings set.Set[string]
 	machineSets                    map[string]*unstructured.Unstructured
 	retError                       error
 	msDeployer                     *ocpFake.MockMachineSetDeployer
@@ -271,7 +271,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		t.expectedSubnetsDeployed = []types.Subnet{t.subnets[0]}
 		t.expectedSubnetsTagged = []types.Subnet{t.subnets[0]}
 		t.gatewayGroupID = gatewayGroupID
-		t.zonesWithInstanceTypeOfferings = sets.New[string]()
+		t.zonesWithInstanceTypeOfferings = set.New[string]()
 
 		for i := range t.subnets {
 			t.zonesWithInstanceTypeOfferings.Insert(*t.subnets[i].AvailabilityZone)

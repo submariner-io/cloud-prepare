@@ -33,9 +33,9 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/set"
 )
 
 const (
@@ -294,8 +294,8 @@ func MachineName(region string) string {
 	return submarinerGatewayGW + region + "-" + string(uuid.NewUUID())[0:6]
 }
 
-func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstructured) (sets.Set[string], error) {
-	zonesWithSubmarinerGW := sets.New[string]()
+func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstructured) (set.Set[string], error) {
+	zonesWithSubmarinerGW := set.New[string]()
 
 	for i := range gwNodes {
 		zone, _, err := unstructured.NestedString(gwNodes[i].Object, "spec", "template", "spec", "providerSpec", "value", "zone")
@@ -318,7 +318,7 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstruc
 		Filter: pointer.String(d.azure.Region),
 	})
 
-	eligibleZonesForSubmarinerGW := sets.New[string]()
+	eligibleZonesForSubmarinerGW := set.New[string]()
 
 	for pager.More() {
 		nextResult, err := pager.NextPage(ctx)
