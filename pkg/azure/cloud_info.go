@@ -30,7 +30,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -161,16 +161,16 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix string, protocol armnet
 	access := armnetwork.SecurityRuleAccessAllow
 
 	return &armnetwork.SecurityRule{
-		Name: pointer.String(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
+		Name: ptr.To(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
 		Properties: &armnetwork.SecurityRulePropertiesFormat{
 			Protocol:                 &protocol,
-			DestinationPortRange:     pointer.String(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
-			SourceAddressPrefix:      pointer.String(allNetworkCIDR),
-			DestinationAddressPrefix: pointer.String(allNetworkCIDR),
-			SourcePortRange:          pointer.String("*"),
+			DestinationPortRange:     ptr.To(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
+			SourceAddressPrefix:      ptr.To(allNetworkCIDR),
+			DestinationAddressPrefix: ptr.To(allNetworkCIDR),
+			SourcePortRange:          ptr.To("*"),
 			Access:                   &access,
 			Direction:                &ruleDirection,
-			Priority:                 pointer.Int32(priority),
+			Priority:                 ptr.To(priority),
 		},
 	}
 }
@@ -195,7 +195,7 @@ func (c *CloudInfo) createGWSecurityGroup(groupName string, ports []api.PortSpec
 
 	nwSecurityGroup := armnetwork.SecurityGroup{
 		Name:     &groupName,
-		Location: pointer.String(c.Region),
+		Location: ptr.To(c.Region),
 		Properties: &armnetwork.SecurityGroupPropertiesFormat{
 			SecurityRules: securityRules,
 		},
@@ -379,7 +379,7 @@ func (c *CloudInfo) createPublicIP(ctx context.Context, ipName string, ipClient 
 		c.BaseGroupName,
 		ipName,
 		armnetwork.PublicIPAddress{
-			Name: pointer.String(ipName),
+			Name: ptr.To(ipName),
 			Properties: &armnetwork.PublicIPAddressPropertiesFormat{
 				PublicIPAddressVersion:   &ipVersion,
 				PublicIPAllocationMethod: &ipAllocMethod,

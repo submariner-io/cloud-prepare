@@ -24,13 +24,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
 )
 
 const internalTraffic = "Internal Submariner traffic"
@@ -81,12 +81,12 @@ func (ac *awsCloud) authorizeSecurityGroupIngress(groupID *string, ipPermissions
 func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16, protocol, description string) error {
 	ipPermissions := []types.IpPermission{
 		{
-			FromPort:   aws.Int32(int32(port)),
-			ToPort:     aws.Int32(int32(port)),
-			IpProtocol: aws.String(protocol),
+			FromPort:   ptr.To(int32(port)),
+			ToPort:     ptr.To(int32(port)),
+			IpProtocol: ptr.To(protocol),
 			UserIdGroupPairs: []types.UserIdGroupPair{
 				{
-					Description: aws.String(description),
+					Description: ptr.To(description),
 					GroupId:     srcGroup,
 				},
 			},
@@ -123,13 +123,13 @@ func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol strin
 func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, description string) error {
 	ipPermissions := []types.IpPermission{
 		{
-			FromPort:   aws.Int32(int32(port)),
-			ToPort:     aws.Int32(int32(port)),
-			IpProtocol: aws.String(protocol),
+			FromPort:   ptr.To(int32(port)),
+			ToPort:     ptr.To(int32(port)),
+			IpProtocol: ptr.To(protocol),
 			IpRanges: []types.IpRange{
 				{
-					CidrIp:      aws.String("0.0.0.0/0"),
-					Description: aws.String(description),
+					CidrIp:      ptr.To("0.0.0.0/0"),
+					Description: ptr.To(description),
 				},
 			},
 		},
@@ -149,7 +149,7 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 
 		input := &ec2.CreateSecurityGroupInput{
 			GroupName:   &groupName,
-			Description: aws.String("Submariner Gateway"),
+			Description: ptr.To("Submariner Gateway"),
 			VpcId:       &vpcID,
 			TagSpecifications: []types.TagSpecification{
 				{

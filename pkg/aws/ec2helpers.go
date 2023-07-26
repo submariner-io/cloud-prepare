@@ -22,21 +22,21 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"k8s.io/utils/ptr"
 )
 
 func ec2Filter(name, value string) types.Filter {
 	return types.Filter{
-		Name:   aws.String(name),
+		Name:   ptr.To(name),
 		Values: []string{value},
 	}
 }
 
 func ec2Tag(key, value string) types.Tag {
 	return types.Tag{
-		Key:   aws.String(key),
-		Value: aws.String(value),
+		Key:   ptr.To(key),
+		Value: ptr.To(value),
 	}
 }
 
