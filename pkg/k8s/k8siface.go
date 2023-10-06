@@ -27,7 +27,6 @@ import (
 	"github.com/submariner-io/admiral/pkg/util"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -73,21 +72,21 @@ func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
 
 func (k *k8sIface) updateLabel(nodeName string, mutate func(existing *v1.Node)) error {
 	//nolint:wrapcheck // Let the caller wrap these errors.
-	client := &resource.InterfaceFuncs{
-		GetFunc: func(ctx context.Context, name string, options metav1.GetOptions) (runtime.Object, error) {
+	client := &resource.InterfaceFuncs[*v1.Node]{
+		GetFunc: func(ctx context.Context, name string, options metav1.GetOptions) (*v1.Node, error) {
 			return k.clientSet.CoreV1().Nodes().Get(ctx, name, options)
 		},
-		UpdateFunc: func(ctx context.Context, obj runtime.Object, options metav1.UpdateOptions) (runtime.Object, error) {
-			return k.clientSet.CoreV1().Nodes().Update(ctx, obj.(*v1.Node), options)
+		UpdateFunc: func(ctx context.Context, obj *v1.Node, options metav1.UpdateOptions) (*v1.Node, error) {
+			return k.clientSet.CoreV1().Nodes().Update(ctx, obj, options)
 		},
 	}
 
-	return errors.Wrap(util.Update(context.TODO(), client, &v1.Node{
+	return errors.Wrap(util.Update[*v1.Node](context.TODO(), client, &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 		},
-	}, func(existing runtime.Object) (runtime.Object, error) {
-		mutate(existing.(*v1.Node))
+	}, func(existing *v1.Node) (*v1.Node, error) {
+		mutate(existing)
 		return existing, nil
 	}), "error updating node")
 }
