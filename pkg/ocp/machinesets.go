@@ -160,7 +160,8 @@ func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) 
 		return err
 	}
 
-	_, err = util.CreateOrUpdate(context.TODO(), resource.ForDynamic(machineSetClient), machineSet, util.Replace(machineSet))
+	_, err = util.CreateOrUpdate[runtime.Object](context.TODO(), resource.ForDynamic(machineSetClient), machineSet,
+		util.Replace[runtime.Object](machineSet))
 
 	return errors.Wrapf(err, "error creating machine set %#v", machineSet)
 }
