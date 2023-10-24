@@ -58,7 +58,7 @@ func testOpenPorts() {
 			Expect(retError).To(Succeed())
 
 			t.expectValidateAuthorizeSecurityGroupIngress(nil)
-			t.expectDescribeSecurityGroups(infraID+"-master-sg", masterGroupID)
+			t.expectDescribeSecurityGroups(masterSGName, masterGroupID)
 
 			t.expectAuthorizeSecurityGroupIngress(workerGroupID, newClusterSGRule(workerGroupID, 100, "TCP"))
 			t.expectAuthorizeSecurityGroupIngress(workerGroupID, newClusterSGRule(masterGroupID, 100, "TCP"))
@@ -98,7 +98,7 @@ func testOpenPorts() {
 	When("retrieval of security groups fails", func() {
 		BeforeEach(func() {
 			t.expectValidateAuthorizeSecurityGroupIngress(nil)
-			t.expectDescribeSecurityGroupsFailure(infraID+"-master-sg", errors.New("mock error"))
+			t.expectDescribeSecurityGroupsFailure(masterSGName, errors.New("mock error"))
 		})
 
 		It("should return an error", func() {
@@ -123,7 +123,7 @@ func testClosePorts() {
 			t.expectValidateRevokeSecurityGroupIngress(nil)
 
 			ipPerm := newIPPermission(internalTraffic + " from X to Y")
-			t.expectDescribeSecurityGroups(infraID+"-master-sg", masterGroupID, ipPerm, newIPPermission("other"))
+			t.expectDescribeSecurityGroups(masterSGName, masterGroupID, ipPerm, newIPPermission("other"))
 
 			t.expectRevokeSecurityGroupIngress(masterGroupID, ipPerm)
 		})
@@ -156,7 +156,7 @@ func testClosePorts() {
 	When("retrieval of security groups fails", func() {
 		BeforeEach(func() {
 			t.expectValidateRevokeSecurityGroupIngress(nil)
-			t.expectDescribeSecurityGroupsFailure(infraID+"-master-sg", errors.New("mock error"))
+			t.expectDescribeSecurityGroupsFailure(masterSGName, errors.New("mock error"))
 		})
 
 		It("should return an error", func() {
@@ -178,7 +178,7 @@ func newCloudTestDriver() *cloudTestDriver {
 
 		t.cloud = aws.NewCloud(t.awsClient, infraID, region)
 
-		t.expectDescribeSecurityGroups(infraID+"-worker-sg", workerGroupID)
+		t.expectDescribeSecurityGroups(workerSGName, workerGroupID)
 	})
 
 	AfterEach(t.afterEach)
