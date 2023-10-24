@@ -35,18 +35,22 @@ import (
 )
 
 const (
-	infraID           = "test-infra"
-	region            = "test-region"
-	vpcID             = "test-vpc"
-	workerGroupID     = "worker-group"
-	masterGroupID     = "master-group"
-	gatewayGroupID    = "gateway-group"
-	internalTraffic   = "Internal Submariner traffic"
-	availabilityZone1 = "availability-zone-1"
-	availabilityZone2 = "availability-zone-2"
-	subnetID1         = "subnet-1"
-	subnetID2         = "subnet-2"
-	instanceImageID   = "test-image"
+	infraID              = "test-infra"
+	region               = "test-region"
+	vpcID                = "test-vpc"
+	workerGroupID        = "worker-group"
+	masterGroupID        = "master-group"
+	gatewayGroupID       = "gateway-group"
+	internalTraffic      = "Internal Submariner traffic"
+	availabilityZone1    = "availability-zone-1"
+	availabilityZone2    = "availability-zone-2"
+	subnetID1            = "subnet-1"
+	subnetID2            = "subnet-2"
+	instanceImageID      = "test-image"
+	masterSGName         = infraID + "-master-sg"
+	workerSGName         = infraID + "-worker-sg"
+	gatewaySGName        = infraID + "-submariner-gw-sg"
+	clusterFilterTagName = "tag:kubernetes.io/cluster/" + infraID
 )
 
 var internalTrafficDesc = fmt.Sprintf("Should contain %q", internalTraffic)
@@ -104,7 +108,7 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 		Name:   awssdk.String("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, types.Filter{
-		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
+		Name:   awssdk.String(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
 }
@@ -144,7 +148,7 @@ func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subn
 		Name:   awssdk.String("vpc-id"),
 		Values: []string{f.vpcID},
 	}, types.Filter{
-		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
+		Name:   awssdk.String(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
 }
@@ -157,7 +161,7 @@ func (f *fakeAWSClientBase) expectDescribeGatewaySubnets(retSubnets ...types.Sub
 		Name:   awssdk.String("vpc-id"),
 		Values: []string{f.vpcID},
 	}, types.Filter{
-		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
+		Name:   awssdk.String(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
 }
@@ -267,7 +271,7 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 		Name:   awssdk.String("vpc-id"),
 		Values: []string{f.vpcID},
 	}, types.Filter{
-		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
+		Name:   awssdk.String(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeInstancesOutput{Reservations: reservations}, nil).AnyTimes()
 }

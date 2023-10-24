@@ -38,6 +38,7 @@ const (
 	externalSecurityGroupSuffix = "-submariner-external-sg"
 	internalSecurityRulePrefix  = "Submariner-Internal-"
 	externalSecurityRulePrefix  = "Submariner-External-"
+	publicIPNameSuffix          = "-pub"
 	allNetworkCIDR              = "0.0.0.0/0"
 	basePriorityInternal        = 2500
 	baseExternalInternal        = 3500
@@ -222,7 +223,7 @@ func (c *CloudInfo) prepareGWInterface(nodeName, groupName string, nsgClient *ar
 		return errors.Wrapf(err, "error getting the submariner gateway security group %q", groupName)
 	}
 
-	publicIPName := nodeName + "-pub"
+	publicIPName := nodeName + publicIPNameSuffix
 
 	var pubIP armnetwork.PublicIPAddress
 

@@ -43,6 +43,7 @@ import (
 const (
 	publicPortsRuleName      = "test-infraID-submariner-public-ports-ingress"
 	submarinerGatewayNodeTag = "submariner-io-gateway-node"
+	submarinerGWName         = infraID + "-submariner-gw-"
 )
 
 var _ = Describe("OCP GatewayDeployer", func() {
@@ -279,8 +280,8 @@ func testCleanup() {
 		var machineSets map[string]*unstructured.Unstructured
 
 		BeforeEach(func() {
-			t.instances[zone1][0].Name = infraID + "-submariner-gw-" + zone1
-			t.instances[zone2][0].Name = infraID + "-submariner-gw-" + zone2
+			t.instances[zone1][0].Name = submarinerGWName + zone1
+			t.instances[zone2][0].Name = submarinerGWName + zone2
 
 			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
 			t.instances[zone2][0].Tags.Items = []string{submarinerGatewayNodeTag}
@@ -495,7 +496,7 @@ func (t *gatewayDeployerTestDriver) assertMachineSet(ms *unstructured.Unstructur
 
 	zone, ok, _ := unstructured.NestedString(ms.Object, "spec", "template", "spec", "providerSpec", "value", "zone")
 	Expect(ok).To(BeTrue())
-	Expect(ms.GetName()).To(Equal(infraID + "-submariner-gw-" + zone))
+	Expect(ms.GetName()).To(Equal(submarinerGWName + zone))
 
 	mt, _, _ := unstructured.NestedString(ms.Object, "spec", "template", "spec", "providerSpec", "value", "machineType")
 	Expect(mt).To(Equal(instanceType))

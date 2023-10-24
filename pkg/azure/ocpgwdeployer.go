@@ -390,7 +390,7 @@ func (d *ocpGatewayDeployer) deleteGateway(status reporter.Interface) error {
 				machineSetList[i].GetName())
 		}
 
-		publicIPName := machineSetList[i].GetName() + "-pub"
+		publicIPName := machineSetList[i].GetName() + publicIPNameSuffix
 
 		err = d.deletePublicIP(ctx, pubIPClient, publicIPName)
 		if err != nil {
@@ -415,7 +415,7 @@ func (d *ocpGatewayDeployer) deleteGateway(status reporter.Interface) error {
 			return status.Error(err, "failed to cleanup node %q", gwNodes[i].Name)
 		}
 
-		publicIPName := gwNodes[i].Name + "-pub"
+		publicIPName := gwNodes[i].Name + publicIPNameSuffix
 
 		err = d.deletePublicIP(ctx, pubIPClient, publicIPName)
 		if err != nil {

@@ -81,7 +81,7 @@ func testDeploy() {
 		Context("and the gateway security group doesn't initially exist", func() {
 			BeforeEach(func() {
 				t.gatewayGroupID = ""
-				t.expectCreateSecurityGroup(infraID+"-submariner-gw-sg", gatewayGroupID)
+				t.expectCreateSecurityGroup(gatewaySGName, gatewayGroupID)
 			})
 
 			t.testDeploySuccess("should create it and", "")
@@ -280,9 +280,9 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 
 	JustBeforeEach(func() {
 		t.expectDescribeVpcs(t.vpcID)
-		t.expectDescribeSecurityGroups(infraID+"-submariner-gw-sg", t.gatewayGroupID)
+		t.expectDescribeSecurityGroups(gatewaySGName, t.gatewayGroupID)
 		t.expectDescribeInstances(instanceImageID)
-		t.expectDescribeSecurityGroups(infraID+"-worker-sg", workerGroupID)
+		t.expectDescribeSecurityGroups(workerSGName, workerGroupID)
 
 		var err error
 
@@ -362,7 +362,7 @@ func (t *gatewayDeployerTestDriver) testDeploySuccess(msgPrefix, msgSuffix strin
 
 		for i := range t.expectedSubnetsDeployed {
 			assertMachineSet(t.machineSets[*t.expectedSubnetsDeployed[i].AvailabilityZone], *t.expectedSubnetsDeployed[i].SubnetId,
-				t.expectedInstanceType(), instanceImageID, infraID+"-submariner-gw-sg")
+				t.expectedInstanceType(), instanceImageID, gatewaySGName)
 			delete(t.machineSets, *t.expectedSubnetsDeployed[i].AvailabilityZone)
 		}
 
@@ -407,7 +407,7 @@ func assertMachineSet(ms *unstructured.Unstructured, expSubnetID, expInstanceTyp
 
 	filter := sgFilters[0].(map[string]interface{})
 	Expect(filter).To(HaveKeyWithValue("name", "tag:Name"))
-	Expect(filter["values"]).To(ContainElements(infraID + "-worker-sg"))
+	Expect(filter["values"]).To(ContainElements(workerSGName))
 
 	if expGatewaySG != "" {
 		Expect(filter["values"]).To(ContainElement(expGatewaySG))
