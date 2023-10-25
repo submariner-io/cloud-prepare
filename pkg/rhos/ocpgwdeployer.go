@@ -38,26 +38,23 @@ import (
 
 type ocpGatewayDeployer struct {
 	CloudInfo
-	projectID       string
-	instanceType    string
-	image           string
-	cloudName       string
-	dedicatedGWNode bool
-	msDeployer      ocp.MachineSetDeployer
+	projectID    string
+	instanceType string
+	image        string
+	cloudName    string
+	msDeployer   ocp.MachineSetDeployer
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
 func NewOcpGatewayDeployer(info CloudInfo, msDeployer ocp.MachineSetDeployer, projectID, instanceType, image, cloudName string,
-	dedicatedGWNode bool,
 ) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
-		CloudInfo:       info,
-		projectID:       projectID,
-		instanceType:    instanceType,
-		image:           image,
-		cloudName:       cloudName,
-		dedicatedGWNode: dedicatedGWNode,
-		msDeployer:      msDeployer,
+		CloudInfo:    info,
+		projectID:    projectID,
+		instanceType: instanceType,
+		image:        image,
+		cloudName:    cloudName,
+		msDeployer:   msDeployer,
 	}
 }
 
@@ -187,11 +184,11 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 		return nil
 	}
 
-	return d.deployGWNode(input.Gateways, groupName, computeClient,
+	return d.deployGWNode(input.Gateways, computeClient,
 		len(machineSets)+len(taggedExistingNodes), status)
 }
 
-func (d *ocpGatewayDeployer) deployGWNode(gatewayCount int, groupName string,
+func (d *ocpGatewayDeployer) deployGWNode(gatewayCount int,
 	computeClient *gophercloud.ServiceClient, numGatewayNodes int, status reporter.Interface,
 ) error {
 	// Currently, we only support increasing the number of Gateway nodes which could be a valid use-case
@@ -202,19 +199,15 @@ func (d *ocpGatewayDeployer) deployGWNode(gatewayCount int, groupName string,
 	if numGatewayNodes < gatewayCount {
 		gatewayNodesToDeploy := gatewayCount - numGatewayNodes
 
-		if d.dedicatedGWNode {
-			groupName := d.InfraID + internalSecurityGroupSuffix
+		groupName := d.InfraID + internalSecurityGroupSuffix
 
-			isFound, errSG := checkIfSecurityGroupPresent(groupName, computeClient)
+		isFound, errSG := checkIfSecurityGroupPresent(groupName, computeClient)
 
-			if errSG != nil {
-				return errSG
-			}
-
-			err = d.deployDedicatedGWNode(gatewayNodesToDeploy, isFound, status)
-		} else {
-			err = d.tagExistingNode(groupName, computeClient, gatewayNodesToDeploy, status)
+		if errSG != nil {
+			return errSG
 		}
+
+		err = d.deployDedicatedGWNode(gatewayNodesToDeploy, isFound, status)
 	}
 
 	return err
@@ -234,48 +227,6 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gatewayNodesToDeploy int, use
 
 		status.Success("Successfully deployed Submariner gateway node")
 		status.End()
-	}
-
-	return nil
-}
-
-func (d *ocpGatewayDeployer) tagExistingNode(groupName string, computeClient *gophercloud.ServiceClient,
-	gatewayNodesToDeploy int, status reporter.Interface,
-) error {
-	workerNodes, err := d.K8sClient.ListNodesWithLabel("node-role.kubernetes.io/worker")
-	if err != nil {
-		return status.Error(err, "failed to list k8s nodes in project %q", d.projectID)
-	}
-
-	nodes := workerNodes.Items
-	for i := range nodes {
-		alreadyTagged := nodes[i].GetLabels()[submarinerGatewayNodeTag]
-		if alreadyTagged == "true" {
-			continue
-		}
-
-		status.Start("Configuring worker node %q as Submariner gateway node", nodes[i].Name)
-
-		err := d.K8sClient.AddGWLabelOnNode(nodes[i].Name)
-		if err != nil {
-			return status.Error(err, "failed to label the node %q as Submariner gateway node", nodes[i].Name)
-		}
-
-		if err = d.openGatewayPort(groupName, nodes[i].Name, computeClient); err != nil {
-			return status.Error(err, "failed to open the Submariner gateway port")
-		}
-
-		gatewayNodesToDeploy--
-		if gatewayNodesToDeploy <= 0 {
-			status.Success("Successfully deployed Submariner gateway node")
-			status.End()
-
-			return nil
-		}
-
-		if gatewayNodesToDeploy > 0 {
-			return status.Error(err, "there are insufficient nodes to deploy the required number of gateways")
-		}
 	}
 
 	return nil

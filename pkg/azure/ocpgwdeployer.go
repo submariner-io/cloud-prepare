@@ -46,16 +46,14 @@ const (
 
 type ocpGatewayDeployer struct {
 	CloudInfo
-	azure           *azureCloud
-	msDeployer      ocp.MachineSetDeployer
-	instanceType    string
-	dedicatedGWNode bool
+	azure        *azureCloud
+	msDeployer   ocp.MachineSetDeployer
+	instanceType string
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP.
 // If the supplied cloud is not an azureCloud, an error is returned.
 func NewOcpGatewayDeployer(info *CloudInfo, cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType string,
-	dedicatedGWNode bool,
 ) (api.GatewayDeployer, error) {
 	azure, ok := cloud.(*azureCloud)
 	if !ok {
@@ -63,11 +61,10 @@ func NewOcpGatewayDeployer(info *CloudInfo, cloud api.Cloud, msDeployer ocp.Mach
 	}
 
 	return &ocpGatewayDeployer{
-		CloudInfo:       *info,
-		azure:           azure,
-		msDeployer:      msDeployer,
-		instanceType:    instanceType,
-		dedicatedGWNode: dedicatedGWNode,
+		CloudInfo:    *info,
+		azure:        azure,
+		msDeployer:   msDeployer,
+		instanceType: instanceType,
 	}, nil
 }
 
@@ -125,16 +122,12 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 		return nil
 	}
 
-	if d.dedicatedGWNode {
-		image, imageErr := d.msDeployer.GetWorkerNodeImage(nil, d.InfraID)
-		if imageErr != nil {
-			return errors.Wrap(imageErr, "error retrieving worker node image")
-		}
-
-		err = d.deployDedicatedGWNode(machineSets, gatewayNodesToDeploy, input.AirGapped, image, status)
-	} else {
-		err = d.tagExistingNode(nsgClient, nwClient, pubIPClient, gatewayNodesToDeploy, status)
+	image, imageErr := d.msDeployer.GetWorkerNodeImage(nil, d.InfraID)
+	if imageErr != nil {
+		return errors.Wrap(imageErr, "error retrieving worker node image")
 	}
+
+	err = d.deployDedicatedGWNode(machineSets, gatewayNodesToDeploy, input.AirGapped, image, status)
 
 	if err != nil {
 		status.Success("Deployed gateway node")
@@ -168,50 +161,6 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstru
 
 	if gatewayNodesToDeploy != 0 {
 		return status.Error(err, "not enough zones available in the region %q to deploy required number of gateway nodes", d.Region)
-	}
-
-	return nil
-}
-
-func (d *ocpGatewayDeployer) tagExistingNode(nsgClient *armnetwork.SecurityGroupsClient, nwClient *armnetwork.InterfacesClient,
-	pubIPClient *armnetwork.PublicIPAddressesClient, gatewayNodesToDeploy int, status reporter.Interface,
-) error {
-	groupName := d.InfraID + externalSecurityGroupSuffix
-
-	workerNodes, err := d.K8sClient.ListNodesWithLabel("node-role.kubernetes.io/worker")
-	if err != nil {
-		return status.Error(err, "failed to list k8s nodes in ResorceGroup %q", d.BaseGroupName)
-	}
-
-	nodes := workerNodes.Items
-	for i := range nodes {
-		alreadyTagged := nodes[i].GetLabels()[submarinerGatewayNodeTag]
-		if alreadyTagged == "true" {
-			continue
-		}
-
-		status.Start("Configuring worker node %q as Submariner gateway node", nodes[i].Name)
-
-		err := d.K8sClient.AddGWLabelOnNode(nodes[i].Name)
-		if err != nil {
-			return status.Error(err, "failed to label the node %q as Submariner gateway node", nodes[i].Name)
-		}
-
-		if err = d.prepareGWInterface(nodes[i].Name, groupName, nsgClient, nwClient, pubIPClient); err != nil {
-			return status.Error(err, "failed to open the Submariner gateway port")
-		}
-
-		gatewayNodesToDeploy--
-		if gatewayNodesToDeploy <= 0 {
-			status.Success("Successfully deployed Submariner gateway node")
-			status.End()
-
-			return nil
-		}
-	}
-
-	if gatewayNodesToDeploy > 0 {
-		return status.Error(err, "there are insufficient nodes to deploy the required number of gateways")
 	}
 
 	return nil

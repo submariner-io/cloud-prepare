@@ -52,7 +52,7 @@ var _ = Describe("OCP Gateway Deployer", func() {
 			Region:  region,
 		}
 
-		gwp, err := NewOcpGatewayDeployer(info, NewCloud(info), msDeployer, instanceType, true)
+		gwp, err := NewOcpGatewayDeployer(info, NewCloud(info), msDeployer, instanceType)
 		Expect(err).To(Succeed())
 
 		gwDeployer = gwp.(*ocpGatewayDeployer)
