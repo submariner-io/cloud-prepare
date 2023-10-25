@@ -78,76 +78,6 @@ func testDeploy() {
 		t.assertIngressRule(actualRule)
 	})
 
-	When("one gateway is requested", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				newNode("node-1", zone1, instance1),
-				newNode("node-2", "other", "other"),
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "node-3",
-					},
-				},
-			}
-
-			t.expInstanceTagged(zone1, t.instances[zone1][0])
-			t.numGateways = 1
-		})
-
-		It("should label one gateway node", func() {
-			Expect(retError).To(Succeed())
-			t.assertLabeledNodes("node-1")
-		})
-	})
-
-	When("two gateways are requested", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				newNode("node-1", zone1, instance1),
-			}
-
-			t.expInstanceTagged(zone1, t.instances[zone1][0])
-			t.numGateways = 2
-		})
-
-		Context("", func() {
-			BeforeEach(func() {
-				t.nodes = append(t.nodes, newNode("node-2", zone2, instance2))
-				t.expInstanceTagged(zone2, t.instances[zone2][0])
-			})
-
-			It("should label two gateway nodes", func() {
-				Expect(retError).To(Succeed())
-				t.assertLabeledNodes("node-1", "node-2")
-			})
-		})
-
-		Context("and there's an insufficient number of available nodes", func() {
-			It("should partially label the gateways", func() {
-				Expect(retError).ToNot(Succeed())
-				t.assertLabeledNodes("node-1")
-			})
-		})
-	})
-
-	When("the requested number of gateways is increased", func() {
-		BeforeEach(func() {
-			t.nodes = []*corev1.Node{
-				newNode("node-1", zone1, instance1),
-				newNode("node-2", zone2, instance2),
-			}
-
-			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
-			t.expInstanceTagged(zone2, t.instances[zone2][0])
-			t.numGateways = 2
-		})
-
-		It("should label the additional gateway nodes", func() {
-			Expect(retError).To(Succeed())
-			t.assertLabeledNodes("node-2")
-		})
-	})
-
 	When("the requested number of gateways is decreased", func() {
 		BeforeEach(func() {
 			t.nodes = []*corev1.Node{
@@ -197,7 +127,6 @@ func testDeploy() {
 			t.msDeployer.EXPECT().GetWorkerNodeImage(gomock.Any(), infraID).Return("test-image", nil).AnyTimes()
 			t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&machineSets)).Times(2)
 
-			t.dedicatedGWNode = true
 			t.numGateways = 2
 		})
 
@@ -321,15 +250,14 @@ func testCleanup() {
 
 type gatewayDeployerTestDriver struct {
 	fakeGCPClientBase
-	numGateways     int
-	dedicatedGWNode bool
-	image           string
-	kubeClient      *kubeFake.Clientset
-	msDeployer      *ocpFake.MockMachineSetDeployer
-	nodes           []*corev1.Node
-	zones           []*compute.Zone
-	instances       map[string][]*compute.Instance
-	gwDeployer      api.GatewayDeployer
+	numGateways int
+	image       string
+	kubeClient  *kubeFake.Clientset
+	msDeployer  *ocpFake.MockMachineSetDeployer
+	nodes       []*corev1.Node
+	zones       []*compute.Zone
+	instances   map[string][]*compute.Instance
+	gwDeployer  api.GatewayDeployer
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
@@ -373,7 +301,6 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 			},
 		}
 
-		t.dedicatedGWNode = false
 		t.image = ""
 		t.msDeployer = ocpFake.NewMockMachineSetDeployer(t.mockCtrl)
 		t.kubeClient = kubeFake.NewSimpleClientset()
@@ -413,7 +340,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 			Region:    region,
 			ProjectID: projectID,
 			Client:    t.gcpClient,
-		}, t.msDeployer, instanceType, t.image, t.dedicatedGWNode, k8s.NewInterface(t.kubeClient))
+		}, t.msDeployer, instanceType, t.image, k8s.NewInterface(t.kubeClient))
 	})
 
 	return t
@@ -471,14 +398,6 @@ func (t *gatewayDeployerTestDriver) assertIngressRule(rule *compute.Firewall) {
 		IPProtocol: "UDP",
 		Ports:      []string{"200"},
 	}))
-}
-
-func (t *gatewayDeployerTestDriver) expInstanceTagged(zone string, instance *compute.Instance) {
-	t.gcpClient.EXPECT().UpdateInstanceNetworkTags(projectID, zone, instance.Name, &compute.Tags{
-		Items: []string{submarinerGatewayNodeTag},
-	})
-
-	t.gcpClient.EXPECT().ConfigurePublicIPOnInstance(instance)
 }
 
 func (t *gatewayDeployerTestDriver) expInstanceUntagged(zone string, instance *compute.Instance) {
