@@ -13,14 +13,14 @@ require (
 	github.com/aws/smithy-go v1.16.0
 	github.com/golang/mock v1.6.0
 	github.com/gophercloud/gophercloud v1.7.0
-	github.com/onsi/ginkgo/v2 v2.13.0
-	github.com/onsi/gomega v1.29.0
+	github.com/onsi/ginkgo/v2 v2.13.1
+	github.com/onsi/gomega v1.30.0
 	github.com/pkg/errors v0.9.1
-	github.com/submariner-io/admiral v0.17.0-m0
+	github.com/submariner-io/admiral v0.17.0-m1
 	google.golang.org/api v0.149.0
-	k8s.io/api v0.28.3
-	k8s.io/apimachinery v0.28.3
-	k8s.io/client-go v0.28.3
+	k8s.io/api v0.28.4
+	k8s.io/apimachinery v0.28.4
+	k8s.io/client-go v0.28.4
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 )
 
@@ -67,11 +67,11 @@ require (
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.13.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.4.0 // indirect
-	golang.org/x/tools v0.12.0 // indirect
+	golang.org/x/tools v0.14.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/grpc v1.59.0 // indirect
