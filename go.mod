@@ -13,10 +13,10 @@ require (
 	github.com/aws/smithy-go v1.18.1
 	github.com/golang/mock v1.6.0
 	github.com/gophercloud/gophercloud v1.7.0
-	github.com/onsi/ginkgo/v2 v2.13.1
+	github.com/onsi/ginkgo/v2 v2.13.2
 	github.com/onsi/gomega v1.30.0
 	github.com/pkg/errors v0.9.1
-	github.com/submariner-io/admiral v0.17.0-m1
+	github.com/submariner-io/admiral v0.17.0-m2
 	google.golang.org/api v0.152.0
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
