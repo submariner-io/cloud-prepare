@@ -2,6 +2,7 @@ output/
 vendor/
 .dapper
 Makefile.dapper
+Makefile.shipyard
 /Dockerfile.*
 .idea
 *.coverprofile
