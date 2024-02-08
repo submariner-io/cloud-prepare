@@ -128,7 +128,6 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	}
 
 	err = d.deployDedicatedGWNode(machineSets, gatewayNodesToDeploy, input.AirGapped, image, status)
-
 	if err != nil {
 		status.Success("Deployed gateway node")
 	}
@@ -359,7 +358,6 @@ func (d *ocpGatewayDeployer) deleteGateway(status reporter.Interface) error {
 
 	for i := range gwNodes {
 		err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodes[i])
-
 		if err != nil {
 			return status.Error(err, "failed to cleanup node %q", gwNodes[i].Name)
 		}

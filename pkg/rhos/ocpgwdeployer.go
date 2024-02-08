@@ -290,7 +290,6 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 		status.Start(fmt.Sprintf("Removing Submariner gateway label from instance %q", gwNodes[i].Name))
 
 		err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodes[i])
-
 		if err != nil {
 			return status.Error(err, "failed to cleanup gateway node %q"+gwNodes[i].Name)
 		}
