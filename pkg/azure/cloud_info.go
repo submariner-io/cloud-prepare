@@ -225,13 +225,8 @@ func (c *CloudInfo) prepareGWInterface(nodeName, groupName string, nsgClient *ar
 
 	publicIPName := nodeName + publicIPNameSuffix
 
-	var pubIP armnetwork.PublicIPAddress
-
-	pubIP, err = c.getPublicIP(ctx, publicIPName, pubIPClient)
-
+	pubIP, err := c.getPublicIP(ctx, publicIPName, pubIPClient)
 	if err != nil {
-		var err error
-
 		pubIP, err = c.createPublicIP(ctx, publicIPName, pubIPClient)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create public IP %q", publicIPName)
