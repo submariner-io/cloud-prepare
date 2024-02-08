@@ -71,15 +71,18 @@ func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec,
 		if err != nil {
 			return false, errors.WithMessage(err, "getting the server List failed")
 		}
+
 		for i := range serverList {
 			found := false
 			securityGroups := serverList[i].SecurityGroups
+
 			for j := range securityGroups {
 				existingGroupName, ok := securityGroups[j]["name"]
 				if ok && existingGroupName == groupName {
 					found = true
 				}
 			}
+
 			if !found {
 				err := secgroups.AddServer(computeClient, serverList[i].ID, groupName).ExtractErr()
 				if err != nil {
@@ -106,6 +109,7 @@ func (c *CloudInfo) removeInternalFirewallRules(infraID string,
 		if err != nil {
 			return false, errors.WithMessage(err, "getting the server List failed")
 		}
+
 		for i := range serverList {
 			err = secgroups.RemoveServer(computeClient, serverList[i].ID, groupName).ExtractErr()
 			if err != nil {
@@ -169,6 +173,7 @@ func checkIfSecurityGroupPresent(groupName string, computeClient *gophercloud.Se
 				isFound = true
 			}
 		}
+
 		return true, errors.WithMessagef(err, "failed to extract the security group %q from results", groupName)
 	})
 
@@ -184,6 +189,7 @@ func (c *CloudInfo) openGatewayPort(groupName, nodeName string, computeClient *g
 		if err != nil {
 			return false, errors.WithMessagef(err, "getting the server List failed for node %q", nodeName)
 		}
+
 		for i := range serverList {
 			securityGroups := serverList[i].SecurityGroups
 			for j := range securityGroups {
@@ -192,6 +198,7 @@ func (c *CloudInfo) openGatewayPort(groupName, nodeName string, computeClient *g
 					return true, nil
 				}
 			}
+
 			err = secgroups.AddServer(computeClient, serverList[i].ID, groupName).ExtractErr()
 			if err != nil {
 				return false, errors.WithMessagef(err, "adding security group %q to the server %q failed",
@@ -214,6 +221,7 @@ func (c *CloudInfo) removeFirewallRulesFromGW(groupName, nodeName string, comput
 		if err != nil {
 			return false, errors.WithMessagef(err, "getting the server list failed")
 		}
+
 		for i := range serverList {
 			err = secgroups.RemoveServer(computeClient, serverList[i].ID, groupName).ExtractErr()
 			if err != nil {
@@ -243,13 +251,16 @@ func (c *CloudInfo) deleteSG(groupName string, computeClient *gophercloud.Servic
 		if err != nil {
 			return false, errors.WithMessagef(err, "failed to list the security group %q", groupName)
 		}
+
 		for _, s := range serverList {
 			if s.Name == groupName {
 				isFound = true
 				securityGroupID = s.ID
+
 				return true, nil
 			}
 		}
+
 		return true, errors.WithMessagef(err, "error finding the uuid for the security group: %q", groupName)
 	})
 
