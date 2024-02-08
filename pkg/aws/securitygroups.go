@@ -240,10 +240,11 @@ func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
 func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
 	var permissionsToRevoke []types.IpPermission
 
-	for _, permission := range group.IpPermissions {
-		for _, groupPair := range permission.UserIdGroupPairs {
+	for perm := range group.IpPermissions {
+		for i := range group.IpPermissions[perm].UserIdGroupPairs {
+			groupPair := group.IpPermissions[perm].UserIdGroupPairs[i]
 			if groupPair.Description != nil && strings.Contains(*groupPair.Description, internalTraffic) {
-				permissionsToRevoke = append(permissionsToRevoke, permission)
+				permissionsToRevoke = append(permissionsToRevoke, group.IpPermissions[perm])
 				break
 			}
 		}
