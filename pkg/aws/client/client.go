@@ -131,7 +131,7 @@ func New(accessKeyID, secretAccessKey, region string) (Interface, error) {
 		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
 		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-			func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+			func(service, region string, _ ...interface{}) (aws.Endpoint, error) {
 				if service != "route53" || region != "cn-northwest-1" {
 					return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 				}
