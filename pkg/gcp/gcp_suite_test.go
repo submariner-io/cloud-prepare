@@ -21,10 +21,10 @@ package gcp_test
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp/client/fake"
+	"go.uber.org/mock/gomock"
 )
 
 const (

@@ -19,11 +19,11 @@ limitations under the License.
 package azure
 
 import (
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/util"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
+	"go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

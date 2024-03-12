@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/reporter"
@@ -32,6 +31,7 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/gcp"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
+	"go.uber.org/mock/gomock"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	corev1 "k8s.io/api/core/v1"
