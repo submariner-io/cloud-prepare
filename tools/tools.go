@@ -23,5 +23,5 @@ limitations under the License.
 package tools
 
 import (
-	_ "go.uber.org/mock/mockgen"
+	_ "github.com/vektra/mockery/v2"
 )

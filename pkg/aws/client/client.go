@@ -29,7 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-//go:generate mockgen -source=./client.go -destination=./fake/client.go -package=fake -copyright_file=../../../.header
+//go:generate mockery
 
 // Interface wraps an actual AWS SDK ec2 client to allow for easier testing.
 type Interface interface {

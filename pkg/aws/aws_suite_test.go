@@ -28,9 +28,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/submariner-io/admiral/pkg/mock"
+	"github.com/stretchr/testify/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
-	"go.uber.org/mock/gomock"
 	"k8s.io/utils/ptr"
 )
 
@@ -62,7 +61,6 @@ func TestAWS(t *testing.T) {
 
 type fakeAWSClientBase struct {
 	awsClient                        *fake.MockInterface
-	mockCtrl                         *gomock.Controller
 	vpcID                            string
 	describeSubnetsErr               error
 	authorizeSecurityGroupIngressErr error
@@ -71,8 +69,7 @@ type fakeAWSClientBase struct {
 }
 
 func (f *fakeAWSClientBase) beforeEach() {
-	f.mockCtrl = gomock.NewController(GinkgoT())
-	f.awsClient = fake.NewMockInterface(f.mockCtrl)
+	f.awsClient = fake.NewMockInterface(GinkgoT())
 	f.vpcID = vpcID
 	f.describeSubnetsErr = nil
 	f.authorizeSecurityGroupIngressErr = nil
@@ -81,17 +78,17 @@ func (f *fakeAWSClientBase) beforeEach() {
 }
 
 func (f *fakeAWSClientBase) afterEach() {
-	f.mockCtrl.Finish()
+	f.awsClient.AssertExpectations(GinkgoT())
 }
 
 func (f *fakeAWSClientBase) expectDescribeSecurityGroups(name, groupID string, ipPermissions ...types.IpPermission) {
-	f.awsClient.EXPECT().DescribeSecurityGroups(gomock.Any(), mock.Eq(newDescribeSecurityGroupsInput(f.vpcID, name))).
-		Return(newDescribeSecurityGroupsOutput(groupID, ipPermissions...), nil).AnyTimes()
+	f.awsClient.EXPECT().DescribeSecurityGroups(mock.Anything, newDescribeSecurityGroupsInput(f.vpcID, name)).
+		Return(newDescribeSecurityGroupsOutput(groupID, ipPermissions...), nil).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeSecurityGroupsFailure(name string, err error) {
-	f.awsClient.EXPECT().DescribeSecurityGroups(gomock.Any(), mock.Eq(newDescribeSecurityGroupsInput(f.vpcID, name))).
-		Return(nil, err).AnyTimes()
+	f.awsClient.EXPECT().DescribeSecurityGroups(mock.Anything, newDescribeSecurityGroupsInput(f.vpcID, name)).
+		Return(nil, err).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
@@ -104,75 +101,80 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 		}
 	}
 
-	f.awsClient.EXPECT().DescribeVpcs(gomock.Any(), eqFilters(types.Filter{
+	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-vpc"},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
-	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
+	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
 }
 
-func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *gomock.Call {
-	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(gomock.Any(), mock.Eq(&ec2.AuthorizeSecurityGroupIngressInput{
-		DryRun:  ptr.To(true),
-		GroupId: ptr.To(workerGroupID),
-	})).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr)
+func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
+	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
+		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
+			DryRun:  ptr.To(true),
+			GroupId: ptr.To(workerGroupID),
+		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr).Call
 }
 
 func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string, ipPerm *types.IpPermission) {
-	f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(gomock.Any(),
-		eqAuthorizeSecurityGroupIngressInput(srcGroup, ipPerm)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{},
+	f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
+		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
+			GroupId:       ptr.To(srcGroup),
+			IpPermissions: []types.IpPermission{*ipPerm},
+		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{},
 		f.authorizeSecurityGroupIngressErr)
 }
 
 func (f *fakeAWSClientBase) expectRevokeSecurityGroupIngress(groupID string, ipPermissions ...types.IpPermission) {
-	f.awsClient.EXPECT().RevokeSecurityGroupIngress(gomock.Any(), mock.Eq(&ec2.RevokeSecurityGroupIngressInput{
+	f.awsClient.EXPECT().RevokeSecurityGroupIngress(mock.Anything, &ec2.RevokeSecurityGroupIngressInput{
 		GroupId:       ptr.To(groupID),
 		IpPermissions: ipPermissions,
-	})).Return(&ec2.RevokeSecurityGroupIngressOutput{}, nil)
+	}).Return(&ec2.RevokeSecurityGroupIngressOutput{}, nil)
 }
 
 func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr error) {
-	f.awsClient.EXPECT().RevokeSecurityGroupIngress(gomock.Any(), mock.Eq(&ec2.RevokeSecurityGroupIngressInput{
+	f.awsClient.EXPECT().RevokeSecurityGroupIngress(mock.Anything, &ec2.RevokeSecurityGroupIngressInput{
 		DryRun:  ptr.To(true),
 		GroupId: ptr.To(workerGroupID),
-	})).Return(&ec2.RevokeSecurityGroupIngressOutput{}, retErr)
+	}).Return(&ec2.RevokeSecurityGroupIngressOutput{}, retErr)
 }
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subnet) {
-	f.awsClient.EXPECT().DescribeSubnets(gomock.Any(), eqFilters(types.Filter{
+	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-public-" + region + "*"},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
-	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
+	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeGatewaySubnets(retSubnets ...types.Subnet) {
-	f.awsClient.EXPECT().DescribeSubnets(gomock.Any(), eqFilters(types.Filter{
+	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:submariner.io/gateway"),
 		Values: []string{""},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
-	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
+	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
 
-func (f *fakeAWSClientBase) expectValidateCreateSecurityGroup() *gomock.Call {
-	return f.awsClient.EXPECT().CreateSecurityGroup(gomock.Any(), eqDryRun(&ec2.CreateSecurityGroupInput{})).
-		Return(&ec2.CreateSecurityGroupOutput{}, nil)
+func (f *fakeAWSClientBase) expectValidateCreateSecurityGroup() *mock.Call {
+	return f.awsClient.EXPECT().CreateSecurityGroup(mock.Anything, mock.MatchedBy(func(in *ec2.CreateSecurityGroupInput) bool {
+		return in.DryRun != nil && *in.DryRun
+	})).Return(&ec2.CreateSecurityGroupOutput{}, nil).Call
 }
 
 func (f *fakeAWSClientBase) expectCreateSecurityGroup(name, retGroupID string) {
-	f.awsClient.EXPECT().CreateSecurityGroup(gomock.Any(), mock.Eq(&ec2.CreateSecurityGroupInput{
+	f.awsClient.EXPECT().CreateSecurityGroup(mock.Anything, &ec2.CreateSecurityGroupInput{
 		Description: ptr.To("Submariner Gateway"),
 		GroupName:   ptr.To(name),
 		VpcId:       ptr.To(f.vpcID),
@@ -187,67 +189,74 @@ func (f *fakeAWSClientBase) expectCreateSecurityGroup(name, retGroupID string) {
 				},
 			},
 		},
-	})).Return(&ec2.CreateSecurityGroupOutput{GroupId: ptr.To(retGroupID)}, nil)
+	}).Return(&ec2.CreateSecurityGroupOutput{GroupId: ptr.To(retGroupID)}, nil)
 }
 
 func (f *fakeAWSClientBase) expectDeleteSecurityGroup(groupID string) {
-	f.awsClient.EXPECT().DeleteSecurityGroup(gomock.Any(), mock.Eq(&ec2.DeleteSecurityGroupInput{
+	f.awsClient.EXPECT().DeleteSecurityGroup(mock.Anything, &ec2.DeleteSecurityGroupInput{
 		GroupId: ptr.To(groupID),
-	})).Return(&ec2.DeleteSecurityGroupOutput{}, nil)
+	}).Return(&ec2.DeleteSecurityGroupOutput{}, nil)
 }
 
-func (f *fakeAWSClientBase) expectValidateDeleteSecurityGroup() *gomock.Call {
-	return f.awsClient.EXPECT().DeleteSecurityGroup(gomock.Any(), mock.Eq(&ec2.DeleteSecurityGroupInput{
+func (f *fakeAWSClientBase) expectValidateDeleteSecurityGroup() *mock.Call {
+	return f.awsClient.EXPECT().DeleteSecurityGroup(mock.Anything, &ec2.DeleteSecurityGroupInput{
 		DryRun:  ptr.To(true),
 		GroupId: ptr.To(workerGroupID),
-	})).Return(&ec2.DeleteSecurityGroupOutput{}, nil)
+	}).Return(&ec2.DeleteSecurityGroupOutput{}, nil).Call
 }
 
-func (f *fakeAWSClientBase) expectValidateDescribeInstanceTypeOfferings() *gomock.Call {
-	return f.awsClient.EXPECT().DescribeInstanceTypeOfferings(gomock.Any(), eqDryRun(&ec2.DescribeInstanceTypeOfferingsInput{})).
-		Return(&ec2.DescribeInstanceTypeOfferingsOutput{}, nil)
+func (f *fakeAWSClientBase) expectValidateDescribeInstanceTypeOfferings() *mock.Call {
+	return f.awsClient.EXPECT().DescribeInstanceTypeOfferings(mock.Anything,
+		mock.MatchedBy(func(in *ec2.DescribeInstanceTypeOfferingsInput) bool {
+			return in.DryRun != nil && *in.DryRun
+		})).Return(&ec2.DescribeInstanceTypeOfferingsOutput{}, nil).Call
 }
 
 func (f *fakeAWSClientBase) expectDescribeInstanceTypeOfferings(instanceType, availabilityZone string,
 	retOfferings ...types.InstanceTypeOffering,
 ) {
-	f.awsClient.EXPECT().DescribeInstanceTypeOfferings(gomock.Any(), eqFilters(types.Filter{
+	f.awsClient.EXPECT().DescribeInstanceTypeOfferings(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("location"),
 		Values: []string{availabilityZone},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To("instance-type"),
 		Values: []string{instanceType},
-	})).Return(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: retOfferings}, f.describeInstanceTypeOfferingsErr).AnyTimes()
+	}}}).Matches))).Return(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: retOfferings},
+		f.describeInstanceTypeOfferingsErr).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectCreateTags(subnetID string, tagKeys ...string) {
-	f.awsClient.EXPECT().CreateTags(gomock.Any(), mock.Eq(&ec2.CreateTagsInput{
+	f.awsClient.EXPECT().CreateTags(mock.Anything, &ec2.CreateTagsInput{
 		Resources: []string{subnetID},
 		Tags:      makeTags(tagKeys),
-	})).Return(&ec2.CreateTagsOutput{}, f.createTagsErr)
+	}).Return(&ec2.CreateTagsOutput{}, f.createTagsErr)
 }
 
 func (f *fakeAWSClientBase) expectCreateGatewayTags(subnetID string) {
 	f.expectCreateTags(subnetID, "kubernetes.io/role/internal-elb", "submariner.io/gateway")
 }
 
-func (f *fakeAWSClientBase) expectValidateCreateTags() *gomock.Call {
-	return f.awsClient.EXPECT().CreateTags(gomock.Any(), eqDryRun(&ec2.CreateTagsInput{})).Return(&ec2.CreateTagsOutput{}, nil)
+func (f *fakeAWSClientBase) expectValidateCreateTags() *mock.Call {
+	return f.awsClient.EXPECT().CreateTags(mock.Anything, mock.MatchedBy(func(in *ec2.CreateTagsInput) bool {
+		return in.DryRun != nil && *in.DryRun
+	})).Return(&ec2.CreateTagsOutput{}, nil).Call
 }
 
 func (f *fakeAWSClientBase) expectDeleteTags(subnetID string, tagKeys ...string) {
-	f.awsClient.EXPECT().DeleteTags(gomock.Any(), mock.Eq(&ec2.DeleteTagsInput{
+	f.awsClient.EXPECT().DeleteTags(mock.Anything, &ec2.DeleteTagsInput{
 		Resources: []string{subnetID},
 		Tags:      makeTags(tagKeys),
-	})).Return(&ec2.DeleteTagsOutput{}, f.createTagsErr)
+	}).Return(&ec2.DeleteTagsOutput{}, f.createTagsErr)
 }
 
 func (f *fakeAWSClientBase) expectDeleteGatewayTags(subnetID string) {
 	f.expectDeleteTags(subnetID, "kubernetes.io/role/internal-elb", "submariner.io/gateway")
 }
 
-func (f *fakeAWSClientBase) expectValidateDeleteTags() *gomock.Call {
-	return f.awsClient.EXPECT().DeleteTags(gomock.Any(), eqDryRun(&ec2.DeleteTagsInput{})).Return(&ec2.DeleteTagsOutput{}, nil)
+func (f *fakeAWSClientBase) expectValidateDeleteTags() *mock.Call {
+	return f.awsClient.EXPECT().DeleteTags(mock.Anything, mock.MatchedBy(func(in *ec2.DeleteTagsInput) bool {
+		return in.DryRun != nil && *in.DryRun
+	})).Return(&ec2.DeleteTagsOutput{}, nil).Call
 }
 
 func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
@@ -264,16 +273,16 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 		}
 	}
 
-	f.awsClient.EXPECT().DescribeInstances(gomock.Any(), eqFilters(types.Filter{
+	f.awsClient.EXPECT().DescribeInstances(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-worker*"},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
-	}, types.Filter{
+	}, {
 		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
-	})).Return(&ec2.DescribeInstancesOutput{Reservations: reservations}, nil).AnyTimes()
+	}}}).Matches))).Return(&ec2.DescribeInstancesOutput{Reservations: reservations}, nil).Maybe()
 }
 
 func makeTags(tagKeys []string) []types.Tag {
@@ -423,21 +432,6 @@ func (m *authorizeSecurityGroupIngressInputMatcher) Matches(i interface{}) bool 
 	return reflect.DeepEqual(&eIPPerms[0], copyIPPerm(&aIPPerms[0]))
 }
 
-func (m *authorizeSecurityGroupIngressInputMatcher) String() string {
-	return "matches " + mock.FormatToYAML(&m.AuthorizeSecurityGroupIngressInput)
-}
-
-func eqAuthorizeSecurityGroupIngressInput(srcGroup string, ipPerm *types.IpPermission) gomock.Matcher {
-	m := &authorizeSecurityGroupIngressInputMatcher{
-		AuthorizeSecurityGroupIngressInput: ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId:       ptr.To(srcGroup),
-			IpPermissions: []types.IpPermission{*ipPerm},
-		},
-	}
-
-	return mock.FormattingMatcher(&m.AuthorizeSecurityGroupIngressInput, m)
-}
-
 type filtersMatcher struct {
 	expectedFilters []types.Filter
 }
@@ -465,39 +459,4 @@ func (m *filtersMatcher) Matches(i interface{}) bool {
 	}
 
 	return len(expMap) == 0
-}
-
-func (m *filtersMatcher) String() string {
-	return "matches filters " + mock.FormatToYAML(m.expectedFilters)
-}
-
-func eqFilters(expectedFilters ...types.Filter) gomock.Matcher {
-	m := &filtersMatcher{
-		expectedFilters: expectedFilters,
-	}
-
-	return gomock.GotFormatterAdapter(gomock.GotFormatterFunc(func(o interface{}) string {
-		return mock.FormatToYAML(reflect.Indirect(reflect.ValueOf(o)).FieldByName("Filters").Interface())
-	}), gomock.WantFormatter(gomock.StringerFunc(func() string {
-		return mock.FormatToYAML(m.expectedFilters)
-	}), m))
-}
-
-type dryRunMatcher struct{}
-
-func (m *dryRunMatcher) Matches(i interface{}) bool {
-	dryRun := reflect.Indirect(reflect.ValueOf(i)).FieldByName("DryRun").Interface().(*bool)
-	return dryRun != nil && *dryRun
-}
-
-func (m *dryRunMatcher) String() string {
-	return "is a dry run"
-}
-
-func eqDryRun(i interface{}) gomock.Matcher {
-	t := true
-	dryRun := reflect.Indirect(reflect.ValueOf(i)).FieldByName("DryRun")
-	dryRun.Set(reflect.ValueOf(&t))
-
-	return mock.FormattingMatcher(i, &dryRunMatcher{})
 }

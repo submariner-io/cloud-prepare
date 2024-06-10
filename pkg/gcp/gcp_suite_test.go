@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp/client/fake"
-	"go.uber.org/mock/gomock"
 )
 
 const (
@@ -45,14 +44,12 @@ func TestGCP(t *testing.T) {
 
 type fakeGCPClientBase struct {
 	gcpClient *fake.MockInterface
-	mockCtrl  *gomock.Controller
 }
 
 func (f *fakeGCPClientBase) beforeEach() {
-	f.mockCtrl = gomock.NewController(GinkgoT())
-	f.gcpClient = fake.NewMockInterface(f.mockCtrl)
+	f.gcpClient = fake.NewMockInterface(GinkgoT())
 }
 
 func (f *fakeGCPClientBase) afterEach() {
-	f.mockCtrl.Finish()
+	f.gcpClient.AssertExpectations(GinkgoT())
 }

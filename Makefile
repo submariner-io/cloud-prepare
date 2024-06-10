@@ -10,18 +10,18 @@ include $(SHIPYARD_DIR)/Makefile.inc
 # Generated files
 
 GO ?= go
-MOCKGEN := $(CURDIR)/bin/mockgen
+MOCKGEN := $(CURDIR)/bin/mockery
 
 $(MOCKGEN):
-	mkdir -p $(@D) && $(GO) build -o $@ go.uber.org/mock/mockgen
+	mkdir -p $(@D) && $(GO) build -o $@ github.com/vektra/mockery/v2
 
-pkg/aws/client/fake/client.go: pkg/aws/client/client.go | $(MOCKGEN)
+pkg/aws/client/fake/client.go: pkg/aws/client/client.go pkg/aws/client/.mockery.yaml | $(MOCKGEN)
 	PATH=$(dir $(MOCKGEN)):$$PATH $(GO) -C $(<D) generate
 
-pkg/gcp/client/fake/client.go: pkg/gcp/client/client.go | $(MOCKGEN)
+pkg/gcp/client/fake/client.go: pkg/gcp/client/client.go pkg/gcp/client/.mockery.yaml | $(MOCKGEN)
 	PATH=$(dir $(MOCKGEN)):$$PATH $(GO) -C $(<D) generate
 
-pkg/ocp/fake/machineset.go: pkg/ocp/machinesets.go | $(MOCKGEN)
+pkg/ocp/fake/machineset.go: pkg/ocp/machinesets.go pkg/ocp/.mockery.yaml | $(MOCKGEN)
 	PATH=$(dir $(MOCKGEN)):$$PATH $(GO) -C $(<D) generate
 
 unit: pkg/aws/client/fake/client.go pkg/gcp/client/fake/client.go pkg/ocp/fake/machineset.go

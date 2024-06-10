@@ -24,11 +24,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
-	"go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 	"k8s.io/utils/set"
@@ -42,10 +42,10 @@ var _ = Describe("OCP GatewayDeployer", func() {
 func testDeploy() {
 	t := newGatewayDeployerTestDriver()
 
-	var deployCall *gomock.Call
+	var deployCall *mock.Call
 
 	JustBeforeEach(func() {
-		deployCall = t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&t.machineSets))
+		deployCall = t.msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(machineSetFn(&t.machineSets)).Call
 
 		t.expectDescribePublicSubnets(t.subnets...)
 
@@ -120,7 +120,7 @@ func testDeploy() {
 
 	Context("", func() {
 		JustBeforeEach(func() {
-			deployCall.AnyTimes()
+			deployCall.Maybe()
 			t.doDeploy()
 		})
 
@@ -195,7 +195,7 @@ func testCleanup() {
 	When("on success", func() {
 		BeforeEach(func() {
 			t.expectCleanupValidations(true)
-			t.msDeployer.EXPECT().Delete(gomock.Any()).DoAndReturn(machineSetFn(&t.machineSets)).Times(len(t.subnets))
+			t.msDeployer.EXPECT().Delete(mock.Anything).RunAndReturn(machineSetFn(&t.machineSets)).Times(len(t.subnets))
 			t.expectDeleteSecurityGroup(gatewayGroupID)
 
 			for i := range t.subnets {
@@ -264,7 +264,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 	BeforeEach(func() {
 		t.beforeEach()
 
-		t.msDeployer = ocpFake.NewMockMachineSetDeployer(t.mockCtrl)
+		t.msDeployer = ocpFake.NewMockMachineSetDeployer(GinkgoT())
 		t.numGateways = 1
 		t.instanceType = "test-instance-type"
 		t.subnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
@@ -322,7 +322,7 @@ func (t *gatewayDeployerTestDriver) doCleanup() {
 }
 
 func (t *gatewayDeployerTestDriver) expectDeployValidations(enforce bool) {
-	calls := []*gomock.Call{
+	calls := []*mock.Call{
 		t.expectValidateCreateSecurityGroup(),
 		t.expectValidateAuthorizeSecurityGroupIngress(nil),
 		t.expectValidateDescribeInstanceTypeOfferings(),
@@ -331,20 +331,20 @@ func (t *gatewayDeployerTestDriver) expectDeployValidations(enforce bool) {
 
 	for _, c := range calls {
 		if !enforce {
-			c.AnyTimes()
+			c.Maybe()
 		}
 	}
 }
 
 func (t *gatewayDeployerTestDriver) expectCleanupValidations(enforce bool) {
-	calls := []*gomock.Call{
+	calls := []*mock.Call{
 		t.expectValidateDeleteSecurityGroup(),
 		t.expectValidateDeleteTags(),
 	}
 
 	for _, c := range calls {
 		if !enforce {
-			c.AnyTimes()
+			c.Maybe()
 		}
 	}
 }
