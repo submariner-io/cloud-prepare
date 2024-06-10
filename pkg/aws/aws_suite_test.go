@@ -24,7 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
@@ -32,6 +31,7 @@ import (
 	"github.com/submariner-io/admiral/pkg/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
 	"go.uber.org/mock/gomock"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -99,24 +99,24 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 	if vpcID != "" {
 		vpcs = []types.Vpc{
 			{
-				VpcId: awssdk.String(vpcID),
+				VpcId: ptr.To(vpcID),
 			},
 		}
 	}
 
 	f.awsClient.EXPECT().DescribeVpcs(gomock.Any(), eqFilters(types.Filter{
-		Name:   awssdk.String("tag:Name"),
+		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, types.Filter{
-		Name:   awssdk.String(clusterFilterTagName),
+		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
 }
 
 func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *gomock.Call {
 	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(gomock.Any(), mock.Eq(&ec2.AuthorizeSecurityGroupIngressInput{
-		DryRun:  awssdk.Bool(true),
-		GroupId: awssdk.String(workerGroupID),
+		DryRun:  ptr.To(true),
+		GroupId: ptr.To(workerGroupID),
 	})).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr)
 }
 
@@ -128,40 +128,40 @@ func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string,
 
 func (f *fakeAWSClientBase) expectRevokeSecurityGroupIngress(groupID string, ipPermissions ...types.IpPermission) {
 	f.awsClient.EXPECT().RevokeSecurityGroupIngress(gomock.Any(), mock.Eq(&ec2.RevokeSecurityGroupIngressInput{
-		GroupId:       awssdk.String(groupID),
+		GroupId:       ptr.To(groupID),
 		IpPermissions: ipPermissions,
 	})).Return(&ec2.RevokeSecurityGroupIngressOutput{}, nil)
 }
 
 func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr error) {
 	f.awsClient.EXPECT().RevokeSecurityGroupIngress(gomock.Any(), mock.Eq(&ec2.RevokeSecurityGroupIngressInput{
-		DryRun:  awssdk.Bool(true),
-		GroupId: awssdk.String(workerGroupID),
+		DryRun:  ptr.To(true),
+		GroupId: ptr.To(workerGroupID),
 	})).Return(&ec2.RevokeSecurityGroupIngressOutput{}, retErr)
 }
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(gomock.Any(), eqFilters(types.Filter{
-		Name:   awssdk.String("tag:Name"),
+		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-public-" + region + "*"},
 	}, types.Filter{
-		Name:   awssdk.String("vpc-id"),
+		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
 	}, types.Filter{
-		Name:   awssdk.String(clusterFilterTagName),
+		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
 }
 
 func (f *fakeAWSClientBase) expectDescribeGatewaySubnets(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(gomock.Any(), eqFilters(types.Filter{
-		Name:   awssdk.String("tag:submariner.io/gateway"),
+		Name:   ptr.To("tag:submariner.io/gateway"),
 		Values: []string{""},
 	}, types.Filter{
-		Name:   awssdk.String("vpc-id"),
+		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
 	}, types.Filter{
-		Name:   awssdk.String(clusterFilterTagName),
+		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
 }
@@ -173,33 +173,33 @@ func (f *fakeAWSClientBase) expectValidateCreateSecurityGroup() *gomock.Call {
 
 func (f *fakeAWSClientBase) expectCreateSecurityGroup(name, retGroupID string) {
 	f.awsClient.EXPECT().CreateSecurityGroup(gomock.Any(), mock.Eq(&ec2.CreateSecurityGroupInput{
-		Description: awssdk.String("Submariner Gateway"),
-		GroupName:   awssdk.String(name),
-		VpcId:       awssdk.String(f.vpcID),
+		Description: ptr.To("Submariner Gateway"),
+		GroupName:   ptr.To(name),
+		VpcId:       ptr.To(f.vpcID),
 		TagSpecifications: []types.TagSpecification{
 			{
 				ResourceType: types.ResourceTypeSecurityGroup,
 				Tags: []types.Tag{
 					{
-						Key:   awssdk.String("Name"),
-						Value: awssdk.String(name),
+						Key:   ptr.To("Name"),
+						Value: ptr.To(name),
 					},
 				},
 			},
 		},
-	})).Return(&ec2.CreateSecurityGroupOutput{GroupId: awssdk.String(retGroupID)}, nil)
+	})).Return(&ec2.CreateSecurityGroupOutput{GroupId: ptr.To(retGroupID)}, nil)
 }
 
 func (f *fakeAWSClientBase) expectDeleteSecurityGroup(groupID string) {
 	f.awsClient.EXPECT().DeleteSecurityGroup(gomock.Any(), mock.Eq(&ec2.DeleteSecurityGroupInput{
-		GroupId: awssdk.String(groupID),
+		GroupId: ptr.To(groupID),
 	})).Return(&ec2.DeleteSecurityGroupOutput{}, nil)
 }
 
 func (f *fakeAWSClientBase) expectValidateDeleteSecurityGroup() *gomock.Call {
 	return f.awsClient.EXPECT().DeleteSecurityGroup(gomock.Any(), mock.Eq(&ec2.DeleteSecurityGroupInput{
-		DryRun:  awssdk.Bool(true),
-		GroupId: awssdk.String(workerGroupID),
+		DryRun:  ptr.To(true),
+		GroupId: ptr.To(workerGroupID),
 	})).Return(&ec2.DeleteSecurityGroupOutput{}, nil)
 }
 
@@ -212,10 +212,10 @@ func (f *fakeAWSClientBase) expectDescribeInstanceTypeOfferings(instanceType, av
 	retOfferings ...types.InstanceTypeOffering,
 ) {
 	f.awsClient.EXPECT().DescribeInstanceTypeOfferings(gomock.Any(), eqFilters(types.Filter{
-		Name:   awssdk.String("location"),
+		Name:   ptr.To("location"),
 		Values: []string{availabilityZone},
 	}, types.Filter{
-		Name:   awssdk.String("instance-type"),
+		Name:   ptr.To("instance-type"),
 		Values: []string{instanceType},
 	})).Return(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: retOfferings}, f.describeInstanceTypeOfferingsErr).AnyTimes()
 }
@@ -257,7 +257,7 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 			{
 				Instances: []types.Instance{
 					{
-						ImageId: awssdk.String(retImageID),
+						ImageId: ptr.To(retImageID),
 					},
 				},
 			},
@@ -265,13 +265,13 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 	}
 
 	f.awsClient.EXPECT().DescribeInstances(gomock.Any(), eqFilters(types.Filter{
-		Name:   awssdk.String("tag:Name"),
+		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-worker*"},
 	}, types.Filter{
-		Name:   awssdk.String("vpc-id"),
+		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
 	}, types.Filter{
-		Name:   awssdk.String(clusterFilterTagName),
+		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeInstancesOutput{Reservations: reservations}, nil).AnyTimes()
 }
@@ -280,8 +280,8 @@ func makeTags(tagKeys []string) []types.Tag {
 	tags := make([]types.Tag, len(tagKeys))
 	for i := range tagKeys {
 		tags[i] = types.Tag{
-			Key:   awssdk.String(tagKeys[i]),
-			Value: awssdk.String(""),
+			Key:   ptr.To(tagKeys[i]),
+			Value: ptr.To(""),
 		}
 	}
 
@@ -290,12 +290,12 @@ func makeTags(tagKeys []string) []types.Tag {
 
 func newSubnet(availabilityZone, subnetID string) types.Subnet {
 	return types.Subnet{
-		SubnetId:         awssdk.String(subnetID),
-		AvailabilityZone: awssdk.String(availabilityZone),
+		SubnetId:         ptr.To(subnetID),
+		AvailabilityZone: ptr.To(availabilityZone),
 		Tags: []types.Tag{
 			{
-				Key:   awssdk.String("Name"),
-				Value: awssdk.String(subnetName(subnetID)),
+				Key:   ptr.To("Name"),
+				Value: ptr.To(subnetName(subnetID)),
 			},
 		},
 	}
@@ -309,11 +309,11 @@ func newDescribeSecurityGroupsInput(vpcID, name string) *ec2.DescribeSecurityGro
 	return &ec2.DescribeSecurityGroupsInput{
 		Filters: []types.Filter{
 			{
-				Name:   awssdk.String("vpc-id"),
+				Name:   ptr.To("vpc-id"),
 				Values: []string{vpcID},
 			},
 			{
-				Name:   awssdk.String("tag:Name"),
+				Name:   ptr.To("tag:Name"),
 				Values: []string{name},
 			},
 		},
@@ -327,7 +327,7 @@ func newDescribeSecurityGroupsOutput(groupID string, ipPermissions ...types.IpPe
 
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []types.SecurityGroup{
 		{
-			GroupId:       awssdk.String(groupID),
+			GroupId:       ptr.To(groupID),
 			IpPermissions: ipPermissions,
 		},
 	}}
@@ -337,34 +337,34 @@ func newIPPermission(desc string) types.IpPermission {
 	return types.IpPermission{
 		UserIdGroupPairs: []types.UserIdGroupPair{
 			{
-				Description: awssdk.String(desc),
+				Description: ptr.To(desc),
 			},
 		},
 	}
 }
 
-func newClusterSGRule(groupID string, port int, protocol string) *types.IpPermission {
+func newClusterSGRule(groupID string, port int32, protocol string) *types.IpPermission {
 	return &types.IpPermission{
-		FromPort:   awssdk.Int32(int32(port)),
-		ToPort:     awssdk.Int32(int32(port)),
-		IpProtocol: awssdk.String(protocol),
+		FromPort:   ptr.To(port),
+		ToPort:     ptr.To(port),
+		IpProtocol: ptr.To(protocol),
 		UserIdGroupPairs: []types.UserIdGroupPair{
 			{
-				GroupId:     awssdk.String(groupID),
-				Description: awssdk.String(internalTrafficDesc),
+				GroupId:     ptr.To(groupID),
+				Description: ptr.To(internalTrafficDesc),
 			},
 		},
 	}
 }
 
-func newPublicSGRule(port int, protocol string) *types.IpPermission {
+func newPublicSGRule(port int32, protocol string) *types.IpPermission {
 	return &types.IpPermission{
-		FromPort:   awssdk.Int32(int32(port)),
-		ToPort:     awssdk.Int32(int32(port)),
-		IpProtocol: awssdk.String(protocol),
+		FromPort:   ptr.To(port),
+		ToPort:     ptr.To(port),
+		IpProtocol: ptr.To(protocol),
 		IpRanges: []types.IpRange{
 			{
-				CidrIp: awssdk.String("0.0.0.0/0"),
+				CidrIp: ptr.To("0.0.0.0/0"),
 			},
 		},
 	}
@@ -403,7 +403,7 @@ func (m *authorizeSecurityGroupIngressInputMatcher) Matches(i interface{}) bool 
 
 			for i := range out.UserIdGroupPairs {
 				if out.UserIdGroupPairs[i].Description != nil && strings.Contains(*out.UserIdGroupPairs[i].Description, internalTraffic) {
-					out.UserIdGroupPairs[i].Description = awssdk.String(internalTrafficDesc)
+					out.UserIdGroupPairs[i].Description = ptr.To(internalTrafficDesc)
 				}
 			}
 		}
@@ -430,7 +430,7 @@ func (m *authorizeSecurityGroupIngressInputMatcher) String() string {
 func eqAuthorizeSecurityGroupIngressInput(srcGroup string, ipPerm *types.IpPermission) gomock.Matcher {
 	m := &authorizeSecurityGroupIngressInputMatcher{
 		AuthorizeSecurityGroupIngressInput: ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId:       awssdk.String(srcGroup),
+			GroupId:       ptr.To(srcGroup),
 			IpPermissions: []types.IpPermission{*ipPerm},
 		},
 	}
