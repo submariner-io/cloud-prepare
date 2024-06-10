@@ -21,7 +21,6 @@ package aws_test
 import (
 	"errors"
 
-	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,6 +30,7 @@ import (
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 	"k8s.io/utils/set"
 )
 
@@ -101,8 +101,8 @@ func testDeploy() {
 			BeforeEach(func() {
 				t.expectedSubnetsTagged = nil
 				t.subnets[0].Tags = append(t.subnets[0].Tags, types.Tag{
-					Key:   awssdk.String("submariner.io/gateway"),
-					Value: awssdk.String(""),
+					Key:   ptr.To("submariner.io/gateway"),
+					Value: ptr.To(""),
 				})
 			})
 
