@@ -1,0 +1,10 @@
+---
+dir: fake
+filename: client.go
+boilerplate-file: ../../../.header
+outpkg: fake
+with-expecter: true
+packages:
+  github.com/submariner-io/cloud-prepare/pkg/gcp/client:
+    interfaces:
+      Interface:

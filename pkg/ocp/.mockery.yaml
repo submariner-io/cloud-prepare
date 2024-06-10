@@ -1,0 +1,10 @@
+---
+dir: fake
+filename: machineset.go
+boilerplate-file: ../../.header
+outpkg: fake
+with-expecter: true
+packages:
+  github.com/submariner-io/cloud-prepare/pkg/ocp:
+    interfaces:
+      MachineSetDeployer:

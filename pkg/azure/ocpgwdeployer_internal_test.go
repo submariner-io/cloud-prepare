@@ -21,9 +21,9 @@ package azure
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/mock"
 	"github.com/submariner-io/admiral/pkg/util"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
-	"go.uber.org/mock/gomock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -37,15 +37,13 @@ var _ = Describe("OCP Gateway Deployer", func() {
 	)
 
 	var (
-		mockCtrl   *gomock.Controller
 		msDeployer *ocpFake.MockMachineSetDeployer
 		gwDeployer *ocpGatewayDeployer
 		machineSet *unstructured.Unstructured
 	)
 
 	BeforeEach(func() {
-		mockCtrl = gomock.NewController(GinkgoT())
-		msDeployer = ocpFake.NewMockMachineSetDeployer(mockCtrl)
+		msDeployer = ocpFake.NewMockMachineSetDeployer(GinkgoT())
 
 		info := &CloudInfo{
 			InfraID: infraID,
@@ -59,15 +57,15 @@ var _ = Describe("OCP Gateway Deployer", func() {
 	})
 
 	AfterEach(func() {
-		mockCtrl.Finish()
+		msDeployer.AssertExpectations(GinkgoT())
 	})
 
 	Describe("deployGateway", func() {
 		JustBeforeEach(func() {
-			msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(func(ms *unstructured.Unstructured) error {
+			msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(func(ms *unstructured.Unstructured) error {
 				machineSet = ms
 				return nil
-			}).AnyTimes()
+			}).Maybe()
 		})
 
 		It("should deploy the correct MachineSet", func() {

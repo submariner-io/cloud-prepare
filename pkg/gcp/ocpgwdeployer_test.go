@@ -26,12 +26,12 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	mock "github.com/stretchr/testify/mock"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
-	"go.uber.org/mock/gomock"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 	corev1 "k8s.io/api/core/v1"
@@ -63,7 +63,7 @@ func testDeploy() {
 		actualRule = nil
 
 		t.gcpClient.EXPECT().GetFirewallRule(projectID, publicPortsRuleName).Return(nil, &googleapi.Error{Code: http.StatusNotFound})
-		t.gcpClient.EXPECT().InsertFirewallRule(projectID, gomock.Any()).DoAndReturn(func(_ string, rule *compute.Firewall) error {
+		t.gcpClient.EXPECT().InsertFirewallRule(projectID, mock.Anything).RunAndReturn(func(_ string, rule *compute.Firewall) error {
 			actualRule = rule
 			return nil
 		})
@@ -124,8 +124,8 @@ func testDeploy() {
 		var machineSets map[string]*unstructured.Unstructured
 
 		BeforeEach(func() {
-			t.msDeployer.EXPECT().GetWorkerNodeImage(gomock.Any(), infraID).Return("test-image", nil).AnyTimes()
-			t.msDeployer.EXPECT().Deploy(gomock.Any()).DoAndReturn(machineSetFn(&machineSets)).Times(2)
+			t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, infraID).Return("test-image", nil).Maybe()
+			t.msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(machineSetFn(&machineSets)).Times(2)
 
 			t.numGateways = 2
 		})
@@ -215,7 +215,7 @@ func testCleanup() {
 			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
 			t.instances[zone2][0].Tags.Items = []string{submarinerGatewayNodeTag}
 
-			t.msDeployer.EXPECT().Delete(gomock.Any()).DoAndReturn(machineSetFn(&machineSets)).Times(2)
+			t.msDeployer.EXPECT().Delete(mock.Anything).RunAndReturn(machineSetFn(&machineSets)).Times(2)
 		})
 
 		It("should delete them", func() {
@@ -302,22 +302,22 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		}
 
 		t.image = ""
-		t.msDeployer = ocpFake.NewMockMachineSetDeployer(t.mockCtrl)
+		t.msDeployer = ocpFake.NewMockMachineSetDeployer(GinkgoT())
 		t.kubeClient = kubeFake.NewSimpleClientset()
 	})
 
 	JustBeforeEach(func() {
-		t.gcpClient.EXPECT().ListZones().Return(&compute.ZoneList{Items: t.zones}, nil).AnyTimes()
-		t.gcpClient.EXPECT().ListInstances(gomock.Any()).DoAndReturn(func(zone string) (*compute.InstanceList, error) {
+		t.gcpClient.EXPECT().ListZones().Return(&compute.ZoneList{Items: t.zones}, nil).Maybe()
+		t.gcpClient.EXPECT().ListInstances(mock.Anything).RunAndReturn(func(zone string) (*compute.InstanceList, error) {
 			list := t.instances[zone]
 			if list != nil {
 				return &compute.InstanceList{Items: list}, nil
 			}
 
 			return &compute.InstanceList{}, nil
-		}).AnyTimes()
+		}).Maybe()
 
-		t.gcpClient.EXPECT().GetInstance(gomock.Any(), gomock.Any()).DoAndReturn(func(zone, instance string) (*compute.Instance, error) {
+		t.gcpClient.EXPECT().GetInstance(mock.Anything, mock.Anything).RunAndReturn(func(zone, instance string) (*compute.Instance, error) {
 			list := t.instances[zone]
 			for _, i := range list {
 				if i.Name == instance {
@@ -326,7 +326,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 			}
 
 			return nil, fmt.Errorf("instance %q not found", instance)
-		}).AnyTimes()
+		}).Maybe()
 
 		for _, node := range t.nodes {
 			_, err := t.kubeClient.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
@@ -403,9 +403,9 @@ func (t *gatewayDeployerTestDriver) assertIngressRule(rule *compute.Firewall) {
 func (t *gatewayDeployerTestDriver) expInstanceUntagged(zone string, instance *compute.Instance) {
 	t.gcpClient.EXPECT().UpdateInstanceNetworkTags(projectID, zone, instance.Name, &compute.Tags{
 		Items: []string{},
-	})
+	}).Return(nil)
 
-	t.gcpClient.EXPECT().DeletePublicIPOnInstance(instance)
+	t.gcpClient.EXPECT().DeletePublicIPOnInstance(instance).Return(nil)
 }
 
 func (t *gatewayDeployerTestDriver) assertMachineSet(ms *unstructured.Unstructured, expImage string) {

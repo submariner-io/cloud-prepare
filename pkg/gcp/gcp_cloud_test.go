@@ -24,10 +24,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	mock "github.com/stretchr/testify/mock"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp"
-	"go.uber.org/mock/gomock"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
@@ -66,7 +66,7 @@ func testOpenPorts() {
 			var actualRule *compute.Firewall
 
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().InsertFirewallRule(projectID, gomock.Any()).DoAndReturn(func(_ string, rule *compute.Firewall) error {
+				t.gcpClient.EXPECT().InsertFirewallRule(projectID, mock.Anything).RunAndReturn(func(_ string, rule *compute.Firewall) error {
 					actualRule = rule
 					return nil
 				})
@@ -82,7 +82,7 @@ func testOpenPorts() {
 
 		Context("and insertion fails", func() {
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().InsertFirewallRule(projectID, gomock.Any()).Return(errors.New("fake insert error"))
+				t.gcpClient.EXPECT().InsertFirewallRule(projectID, mock.Anything).Return(errors.New("fake insert error"))
 			})
 
 			It("should return an error", func() {
@@ -93,7 +93,7 @@ func testOpenPorts() {
 
 	When("the firewall rule already exists", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().GetFirewallRule(projectID, ingressRuleName).DoAndReturn(func(_, ruleName string) (*compute.Firewall, error) {
+			t.gcpClient.EXPECT().GetFirewallRule(projectID, ingressRuleName).RunAndReturn(func(_, ruleName string) (*compute.Firewall, error) {
 				return &compute.Firewall{Name: ruleName}, nil
 			})
 		})
@@ -102,7 +102,7 @@ func testOpenPorts() {
 			var actualRule *compute.Firewall
 
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().UpdateFirewallRule(projectID, ingressRuleName, gomock.Any()).DoAndReturn(
+				t.gcpClient.EXPECT().UpdateFirewallRule(projectID, ingressRuleName, mock.Anything).RunAndReturn(
 					func(_, _ string, rule *compute.Firewall) error {
 						actualRule = rule
 						return nil
@@ -119,7 +119,7 @@ func testOpenPorts() {
 
 		Context("and update fails", func() {
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().UpdateFirewallRule(projectID, ingressRuleName, gomock.Any()).Return(errors.New("fake update error"))
+				t.gcpClient.EXPECT().UpdateFirewallRule(projectID, ingressRuleName, mock.Anything).Return(errors.New("fake update error"))
 			})
 
 			It("should return an error", func() {
