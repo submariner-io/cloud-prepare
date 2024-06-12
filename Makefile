@@ -13,7 +13,7 @@ GO ?= go
 MOCKGEN := $(CURDIR)/bin/mockery
 
 $(MOCKGEN):
-	mkdir -p $(@D) && $(GO) build -o $@ github.com/vektra/mockery/v2
+	mkdir -p $(@D) && $(GO) -C tools build -o $@ github.com/vektra/mockery/v2
 
 pkg/aws/client/fake/client.go: pkg/aws/client/client.go pkg/aws/client/.mockery.yaml | $(MOCKGEN)
 	PATH=$(dir $(MOCKGEN)):$$PATH $(GO) -C $(<D) generate
