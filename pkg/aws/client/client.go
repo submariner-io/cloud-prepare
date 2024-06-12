@@ -130,6 +130,7 @@ func New(accessKeyID, secretAccessKey, region string) (Interface, error) {
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
+		//nolint:staticcheck // WithEndpointResolverWithOptions is deprecated - needs to be migrated to EndpointResolverV2.
 		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
 			func(service, region string, _ ...interface{}) (aws.Endpoint, error) {
 				if service != "route53" || region != "cn-northwest-1" {
