@@ -73,6 +73,9 @@ func (ac *awsCloud) filterByName(name string) types.Filter {
 	return ec2Filter("tag:Name", ac.withAWSInfo(name))
 }
 
-func (ac *awsCloud) filterByCurrentCluster() types.Filter {
-	return ec2Filter(ac.withAWSInfo("tag:kubernetes.io/cluster/{infraID}"), "owned")
+func (ac *awsCloud) filterByCurrentCluster() []types.Filter {
+	return []types.Filter{
+		ec2Filter(ac.withAWSInfo("tag:kubernetes.io/cluster/{infraID}"), "owned"),
+		ec2Filter(ac.withAWSInfo("tag:sigs.k8s.io/cluster-api-provider-aws/cluster/{infraID}"), "owned"),
+	}
 }
