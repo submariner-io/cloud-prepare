@@ -20,6 +20,9 @@ package aws
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -31,16 +34,18 @@ import (
 )
 
 const (
-	messageRetrieveVPCID          = "Retrieving VPC ID"
+	messageRetrieveVPCID          = "Retrieving VPC ID Test"
 	messageRetrievedVPCID         = "Retrieved VPC ID %s"
-	messageValidatePrerequisites  = "Validating pre-requisites"
+	messageValidatePrerequisites  = "Validating pre-requisites Test"
 	messageValidatedPrerequisites = "Validated pre-requisites"
 )
 
 type awsCloud struct {
-	client  awsClient.Interface
-	infraID string
-	region  string
+	client               awsClient.Interface
+	infraID              string
+	region               string
+	nodeSGSuffix         string
+	controlPlaneSGSuffix string
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare AWS for Submariner to be deployed on it.
@@ -88,6 +93,43 @@ func DefaultProfile() string {
 	return "default"
 }
 
+func (ac *awsCloud) setSuffixes(vpcID string, status reporter.Interface) error {
+	status.Start("In set suffix")
+	if ac.nodeSGSuffix != "" {
+		return nil
+	}
+
+	publicSubnets, err := ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}*-public-{region}*"))
+	if err != nil || len(publicSubnets) == 0 {
+		return errors.Wrapf(err, "unable to find the public subnet")
+	}
+
+	status.Success("Successfully retrieved public subnet %s", publicSubnets)
+
+	pattern := fmt.Sprintf(`%s.*-subnet-public-%s.*`, regexp.QuoteMeta(ac.infraID), regexp.QuoteMeta(ac.region))
+	re := regexp.MustCompile(pattern)
+
+	status.Success("Setting sufficx %s", publicSubnets)
+	for i := range publicSubnets {
+		tags := publicSubnets[i].Tags
+		for i := range tags {
+			if strings.Contains(*tags[i].Key, "Name") && re.MatchString(*tags[i].Value) {
+				ac.nodeSGSuffix = "-node"
+				ac.controlPlaneSGSuffix = "-controlplane"
+
+				return nil
+			}
+		}
+	}
+
+	status.Success("Setting suffix %s", ac.nodeSGSuffix)
+
+	ac.nodeSGSuffix = "-worker-sg"
+	ac.controlPlaneSGSuffix = "-master-sg"
+
+	return nil
+}
+
 func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
@@ -96,6 +138,14 @@ func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) e
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
+
+	status.Start("Calling  set sucessfully")
+	err = ac.setSuffixes(vpcID, status)
+	if err != nil {
+		return status.Error(err, "unable to retrieve the security group names")
+	}
+
+	status.Success("Suffix set sucessfully")
 
 	status.Success(messageRetrievedVPCID, vpcID)
 
@@ -133,6 +183,11 @@ func (ac *awsCloud) ClosePorts(status reporter.Interface) error {
 	vpcID, err := ac.getVpcID()
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
+	}
+
+	err = ac.setSuffixes(vpcID, status)
+	if err != nil {
+		return status.Error(err, "unable to retrieve the security group names")
 	}
 
 	status.Success(messageRetrievedVPCID, vpcID)

@@ -175,6 +175,8 @@ func newCloudTestDriver() *cloudTestDriver {
 
 	BeforeEach(func() {
 		t.beforeEach()
+		t.expectDescribeVpcs(t.vpcID)
+		t.expectDescribePublicSubnets(t.subnets...)
 
 		t.cloud = aws.NewCloud(t.awsClient, infraID, region)
 

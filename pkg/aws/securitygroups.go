@@ -97,12 +97,12 @@ func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16
 }
 
 func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}-worker-sg")
+	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
 	if err != nil {
 		return err
 	}
 
-	masterGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}-master-sg")
+	masterGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
 	if err != nil {
 		return err
 	}
@@ -219,12 +219,12 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 }
 
 func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
-	workerGroup, err := ac.getSecurityGroup(vpcID, "{infraID}-worker-sg")
+	workerGroup, err := ac.getSecurityGroup(vpcID, "{infraID}"+ac.nodeSGSuffix)
 	if err != nil {
 		return err
 	}
 
-	masterGroup, err := ac.getSecurityGroup(vpcID, "{infraID}-master-sg")
+	masterGroup, err := ac.getSecurityGroup(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
 	if err != nil {
 		return err
 	}

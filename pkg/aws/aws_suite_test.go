@@ -62,6 +62,7 @@ func TestAWS(t *testing.T) {
 type fakeAWSClientBase struct {
 	awsClient                        *fake.MockInterface
 	vpcID                            string
+	subnets                          []types.Subnet
 	describeSubnetsErr               error
 	authorizeSecurityGroupIngressErr error
 	createTagsErr                    error
@@ -71,6 +72,7 @@ type fakeAWSClientBase struct {
 func (f *fakeAWSClientBase) beforeEach() {
 	f.awsClient = fake.NewMockInterface(GinkgoT())
 	f.vpcID = vpcID
+	f.subnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
 	f.describeSubnetsErr = nil
 	f.authorizeSecurityGroupIngressErr = nil
 	f.createTagsErr = nil
@@ -144,7 +146,7 @@ func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr erro
 func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:Name"),
-		Values: []string{infraID + "-public-" + region + "*"},
+		Values: []string{infraID + "*-public-" + region + "*"},
 	}, {
 		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
