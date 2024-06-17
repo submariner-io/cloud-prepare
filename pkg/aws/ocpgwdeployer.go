@@ -69,9 +69,14 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 
 	status.Success(messageRetrievedVPCID, vpcID)
 
+	err = d.aws.setSuffixes(vpcID)
+	if err != nil {
+		return status.Error(err, "unable to retrieve the security group names")
+	}
+
 	status.Start(messageValidatePrerequisites)
 
-	publicSubnets, err := d.aws.findPublicSubnets(vpcID, d.aws.filterByName("{infraID}-public-{region}*"))
+	publicSubnets, err := d.aws.findPublicSubnets(vpcID, d.aws.filterByName("{infraID}*-public-{region}*"))
 	if err != nil {
 		return status.Error(err, "unable to find public subnets")
 	}
@@ -198,21 +203,32 @@ type machineSetConfig struct {
 	Region        string
 	SecurityGroup string
 	PublicSubnet  string
+	NodeSGSuffix  string
 }
 
 func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
-	result, err := d.aws.client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
-		Filters: []types.Filter{
-			ec2Filter("vpc-id", vpcID),
-			d.aws.filterByName("{infraID}-worker*"),
-			d.aws.filterByCurrentCluster(),
-		},
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "error describing AWS instances")
+	ownedFilters := d.aws.filterByCurrentCluster()
+	var err error
+	var result *ec2.DescribeInstancesOutput
+
+	for i := range ownedFilters {
+		result, err = d.aws.client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
+			Filters: []types.Filter{
+				ec2Filter("vpc-id", vpcID),
+				d.aws.filterByName("{infraID}-worker*"),
+				ownedFilters[i],
+			},
+		})
+		if err != nil {
+			continue
+		}
+
+		if len(result.Reservations) != 0 {
+			break
+		}
 	}
 
-	if len(result.Reservations) == 0 {
+	if err != nil || len(result.Reservations) == 0 {
 		return "", newNotFoundError("reservations")
 	}
 
@@ -245,6 +261,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 		Region:        d.aws.region,
 		SecurityGroup: gatewaySecurityGroup,
 		PublicSubnet:  extractName(publicSubnet.Tags),
+		NodeSGSuffix:  d.aws.nodeSGSuffix,
 	}
 
 	err = tpl.Execute(&buf, tplVars)
@@ -297,6 +314,11 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 	}
 
 	status.Success(messageRetrievedVPCID, vpcID)
+
+	err = d.aws.setSuffixes(vpcID)
+	if err != nil {
+		return status.Error(err, "unable to retrieve the security group names")
+	}
 
 	status.Start(messageValidatePrerequisites)
 
