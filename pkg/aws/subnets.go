@@ -55,15 +55,25 @@ func subnetTagged(subnet *types.Subnet) bool {
 }
 
 func (ac *awsCloud) findPublicSubnets(vpcID string, filter types.Filter) ([]types.Subnet, error) {
-	filters := []types.Filter{
-		ec2Filter("vpc-id", vpcID),
-		ac.filterByCurrentCluster(),
-		filter,
-	}
+	ownedFilters := ac.filterByCurrentCluster()
+	var err error
+	var result *ec2.DescribeSubnetsOutput
 
-	result, err := ac.client.DescribeSubnets(context.TODO(), &ec2.DescribeSubnetsInput{Filters: filters})
-	if err != nil {
-		return nil, errors.Wrap(err, "error describing AWS subnets")
+	for i := range ownedFilters {
+		filters := []types.Filter{
+			ec2Filter("vpc-id", vpcID),
+			ownedFilters[i],
+			filter,
+		}
+
+		result, err = ac.client.DescribeSubnets(context.TODO(), &ec2.DescribeSubnetsInput{Filters: filters})
+		if err != nil {
+			return nil, errors.Wrap(err, "error describing AWS subnets")
+		}
+
+		if len(result.Subnets) != 0 {
+			break
+		}
 	}
 
 	return result.Subnets, nil
