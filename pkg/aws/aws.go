@@ -99,8 +99,12 @@ func (ac *awsCloud) setSuffixes(vpcID string) error {
 	}
 
 	publicSubnets, err := ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}*-public-{region}*"))
-	if err != nil || len(publicSubnets) == 0 {
+	if err != nil {
 		return errors.Wrapf(err, "unable to find the public subnet")
+	}
+
+	if len(publicSubnets) == 0 {
+		return errors.New("no public subnet found")
 	}
 
 	pattern := fmt.Sprintf(`%s.*-subnet-public-%s.*`, regexp.QuoteMeta(ac.infraID), regexp.QuoteMeta(ac.region))

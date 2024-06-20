@@ -34,22 +34,23 @@ import (
 )
 
 const (
-	infraID              = "test-infra"
-	region               = "test-region"
-	vpcID                = "test-vpc"
-	workerGroupID        = "worker-group"
-	masterGroupID        = "master-group"
-	gatewayGroupID       = "gateway-group"
-	internalTraffic      = "Internal Submariner traffic"
-	availabilityZone1    = "availability-zone-1"
-	availabilityZone2    = "availability-zone-2"
-	subnetID1            = "subnet-1"
-	subnetID2            = "subnet-2"
-	instanceImageID      = "test-image"
-	masterSGName         = infraID + "-master-sg"
-	workerSGName         = infraID + "-worker-sg"
-	gatewaySGName        = infraID + "-submariner-gw-sg"
-	clusterFilterTagName = "tag:kubernetes.io/cluster/" + infraID
+	infraID                  = "test-infra"
+	region                   = "test-region"
+	vpcID                    = "test-vpc"
+	workerGroupID            = "worker-group"
+	masterGroupID            = "master-group"
+	gatewayGroupID           = "gateway-group"
+	internalTraffic          = "Internal Submariner traffic"
+	availabilityZone1        = "availability-zone-1"
+	availabilityZone2        = "availability-zone-2"
+	subnetID1                = "subnet-1"
+	subnetID2                = "subnet-2"
+	instanceImageID          = "test-image"
+	masterSGName             = infraID + "-master-sg"
+	workerSGName             = infraID + "-worker-sg"
+	gatewaySGName            = infraID + "-submariner-gw-sg"
+	clusterFilterTagName     = "tag:kubernetes.io/cluster/" + infraID
+	clusterFilterTagNameSigs = "tag:sigs.k8s.io/cluster-api-provider-aws/cluster/" + infraID
 )
 
 var internalTrafficDesc = fmt.Sprintf("Should contain %q", internalTraffic)
@@ -62,6 +63,7 @@ func TestAWS(t *testing.T) {
 type fakeAWSClientBase struct {
 	awsClient                        *fake.MockInterface
 	vpcID                            string
+	subnets                          []types.Subnet
 	describeSubnetsErr               error
 	authorizeSecurityGroupIngressErr error
 	createTagsErr                    error
@@ -71,6 +73,7 @@ type fakeAWSClientBase struct {
 func (f *fakeAWSClientBase) beforeEach() {
 	f.awsClient = fake.NewMockInterface(GinkgoT())
 	f.vpcID = vpcID
+	f.subnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
 	f.describeSubnetsErr = nil
 	f.authorizeSecurityGroupIngressErr = nil
 	f.createTagsErr = nil
@@ -110,6 +113,25 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
 }
 
+func (f *fakeAWSClientBase) expectDescribeVpcsSigs(vpcID string) {
+	var vpcs []types.Vpc
+	if vpcID != "" {
+		vpcs = []types.Vpc{
+			{
+				VpcId: ptr.To(vpcID),
+			},
+		}
+	}
+
+	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+		Name:   ptr.To("tag:Name"),
+		Values: []string{infraID + "-vpc"},
+	}, {
+		Name:   ptr.To(clusterFilterTagNameSigs),
+		Values: []string{"owned"},
+	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
+}
+
 func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
 	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
 		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
@@ -144,12 +166,25 @@ func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr erro
 func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:Name"),
-		Values: []string{infraID + "-public-" + region + "*"},
+		Values: []string{infraID + "*-public-" + region + "*"},
 	}, {
 		Name:   ptr.To("vpc-id"),
 		Values: []string{f.vpcID},
 	}, {
 		Name:   ptr.To(clusterFilterTagName),
+		Values: []string{"owned"},
+	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
+}
+
+func (f *fakeAWSClientBase) expectDescribePublicSubnetsSigs(retSubnets ...types.Subnet) {
+	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+		Name:   ptr.To("tag:Name"),
+		Values: []string{infraID + "*-public-" + region + "*"},
+	}, {
+		Name:   ptr.To("vpc-id"),
+		Values: []string{f.vpcID},
+	}, {
+		Name:   ptr.To(clusterFilterTagNameSigs),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
