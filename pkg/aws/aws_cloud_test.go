@@ -40,6 +40,8 @@ func testOpenPorts() {
 
 	JustBeforeEach(func() {
 		t.expectDescribeVpcs(t.vpcID)
+		t.expectDescribeVpcsSigs(t.vpcID)
+		t.expectDescribePublicSubnets(t.subnets...)
 
 		retError = t.cloud.OpenPorts([]api.PortSpec{
 			{
@@ -87,6 +89,7 @@ func testOpenPorts() {
 	When("authorize security group ingress validation fails", func() {
 		BeforeEach(func() {
 			t.expectDescribeVpcs(vpcID)
+			t.expectDescribePublicSubnets(t.subnets...)
 			t.expectValidateAuthorizeSecurityGroupIngress(errors.New("mock error"))
 		})
 
@@ -114,6 +117,9 @@ func testClosePorts() {
 
 	JustBeforeEach(func() {
 		t.expectDescribeVpcs(t.vpcID)
+		t.expectDescribePublicSubnets(t.subnets...)
+		t.expectDescribeVpcsSigs(t.vpcID)
+		t.expectDescribePublicSubnetsSigs(t.subnets...)
 
 		retError = t.cloud.ClosePorts(reporter.Stdout())
 	})
