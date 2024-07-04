@@ -15,7 +15,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/pkg/errors v0.9.1
-	github.com/submariner-io/admiral v0.18.0-rc1
+	github.com/submariner-io/admiral v0.18.0
 	go.uber.org/mock v0.4.0
 	google.golang.org/api v0.177.0
 	k8s.io/api v0.30.2
