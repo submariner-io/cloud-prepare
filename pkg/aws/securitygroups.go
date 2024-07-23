@@ -97,12 +97,12 @@ func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16
 }
 
 func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
+	workerGroupID, err := ac.getSecurityGroupID(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 	if err != nil {
 		return err
 	}
 
-	masterGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
+	masterGroupID, err := ac.getSecurityGroupID(vpcID, withInfraIDPrefix(ac.controlPlaneSGSuffix))
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, d
 }
 
 func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string, error) {
-	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
+	groupName := ac.withAWSInfo(withInfraIDPrefix("-submariner-gw-sg"))
 
 	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
 	if err != nil {
@@ -185,7 +185,7 @@ func gatewayDeletionRetriable(err error) bool {
 }
 
 func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
-	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
+	groupName := ac.withAWSInfo(withInfraIDPrefix("-submariner-gw-sg"))
 
 	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
 	if err != nil {
@@ -219,12 +219,12 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 }
 
 func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
-	workerGroup, err := ac.getSecurityGroup(vpcID, "{infraID}"+ac.nodeSGSuffix)
+	workerGroup, err := ac.getSecurityGroup(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 	if err != nil {
 		return err
 	}
 
-	masterGroup, err := ac.getSecurityGroup(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
+	masterGroup, err := ac.getSecurityGroup(vpcID, withInfraIDPrefix(ac.controlPlaneSGSuffix))
 	if err != nil {
 		return err
 	}
@@ -262,4 +262,8 @@ func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
 	_, err := ac.client.RevokeSecurityGroupIngress(context.TODO(), input)
 
 	return errors.Wrap(err, "error revoking AWS security group ingress")
+}
+
+func withInfraIDPrefix(s string) string {
+	return "{infraID}" + s
 }
