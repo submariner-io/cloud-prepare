@@ -108,11 +108,10 @@ func (g *gcpClient) ListZones() (*compute.ZoneList, error) {
 }
 
 func (g *gcpClient) InstanceHasPublicIP(instance *compute.Instance) (bool, error) {
-	if len(instance.NetworkInterfaces) == 0 {
-		return false, fmt.Errorf("there are no network interfaces for instance %s", instance.Name)
+	networkInterface, err := getNetworkInterface(instance)
+	if err != nil {
+		return false, err
 	}
-
-	networkInterface := instance.NetworkInterfaces[0]
 
 	return len(networkInterface.AccessConfigs) > 0, nil
 }
@@ -124,19 +123,20 @@ func (g *gcpClient) UpdateInstanceNetworkTags(project, zone, instance string, ta
 }
 
 func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) error {
-	if len(instance.NetworkInterfaces) == 0 {
-		return fmt.Errorf("there are no network interfaces for instance %s", instance.Name)
+	networkInterface, err := getNetworkInterface(instance)
+	if err != nil {
+		return err
 	}
 
 	// The zone of an instance is on URL, so we just need the latest value
 	zone := instance.Zone[strings.LastIndex(instance.Zone, "/")+1:]
-	networkInterface := instance.NetworkInterfaces[0]
+
 	// Public IP has already been enabled for this instance
 	if len(networkInterface.AccessConfigs) > 0 {
 		return nil
 	}
 
-	_, err := g.computeClient.Instances.AddAccessConfig(g.projectID, zone, instance.Name,
+	_, err = g.computeClient.Instances.AddAccessConfig(g.projectID, zone, instance.Name,
 		networkInterface.Name, &compute.AccessConfig{}).
 		Context(context.TODO()).Do()
 
@@ -144,16 +144,24 @@ func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) erro
 }
 
 func (g *gcpClient) DeletePublicIPOnInstance(instance *compute.Instance) error {
-	if len(instance.NetworkInterfaces) == 0 {
-		return fmt.Errorf("there are no network interfaces for instance %s", instance.Name)
+	networkInterface, err := getNetworkInterface(instance)
+	if err != nil {
+		return err
 	}
 
 	// The zone of an instance is on URL, so we just need the latest value
 	zone := instance.Zone[strings.LastIndex(instance.Zone, "/")+1:]
-	networkInterface := instance.NetworkInterfaces[0]
-	_, err := g.computeClient.Instances.DeleteAccessConfig(
+	_, err = g.computeClient.Instances.DeleteAccessConfig(
 		g.projectID, zone, instance.Name, "External NAT", networkInterface.Name).
 		Context(context.TODO()).Do()
 
 	return err
+}
+
+func getNetworkInterface(instance *compute.Instance) (*compute.NetworkInterface, error) {
+	if len(instance.NetworkInterfaces) == 0 {
+		return nil, fmt.Errorf("there are no network interfaces for instance %s", instance.Name)
+	}
+
+	return instance.NetworkInterfaces[0], nil
 }
