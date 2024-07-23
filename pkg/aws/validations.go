@@ -54,7 +54,7 @@ func (ac *awsCloud) validateCreateSecGroup(vpcID string) error {
 }
 
 func (ac *awsCloud) validateCreateSecGroupRule(vpcID string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
+	workerGroupID, err := ac.getSecurityGroupID(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 	if err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (ac *awsCloud) validateDescribeInstanceTypeOfferings() error {
 }
 
 func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
+	workerGroupID, err := ac.getSecurityGroupID(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
 }
 
 func (ac *awsCloud) validateDeleteSecGroupRule(vpcID string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
+	workerGroupID, err := ac.getSecurityGroupID(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 	if err != nil {
 		return err
 	}
