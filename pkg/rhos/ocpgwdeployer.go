@@ -73,8 +73,6 @@ type machineSetConfig struct {
 func (d *ocpGatewayDeployer) loadGatewayYAML(uuidGW, image string, useInternalSG bool) ([]byte, error) {
 	var buf bytes.Buffer
 
-	// TODO: Not working properly, but we should revisit this as it makes more sense
-	// tpl, err := template.ParseFiles("pkg/aws/gw-machineset.yaml.template")
 	tpl, err := template.New("").Parse(machineSetYAML)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create machine set template")

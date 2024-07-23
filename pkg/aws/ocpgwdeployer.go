@@ -246,8 +246,6 @@ func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
 func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string, publicSubnet *types.Subnet) ([]byte, error) {
 	var buf bytes.Buffer
 
-	// TODO: Not working properly, but we should revisit this as it makes more sense
-	// tpl, err := template.ParseFiles("pkg/aws/gw-machineset.yaml.template")
 	tpl, err := template.New("").Parse(machineSetYAML)
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing machine set YAML")
