@@ -214,7 +214,7 @@ func newInterfaceTestDriver() *interfaceTestDriver {
 	t := &interfaceTestDriver{}
 
 	BeforeEach(func() {
-		t.kubeClient = kubeFake.NewSimpleClientset()
+		t.kubeClient = kubeFake.NewClientset()
 	})
 
 	JustBeforeEach(func() {
