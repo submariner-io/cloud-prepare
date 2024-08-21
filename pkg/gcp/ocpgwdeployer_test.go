@@ -303,7 +303,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 
 		t.image = ""
 		t.msDeployer = ocpFake.NewMockMachineSetDeployer(GinkgoT())
-		t.kubeClient = kubeFake.NewSimpleClientset()
+		t.kubeClient = kubeFake.NewClientset()
 	})
 
 	JustBeforeEach(func() {
