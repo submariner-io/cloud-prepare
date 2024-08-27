@@ -34,14 +34,14 @@ import (
 )
 
 const (
-	internalSecurityGroupSuffix = "-nsg"
-	externalSecurityGroupSuffix = "-submariner-external-sg"
-	internalSecurityRulePrefix  = "Submariner-Internal-"
-	externalSecurityRulePrefix  = "Submariner-External-"
-	publicIPNameSuffix          = "-pub"
-	allNetworkCIDR              = "0.0.0.0/0"
-	basePriorityInternal        = 2500
-	baseExternalInternal        = 3500
+	internalSecurityGroupSuffix       = "-nsg"
+	externalSecurityGroupSuffix       = "-submariner-external-sg"
+	internalSecurityRulePrefix        = "Submariner-Internal-"
+	externalSecurityRulePrefix        = "Submariner-External-"
+	publicIPNameSuffix                = "-pub"
+	allNetworkCIDR                    = "0.0.0.0/0"
+	basePriorityInternal        int32 = 2500
+	baseExternalInternal        int32 = 3500
 )
 
 type CloudInfo struct {
@@ -94,11 +94,13 @@ func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec, nsgC
 	}
 
 	for i, port := range ports {
+		p := int32(i) //nolint:gosec // Ignore integer overflow conversion
+
 		nwSecurityGroup.Properties.SecurityRules = append(nwSecurityGroup.Properties.SecurityRules,
 			c.createSecurityRule(internalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
-				int32(basePriorityInternal+i), armnetwork.SecurityRuleDirectionInbound),
+				basePriorityInternal+p, armnetwork.SecurityRuleDirectionInbound),
 			c.createSecurityRule(internalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
-				int32(basePriorityInternal+i), armnetwork.SecurityRuleDirectionOutbound))
+				basePriorityInternal+p, armnetwork.SecurityRuleDirectionOutbound))
 	}
 
 	poller, err := nsgClient.BeginCreateOrUpdate(ctx, c.BaseGroupName, groupName, nwSecurityGroup.SecurityGroup, nil)
@@ -186,12 +188,14 @@ func (c *CloudInfo) createGWSecurityGroup(groupName string, ports []api.PortSpec
 	}
 
 	securityRules := []*armnetwork.SecurityRule{}
+
 	for i, port := range ports {
+		p := int32(i) //nolint:gosec // Ignore integer overflow conversion
 		securityRules = append(securityRules,
 			c.createSecurityRule(externalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
-				int32(baseExternalInternal+i), armnetwork.SecurityRuleDirectionInbound),
+				baseExternalInternal+p, armnetwork.SecurityRuleDirectionInbound),
 			c.createSecurityRule(externalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
-				int32(baseExternalInternal+i), armnetwork.SecurityRuleDirectionOutbound))
+				baseExternalInternal+p, armnetwork.SecurityRuleDirectionOutbound))
 	}
 
 	nwSecurityGroup := armnetwork.SecurityGroup{
