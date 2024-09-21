@@ -49,8 +49,9 @@ const (
 	masterSGName             = infraID + "-master-sg"
 	workerSGName             = infraID + "-worker-sg"
 	gatewaySGName            = infraID + "-submariner-gw-sg"
+	providerAWSTagPrefix     = "tag:sigs.k8s.io/cluster-api-provider-aws/cluster/"
 	clusterFilterTagName     = "tag:kubernetes.io/cluster/" + infraID
-	clusterFilterTagNameSigs = "tag:sigs.k8s.io/cluster-api-provider-aws/cluster/" + infraID
+	clusterFilterTagNameSigs = providerAWSTagPrefix + infraID
 )
 
 var internalTrafficDesc = fmt.Sprintf("Should contain %q", internalTraffic)
@@ -110,24 +111,8 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 	}, {
 		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
-}
-
-func (f *fakeAWSClientBase) expectDescribeVpcsSigs(vpcID string) {
-	var vpcs []types.Vpc
-	if vpcID != "" {
-		vpcs = []types.Vpc{
-			{
-				VpcId: ptr.To(vpcID),
-			},
-		}
-	}
-
-	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
-		Values: []string{infraID + "-vpc"},
 	}, {
-		Name:   ptr.To(clusterFilterTagNameSigs),
+		Name:   ptr.To(providerAWSTagPrefix + infraID),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
 }
