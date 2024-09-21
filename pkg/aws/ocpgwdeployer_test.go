@@ -282,7 +282,9 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		t.expectDescribeVpcs(t.vpcID)
 		t.expectDescribeSecurityGroups(infraID+"-submariner-gw-sg", t.gatewayGroupID)
 		t.expectDescribeInstances(instanceImageID)
-		t.expectDescribeSecurityGroups(infraID+"-worker-sg", workerGroupID)
+		t.expectDescribeSecurityGroups(workerSGName, workerGroupID)
+		t.expectDescribePublicSubnets(t.subnets...)
+		t.expectDescribePublicSubnetsSigs(t.subnets...)
 
 		var err error
 
