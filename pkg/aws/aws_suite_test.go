@@ -35,18 +35,24 @@ import (
 )
 
 const (
-	infraID           = "test-infra"
-	region            = "test-region"
-	vpcID             = "test-vpc"
-	workerGroupID     = "worker-group"
-	masterGroupID     = "master-group"
-	gatewayGroupID    = "gateway-group"
-	internalTraffic   = "Internal Submariner traffic"
-	availabilityZone1 = "availability-zone-1"
-	availabilityZone2 = "availability-zone-2"
-	subnetID1         = "subnet-1"
-	subnetID2         = "subnet-2"
-	instanceImageID   = "test-image"
+	infraID                  = "test-infra"
+	region                   = "test-region"
+	vpcID                    = "test-vpc"
+	workerGroupID            = "worker-group"
+	masterGroupID            = "master-group"
+	gatewayGroupID           = "gateway-group"
+	internalTraffic          = "Internal Submariner traffic"
+	availabilityZone1        = "availability-zone-1"
+	availabilityZone2        = "availability-zone-2"
+	subnetID1                = "subnet-1"
+	subnetID2                = "subnet-2"
+	instanceImageID          = "test-image"
+	masterSGName             = infraID + "-master-sg"
+	workerSGName             = infraID + "-worker-sg"
+	gatewaySGName            = infraID + "-submariner-gw-sg"
+	providerAWSTagPrefix     = "tag:sigs.k8s.io/cluster-api-provider-aws/cluster/"
+	clusterFilterTagName     = "tag:kubernetes.io/cluster/" + infraID
+	clusterFilterTagNameSigs = providerAWSTagPrefix + infraID
 )
 
 var internalTrafficDesc = fmt.Sprintf("Should contain %q", internalTraffic)
@@ -106,14 +112,18 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 	}, types.Filter{
 		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
 		Values: []string{"owned"},
-	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
+	}, {
+		Name:   ptr.To(providerAWSTagPrefix + infraID),
+		Values: []string{"owned"},
+	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
 }
 
-func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *gomock.Call {
-	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(gomock.Any(), mock.Eq(&ec2.AuthorizeSecurityGroupIngressInput{
-		DryRun:  awssdk.Bool(true),
-		GroupId: awssdk.String(workerGroupID),
-	})).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr)
+func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
+	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
+		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
+			DryRun:  ptr.To(true),
+			GroupId: ptr.To(workerGroupID),
+		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr).Call
 }
 
 func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string, ipPerm *types.IpPermission) {
