@@ -331,3 +331,7 @@ func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
 
 	return errors.Wrap(err, "error revoking AWS security group ingress")
 }
+
+func withInfraIDPrefix(s string) string {
+	return "{infraID}" + s
+}

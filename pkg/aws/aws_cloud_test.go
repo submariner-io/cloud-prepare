@@ -40,7 +40,6 @@ func testOpenPorts() {
 
 	JustBeforeEach(func() {
 		t.expectDescribeVpcs(t.vpcID)
-		t.expectDescribePublicSubnets(t.subnets...)
 
 		retError = t.cloud.OpenPorts([]api.PortSpec{
 			{
@@ -115,8 +114,6 @@ func testClosePorts() {
 
 	JustBeforeEach(func() {
 		t.expectDescribeVpcs(t.vpcID)
-		t.expectDescribePublicSubnets(t.subnets...)
-		t.expectDescribePublicSubnetsSigs(t.subnets...)
 
 		retError = t.cloud.ClosePorts(reporter.Stdout())
 	})

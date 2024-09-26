@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -112,18 +113,18 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 	}, types.Filter{
 		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
 		Values: []string{"owned"},
-	}, {
+	}, types.Filter{
 		Name:   ptr.To(providerAWSTagPrefix + infraID),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
+	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
 }
 
-func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
-	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
-		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
+func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *gomock.Call {
+	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(gomock.Any(),
+		mock.Eq((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
 			DryRun:  ptr.To(true),
 			GroupId: ptr.To(workerGroupID),
-		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr).Call
+		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr)
 }
 
 func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string, ipPerm *types.IpPermission) {
