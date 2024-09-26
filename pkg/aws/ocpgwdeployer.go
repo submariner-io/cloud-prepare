@@ -69,16 +69,35 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 
 	status.Success(messageRetrievedVPCID, vpcID)
 
-	err = d.aws.setSuffixes(vpcID)
-	if err != nil {
-		return status.Error(err, "unable to retrieve the security group names")
+	if _, found := d.aws.cloudConfig[VPCIDKey]; !found {
+		err = d.aws.setSuffixes(vpcID)
+		if err != nil {
+			return status.Error(err, "unable to retrieve the security group names")
+		}
 	}
 
 	status.Start(messageValidatePrerequisites)
 
-	publicSubnets, err := d.aws.findPublicSubnets(vpcID, d.aws.filterByName("{infraID}*-public-{region}*"))
-	if err != nil {
-		return status.Error(err, "unable to find public subnets")
+	var publicSubnets []types.Subnet
+
+	if subnets, exists := d.aws.cloudConfig[PublicSubnetListKey]; exists {
+		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
+			for _, id := range subnetIDs {
+				subnet, err := d.aws.getSubnetByID(id)
+				if err != nil {
+					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
+				}
+
+				publicSubnets = append(publicSubnets, *subnet)
+			}
+		} else {
+			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
+		}
+	} else {
+		publicSubnets, err = d.aws.findPublicSubnets(vpcID, d.aws.filterByName("{infraID}*-public-{region}*"))
+		if err != nil {
+			return status.Error(err, "unable to find public subnets")
+		}
 	}
 
 	err = d.validateDeployPrerequisites(vpcID, input, publicSubnets)
@@ -97,9 +116,15 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 
 	status.Success("Created Submariner gateway security group %s", gatewaySG)
 
+	return d.processSubnets(vpcID, gatewaySG, publicSubnets, input, status)
+}
+
+func (d *ocpGatewayDeployer) processSubnets(vpcID, gatewaySG string, publicSubnets []types.Subnet,
+	input api.GatewayDeployInput, status reporter.Interface,
+) error {
 	subnets, err := d.aws.getSubnetsSupportingInstanceType(publicSubnets, d.instanceType)
 	if err != nil {
-		return status.Error(err, "unable to create security group")
+		return status.Error(err, "unable to get subnets supporting instance type")
 	}
 
 	taggedSubnets, _ := filterSubnets(subnets, func(subnet *types.Subnet) (bool, error) {
@@ -315,9 +340,11 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 
 	status.Success(messageRetrievedVPCID, vpcID)
 
-	err = d.aws.setSuffixes(vpcID)
-	if err != nil {
-		return status.Error(err, "unable to retrieve the security group names")
+	if _, found := d.aws.cloudConfig[VPCIDKey]; !found {
+		err = d.aws.setSuffixes(vpcID)
+		if err != nil {
+			return status.Error(err, "unable to retrieve the security group names")
+		}
 	}
 
 	status.Start(messageValidatePrerequisites)
@@ -329,13 +356,30 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 
 	status.Success(messageValidatedPrerequisites)
 
-	subnets, err := d.aws.getTaggedPublicSubnets(vpcID)
-	if err != nil {
-		return err
+	var publicSubnets []types.Subnet
+
+	if subnets, exists := d.aws.cloudConfig[PublicSubnetListKey]; exists {
+		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
+			for _, id := range subnetIDs {
+				subnet, err := d.aws.getSubnetByID(id)
+				if err != nil {
+					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
+				}
+
+				publicSubnets = append(publicSubnets, *subnet)
+			}
+		} else {
+			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
+		}
+	} else {
+		publicSubnets, err = d.aws.getTaggedPublicSubnets(vpcID)
+		if err != nil {
+			return err
+		}
 	}
 
-	for i := range subnets {
-		subnet := &subnets[i]
+	for i := range publicSubnets {
+		subnet := &publicSubnets[i]
 		subnetName := extractName(subnet.Tags)
 
 		status.Start("Removing gateway node for public subnet %s", subnetName)

@@ -54,9 +54,21 @@ func (ac *awsCloud) validateCreateSecGroup(vpcID string) error {
 }
 
 func (ac *awsCloud) validateCreateSecGroupRule(vpcID string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
-	if err != nil {
-		return err
+	var workerGroupID *string
+
+	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
+		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
+			workerGroupID = &workerGroupIDStr
+		} else {
+			return errors.New("Worker Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		var err error
+
+		workerGroupID, err = ac.getSecurityGroupName(vpcID, "{infraID}"+ac.nodeSGSuffix)
+		if err != nil {
+			return err
+		}
 	}
 
 	input := &ec2.AuthorizeSecurityGroupIngressInput{
@@ -64,7 +76,7 @@ func (ac *awsCloud) validateCreateSecGroupRule(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err = ac.client.AuthorizeSecurityGroupIngress(context.TODO(), input)
+	_, err := ac.client.AuthorizeSecurityGroupIngress(context.TODO(), input)
 
 	return determinePermissionError(err, "authorize security group ingress")
 }
@@ -90,9 +102,21 @@ func (ac *awsCloud) validateDescribeInstanceTypeOfferings() error {
 }
 
 func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
-	if err != nil {
-		return err
+	var workerGroupID *string
+
+	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
+		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
+			workerGroupID = &workerGroupIDStr
+		} else {
+			return errors.New("Worker Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		var err error
+
+		workerGroupID, err = ac.getSecurityGroupName(vpcID, "{infraID}"+ac.nodeSGSuffix)
+		if err != nil {
+			return err
+		}
 	}
 
 	input := &ec2.DeleteSecurityGroupInput{
@@ -100,15 +124,27 @@ func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err = ac.client.DeleteSecurityGroup(context.TODO(), input)
+	_, err := ac.client.DeleteSecurityGroup(context.TODO(), input)
 
 	return determinePermissionError(err, "delete security group")
 }
 
 func (ac *awsCloud) validateDeleteSecGroupRule(vpcID string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
-	if err != nil {
-		return err
+	var workerGroupID *string
+
+	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
+		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
+			workerGroupID = &workerGroupIDStr
+		} else {
+			return errors.New("Worker Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		var err error
+
+		workerGroupID, err = ac.getSecurityGroupName(vpcID, "{infraID}"+ac.nodeSGSuffix)
+		if err != nil {
+			return err
+		}
 	}
 
 	input := &ec2.RevokeSecurityGroupIngressInput{
@@ -116,7 +152,7 @@ func (ac *awsCloud) validateDeleteSecGroupRule(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err = ac.client.RevokeSecurityGroupIngress(context.TODO(), input)
+	_, err := ac.client.RevokeSecurityGroupIngress(context.TODO(), input)
 
 	return determinePermissionError(err, "revoke security group ingress")
 }
