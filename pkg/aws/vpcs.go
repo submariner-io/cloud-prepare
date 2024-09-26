@@ -39,7 +39,9 @@ func (ac *awsCloud) getVpcID() (string, error) {
 		return vpcIDStr, nil
 	}
 
-	ownedFilters := ac.filterByCurrentCluster()
+	ownedFilters := []types.Filter{
+		ac.filterByCurrentCluster(),
+	}
 	vpcName := ac.withAWSInfo("{infraID}-vpc")
 
 	filters := []types.Filter{
