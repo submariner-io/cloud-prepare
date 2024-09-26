@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
+	"go.uber.org/mock/gomock"
 	"k8s.io/utils/ptr"
 )
 
