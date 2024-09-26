@@ -27,25 +27,29 @@ import (
 )
 
 func (ac *awsCloud) getVpcID() (string, error) {
-	ownedFilters := ac.filterByCurrentCluster()
 	var err error
 	var result *ec2.DescribeVpcsOutput
+
+	if vpcID, exists := ac.cloudConfig[VPCIDKey]; exists {
+		vpcIDStr, ok := vpcID.(string)
+		if !ok || vpcIDStr == "" {
+			return "", errors.New("VPC ID needs to be a valid non-empty string")
+		}
+
+		return vpcIDStr, nil
+	}
+
+	ownedFilters := ac.filterByCurrentCluster()
 	vpcName := ac.withAWSInfo("{infraID}-vpc")
 
-	for i := range ownedFilters {
-		filters := []types.Filter{
-			ac.filterByName(vpcName),
-			ownedFilters[i],
-		}
+	filters := []types.Filter{
+		ac.filterByName(vpcName),
+	}
+	filters = append(filters, ownedFilters...)
 
-		result, err = ac.client.DescribeVpcs(context.TODO(), &ec2.DescribeVpcsInput{Filters: filters})
-		if err != nil {
-			return "", errors.Wrap(err, "error describing AWS VPCs")
-		}
-
-		if len(result.Vpcs) != 0 {
-			break
-		}
+	result, err = ac.client.DescribeVpcs(context.TODO(), &ec2.DescribeVpcsInput{Filters: filters})
+	if err != nil {
+		return "", errors.Wrap(err, "error describing AWS VPCs")
 	}
 
 	if len(result.Vpcs) == 0 {
