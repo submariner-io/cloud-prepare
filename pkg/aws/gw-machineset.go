@@ -65,7 +65,7 @@ spec:
             - filters:
                 - name: tag:Name
                   values:
-                    - {{.InfraID}}{{.NodeSGSuffix}}
+                    - {{.NodeSG}}
                     - {{.SecurityGroup}}
           subnet:
             filters:
