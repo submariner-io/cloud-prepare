@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -50,8 +51,9 @@ const (
 	masterSGName             = infraID + "-master-sg"
 	workerSGName             = infraID + "-worker-sg"
 	gatewaySGName            = infraID + "-submariner-gw-sg"
+	providerAWSTagPrefix     = "tag:sigs.k8s.io/cluster-api-provider-aws/cluster/"
 	clusterFilterTagName     = "tag:kubernetes.io/cluster/" + infraID
-	clusterFilterTagNameSigs = "tag:sigs.k8s.io/cluster-api-provider-aws/cluster/" + infraID
+	clusterFilterTagNameSigs = providerAWSTagPrefix + infraID
 )
 
 var internalTrafficDesc = fmt.Sprintf("Should contain %q", internalTraffic)
@@ -113,24 +115,8 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 	}, types.Filter{
 		Name:   awssdk.String(clusterFilterTagName),
 		Values: []string{"owned"},
-	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
-}
-
-func (f *fakeAWSClientBase) expectDescribeVpcsSigs(vpcID string) {
-	var vpcs []types.Vpc
-	if vpcID != "" {
-		vpcs = []types.Vpc{
-			{
-				VpcId: awssdk.String(vpcID),
-			},
-		}
-	}
-
-	f.awsClient.EXPECT().DescribeVpcs(gomock.Any(), eqFilters(types.Filter{
-		Name:   awssdk.String("tag:Name"),
-		Values: []string{infraID + "-vpc"},
 	}, types.Filter{
-		Name:   awssdk.String(clusterFilterTagNameSigs),
+		Name:   ptr.To(providerAWSTagPrefix + infraID),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
 }

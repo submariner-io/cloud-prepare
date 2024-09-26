@@ -123,3 +123,18 @@ func (ac *awsCloud) untagPublicSubnet(subnetID *string) error {
 
 	return errors.Wrap(err, "error deleting AWS tag")
 }
+
+func (ac *awsCloud) getSubnetByID(subnetID string) (*types.Subnet, error) {
+	output, err := ac.client.DescribeSubnets(context.TODO(), &ec2.DescribeSubnetsInput{
+		SubnetIds: []string{subnetID},
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to describe subnet %s", subnetID)
+	}
+
+	if len(output.Subnets) == 0 {
+		return nil, errors.New("subnet not found")
+	}
+
+	return &output.Subnets[0], nil
+}
