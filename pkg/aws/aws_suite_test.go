@@ -32,6 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -66,6 +67,7 @@ type fakeAWSClientBase struct {
 	awsClient                        *fake.MockInterface
 	mockCtrl                         *gomock.Controller
 	vpcID                            string
+	subnets                          []types.Subnet
 	describeSubnetsErr               error
 	authorizeSecurityGroupIngressErr error
 	createTagsErr                    error
@@ -76,6 +78,7 @@ func (f *fakeAWSClientBase) beforeEach() {
 	f.mockCtrl = gomock.NewController(GinkgoT())
 	f.awsClient = fake.NewMockInterface(f.mockCtrl)
 	f.vpcID = vpcID
+	f.subnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
 	f.describeSubnetsErr = nil
 	f.authorizeSecurityGroupIngressErr = nil
 	f.createTagsErr = nil
@@ -112,23 +115,23 @@ func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
 	}, types.Filter{
 		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
 		Values: []string{"owned"},
-	}, {
-		Name:   ptr.To(providerAWSTagPrefix + infraID),
-		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
+	})).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).AnyTimes()
 }
 
-func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
-	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
-		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
+func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *gomock.Call {
+	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(gomock.Any(),
+		eqAuthorizeSecurityGroupIngressInput(ec2.AuthorizeSecurityGroupIngressInput{
 			DryRun:  ptr.To(true),
 			GroupId: ptr.To(workerGroupID),
-		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr).Call
+		})).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr)
 }
 
 func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string, ipPerm *types.IpPermission) {
 	f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(gomock.Any(),
-		eqAuthorizeSecurityGroupIngressInput(srcGroup, ipPerm)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{},
+		eqAuthorizeSecurityGroupIngressInput(ec2.AuthorizeSecurityGroupIngressInput{
+			GroupId:       awssdk.String(srcGroup),
+			IpPermissions: []types.IpPermission{*ipPerm},
+		})).Return(&ec2.AuthorizeSecurityGroupIngressOutput{},
 		f.authorizeSecurityGroupIngressErr)
 }
 
@@ -149,12 +152,25 @@ func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr erro
 func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(gomock.Any(), eqFilters(types.Filter{
 		Name:   awssdk.String("tag:Name"),
-		Values: []string{infraID + "-public-" + region + "*"},
+		Values: []string{infraID + "*-public-" + region + "*"},
 	}, types.Filter{
 		Name:   awssdk.String("vpc-id"),
 		Values: []string{f.vpcID},
 	}, types.Filter{
 		Name:   awssdk.String("tag:kubernetes.io/cluster/" + infraID),
+		Values: []string{"owned"},
+	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
+}
+
+func (f *fakeAWSClientBase) expectDescribePublicSubnetsSigs(retSubnets ...types.Subnet) {
+	f.awsClient.EXPECT().DescribeSubnets(gomock.Any(), eqFilters(types.Filter{
+		Name:   awssdk.String("tag:Name"),
+		Values: []string{infraID + "*-public-" + region + "*"},
+	}, types.Filter{
+		Name:   awssdk.String("vpc-id"),
+		Values: []string{f.vpcID},
+	}, types.Filter{
+		Name:   awssdk.String(clusterFilterTagNameSigs),
 		Values: []string{"owned"},
 	})).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).AnyTimes()
 }
@@ -433,12 +449,9 @@ func (m *authorizeSecurityGroupIngressInputMatcher) String() string {
 	return "matches " + mock.FormatToYAML(&m.AuthorizeSecurityGroupIngressInput)
 }
 
-func eqAuthorizeSecurityGroupIngressInput(srcGroup string, ipPerm *types.IpPermission) gomock.Matcher {
+func eqAuthorizeSecurityGroupIngressInput(input ec2.AuthorizeSecurityGroupIngressInput) gomock.Matcher {
 	m := &authorizeSecurityGroupIngressInputMatcher{
-		AuthorizeSecurityGroupIngressInput: ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId:       awssdk.String(srcGroup),
-			IpPermissions: []types.IpPermission{*ipPerm},
-		},
+		AuthorizeSecurityGroupIngressInput: input,
 	}
 
 	return mock.FormattingMatcher(&m.AuthorizeSecurityGroupIngressInput, m)
