@@ -35,13 +35,28 @@ import (
 
 const internalTraffic = "Internal Submariner traffic"
 
-func (ac *awsCloud) getSecurityGroupID(vpcID, name string) (*string, error) {
+func (ac *awsCloud) getSecurityGroupName(vpcID, name string) (*string, error) {
 	group, err := ac.getSecurityGroup(vpcID, name)
 	if err != nil {
 		return nil, err
 	}
 
 	return group.GroupId, nil
+}
+
+func (ac *awsCloud) getSecurityGroupByID(groupID string) (types.SecurityGroup, error) {
+	output, err := ac.client.DescribeSecurityGroups(context.TODO(), &ec2.DescribeSecurityGroupsInput{
+		GroupIds: []string{groupID},
+	})
+	if err != nil {
+		return types.SecurityGroup{}, errors.Wrapf(err, "unable to describe security group %s", groupID)
+	}
+
+	if len(output.SecurityGroups) == 0 {
+		return types.SecurityGroup{}, errors.New("security group not found")
+	}
+
+	return output.SecurityGroups[0], nil
 }
 
 func (ac *awsCloud) getSecurityGroup(vpcID, name string) (types.SecurityGroup, error) {
@@ -97,14 +112,33 @@ func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16
 }
 
 func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol string) error {
-	workerGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.nodeSGSuffix)
-	if err != nil {
-		return err
+	var workerGroupID, controlPlaneGroupID *string
+	var err error
+
+	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
+		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
+			workerGroupID = &workerGroupIDStr
+		} else {
+			return errors.New("Worker Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		workerGroupID, err = ac.getSecurityGroupName(vpcID, "{infraID}"+ac.nodeSGSuffix)
+		if err != nil {
+			return err
+		}
 	}
 
-	masterGroupID, err := ac.getSecurityGroupID(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
-	if err != nil {
-		return err
+	if id, exists := ac.cloudConfig[ControlPlaneSecurityGroupIDKey]; exists {
+		if controlPlaneGroupIDStr, ok := id.(string); ok && controlPlaneGroupIDStr != "" {
+			controlPlaneGroupID = &controlPlaneGroupIDStr
+		} else {
+			return errors.New("Control Plane Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		controlPlaneGroupID, err = ac.getSecurityGroupName(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = ac.createClusterSGRule(workerGroupID, workerGroupID, port, protocol, fmt.Sprintf("%s between the workers", internalTraffic))
@@ -112,12 +146,14 @@ func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol strin
 		return err
 	}
 
-	err = ac.createClusterSGRule(workerGroupID, masterGroupID, port, protocol, fmt.Sprintf("%s from worker to master nodes", internalTraffic))
+	err = ac.createClusterSGRule(workerGroupID, controlPlaneGroupID, port, protocol,
+		fmt.Sprintf("%s from worker to master nodes", internalTraffic))
 	if err != nil {
 		return err
 	}
 
-	return ac.createClusterSGRule(masterGroupID, workerGroupID, port, protocol, fmt.Sprintf("%s from master to worker nodes", internalTraffic))
+	return ac.createClusterSGRule(controlPlaneGroupID, workerGroupID, port, protocol,
+		fmt.Sprintf("%s from master to worker nodes", internalTraffic))
 }
 
 func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, description string) error {
@@ -141,7 +177,7 @@ func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, d
 func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string, error) {
 	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
 
-	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
+	gatewayGroupID, err := ac.getSecurityGroupName(vpcID, groupName)
 	if err != nil {
 		if !isNotFoundError(err) {
 			return "", err
@@ -187,7 +223,7 @@ func gatewayDeletionRetriable(err error) bool {
 func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 	groupName := ac.withAWSInfo("{infraID}-submariner-gw-sg")
 
-	gatewayGroupID, err := ac.getSecurityGroupID(vpcID, groupName)
+	gatewayGroupID, err := ac.getSecurityGroupName(vpcID, groupName)
 	if err != nil {
 		if isNotFoundError(err) {
 			return nil
@@ -219,14 +255,39 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 }
 
 func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
-	workerGroup, err := ac.getSecurityGroup(vpcID, "{infraID}"+ac.nodeSGSuffix)
-	if err != nil {
-		return err
+	var workerGroup, controlPlaneGroup types.SecurityGroup
+	var err error
+
+	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
+		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
+			workerGroup, err = ac.getSecurityGroupByID(workerGroupIDStr)
+			if err != nil {
+				return errors.Wrap(err, "unable to get Worker Security Group by ID")
+			}
+		} else {
+			return errors.New("Worker Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		workerGroup, err = ac.getSecurityGroup(vpcID, "{infraID}"+ac.nodeSGSuffix)
+		if err != nil {
+			return err
+		}
 	}
 
-	masterGroup, err := ac.getSecurityGroup(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
-	if err != nil {
-		return err
+	if id, exists := ac.cloudConfig[ControlPlaneSecurityGroupIDKey]; exists {
+		if controlPlaneGroupIDStr, ok := id.(string); ok && controlPlaneGroupIDStr != "" {
+			controlPlaneGroup, err = ac.getSecurityGroupByID(controlPlaneGroupIDStr)
+			if err != nil {
+				return errors.Wrap(err, "unable to get Control Plane Security Group by ID")
+			}
+		} else {
+			return errors.New("Control Plane Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		controlPlaneGroup, err = ac.getSecurityGroup(vpcID, "{infraID}"+ac.controlPlaneSGSuffix)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = ac.revokePortsFromGroup(&workerGroup)
@@ -234,7 +295,7 @@ func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
 		return err
 	}
 
-	return ac.revokePortsFromGroup(&masterGroup)
+	return ac.revokePortsFromGroup(&controlPlaneGroup)
 }
 
 func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
