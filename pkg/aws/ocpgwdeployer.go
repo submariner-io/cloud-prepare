@@ -228,7 +228,7 @@ type machineSetConfig struct {
 	Region        string
 	SecurityGroup string
 	PublicSubnet  string
-	NodeSGSuffix  string
+	NodeSG        string
 }
 
 func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
@@ -286,7 +286,25 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 		Region:        d.aws.region,
 		SecurityGroup: gatewaySecurityGroup,
 		PublicSubnet:  extractName(publicSubnet.Tags),
-		NodeSGSuffix:  d.aws.nodeSGSuffix,
+	}
+
+	if id, exists := d.aws.cloudConfig[WorkerSecurityGroupIDKey]; exists {
+		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
+			workerSecurityGroup, err := d.aws.getSecurityGroupByID(workerGroupIDStr)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error finding the worker security group with ID %s", workerGroupIDStr)
+			}
+
+			if workerSecurityGroup.GroupName == nil {
+				return nil, errors.Errorf("security group with ID %s has no group name", workerGroupIDStr)
+			}
+
+			tplVars.NodeSG = *workerSecurityGroup.GroupName
+		} else {
+			return nil, errors.New("worker Security Group ID must be a valid non-empty string")
+		}
+	} else {
+		tplVars.NodeSG = d.aws.infraID + d.aws.nodeSGSuffix
 	}
 
 	err = tpl.Execute(&buf, tplVars)
