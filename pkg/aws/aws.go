@@ -163,7 +163,9 @@ func (ac *awsCloud) setSuffixes(vpcID string) error {
 			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
 		}
 	} else {
-		publicSubnets, err := ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}*-public-{region}*"))
+		var err error
+
+		publicSubnets, err = ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}*-public-{region}*"))
 		if err != nil {
 			return errors.Wrapf(err, "unable to find the public subnet")
 		}
