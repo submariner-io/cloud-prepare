@@ -126,7 +126,7 @@ func NewCloudFromSettings(credentialsFile, profile, infraID, region string, opts
 
 	cfg, err := config.LoadDefaultConfig(context.TODO(), options...)
 	if err != nil {
-		return nil, errors.Wrap(err, "error loading default config")
+		return nil, errors.Wrap(err, "error loading default configs")
 	}
 
 	return NewCloudFromConfig(&cfg, infraID, region, opts...), nil
