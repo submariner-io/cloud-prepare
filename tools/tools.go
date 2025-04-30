@@ -23,5 +23,5 @@ limitations under the License.
 package tools
 
 import (
-	_ "github.com/vektra/mockery/v2"
+	_ "github.com/vektra/mockery/v3"
 )
