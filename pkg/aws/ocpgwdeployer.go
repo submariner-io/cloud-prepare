@@ -21,6 +21,7 @@ package aws
 import (
 	"bytes"
 	"context"
+	goerrors "errors"
 	"fmt"
 	"text/template"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
 type ocpGatewayDeployer struct {
@@ -184,7 +184,7 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 	errs = appendIfError(errs, err)
 
 	if err != nil {
-		return utilerrors.NewAggregate(errs)
+		return goerrors.Join(errs...)
 	}
 
 	// If instanceType is not specified, auto-select the most suitable one.
@@ -217,7 +217,7 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 		errs = appendIfError(errs, d.aws.validateCreateTag(*subnets[0].SubnetId))
 	}
 
-	return utilerrors.NewAggregate(errs)
+	return goerrors.Join(errs...)
 }
 
 type machineSetConfig struct {
@@ -443,7 +443,7 @@ func (d *ocpGatewayDeployer) validateCleanupPrerequisites(vpcID string) error {
 		errs = appendIfError(errs, d.aws.validateRemoveTag(subnets[0].SubnetId))
 	}
 
-	return utilerrors.NewAggregate(errs)
+	return goerrors.Join(errs...)
 }
 
 func (d *ocpGatewayDeployer) deleteGateway(publicSubnet *types.Subnet) error {
