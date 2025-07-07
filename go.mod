@@ -1,6 +1,8 @@
 module github.com/submariner-io/cloud-prepare
 
-go 1.23.0
+go 1.24.0
+
+toolchain go1.24.4
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
@@ -16,7 +18,7 @@ require (
 	github.com/onsi/gomega v1.37.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
-	github.com/submariner-io/admiral v0.21.0-m3
+	github.com/submariner-io/admiral v0.21.0-rc0
 	google.golang.org/api v0.239.0
 	k8s.io/api v0.32.6
 	k8s.io/apimachinery v0.32.6
