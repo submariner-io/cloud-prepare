@@ -16,7 +16,7 @@ require (
 	github.com/onsi/gomega v1.37.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
-	github.com/submariner-io/admiral v0.21.0-m3.0.20250710145849-09921dd45e54
+	github.com/submariner-io/admiral v0.22.0-m0
 	google.golang.org/api v0.239.0
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2
