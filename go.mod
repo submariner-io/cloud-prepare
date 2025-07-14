@@ -3,13 +3,13 @@ module github.com/submariner-io/cloud-prepare
 go 1.24.0
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.0
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.18.1
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v6 v6.4.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6 v6.2.0
 	github.com/aws/aws-sdk-go-v2 v1.36.5
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.70
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.228.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.231.0
 	github.com/aws/smithy-go v1.22.4
 	github.com/gophercloud/gophercloud v1.14.1
 	github.com/onsi/ginkgo/v2 v2.23.4
@@ -17,7 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/submariner-io/admiral v0.22.0-m0
-	google.golang.org/api v0.239.0
+	google.golang.org/api v0.241.0
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.2
