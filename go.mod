@@ -12,11 +12,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.260.0
 	github.com/aws/smithy-go v1.23.1
 	github.com/gophercloud/gophercloud v1.14.1
-	github.com/onsi/ginkgo/v2 v2.26.0
+	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.11.1
-	github.com/submariner-io/admiral v0.22.0-m2.0.20251020132010-7ac697e3ece9
+	github.com/submariner-io/admiral v0.22.0-rc0
 	google.golang.org/api v0.254.0
 	k8s.io/api v0.34.1
 	k8s.io/apimachinery v0.34.1
@@ -72,7 +72,6 @@ require (
 	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
-	go.uber.org/automaxprocs v1.6.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
