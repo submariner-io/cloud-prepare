@@ -68,8 +68,11 @@ linters:
     wrapcheck:
       extra-ignore-sigs:
         - .Error(
-    wsl:
-      allow-cuddle-declarations: true
+    wsl_v5:
+      disable:
+        - decl
+        - expr
+        - send
   enable:
     - asasalint
     - asciicheck
@@ -176,7 +179,7 @@ linters:
     - wastedassign
     - whitespace
     - wrapcheck
-    - wsl
+    - wsl_v5
     # - zerologlint # We use zerolog indirectly so this isn't needed
   exclusions:
     generated: lax

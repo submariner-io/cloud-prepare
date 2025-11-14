@@ -200,7 +200,6 @@ func (d *ocpGatewayDeployer) deployGWNode(gatewayCount int,
 		groupName := d.InfraID + internalSecurityGroupSuffix
 
 		isFound, errSG := checkIfSecurityGroupPresent(groupName, computeClient)
-
 		if errSG != nil {
 			return errSG
 		}
