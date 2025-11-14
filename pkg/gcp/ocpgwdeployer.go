@@ -21,6 +21,7 @@ package gcp
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -350,13 +351,7 @@ func (d *ocpGatewayDeployer) isInstanceGatewayNode(instance *compute.Instance) b
 		return false
 	}
 
-	for _, tag := range instance.Tags.Items {
-		if tag == submarinerGatewayNodeTag {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(instance.Tags.Items, submarinerGatewayNodeTag)
 }
 
 func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.Instance) error {
