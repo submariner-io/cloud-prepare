@@ -80,7 +80,7 @@ type awsCloud struct {
 	region               string
 	nodeSGSuffix         string
 	controlPlaneSGSuffix string
-	cloudConfig          map[string]interface{}
+	cloudConfig          map[string]any
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare AWS for Submariner to be deployed on it.
@@ -89,7 +89,7 @@ func NewCloud(client awsClient.Interface, infraID, region string, opts ...CloudO
 		client:      client,
 		infraID:     infraID,
 		region:      region,
-		cloudConfig: make(map[string]interface{}),
+		cloudConfig: make(map[string]any),
 	}
 
 	for _, opt := range opts {
@@ -106,7 +106,7 @@ func NewCloudFromConfig(cfg *aws.Config, infraID, region string, opts ...CloudOp
 		client:      ec2.NewFromConfig(*cfg),
 		infraID:     infraID,
 		region:      region,
-		cloudConfig: make(map[string]interface{}),
+		cloudConfig: make(map[string]any),
 	}
 
 	for _, opt := range opts {

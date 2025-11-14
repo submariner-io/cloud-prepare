@@ -429,7 +429,7 @@ func (t *gatewayDeployerTestDriver) assertMachineSet(ms *unstructured.Unstructur
 	disks, ok, _ := unstructured.NestedSlice(ms.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
 	Expect(ok).To(BeTrue())
 	Expect(disks).To(HaveLen(1))
-	image, _, _ := unstructured.NestedString(disks[0].(map[string]interface{}), "image")
+	image, _, _ := unstructured.NestedString(disks[0].(map[string]any), "image")
 	Expect(image).To(Equal(expImage))
 }
 

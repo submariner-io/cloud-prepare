@@ -81,8 +81,8 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 			Context("", func() {
 				BeforeEach(func() {
-					disks := []interface{}{
-						map[string]interface{}{
+					disks := []any{
+						map[string]any{
 							"image": "some-image",
 						},
 					}
@@ -201,17 +201,17 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 func newMachineSet(isGateway string) *unstructured.Unstructured {
 	ms := &unstructured.Unstructured{}
-	ms.SetUnstructuredContent(map[string]interface{}{
+	ms.SetUnstructuredContent(map[string]any{
 		"apiVersion": "machine.openshift.io/v1beta1",
 		"kind":       "MachineSet",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"namespace": "test-ns",
 		},
-		"spec": map[string]interface{}{
-			"template": map[string]interface{}{
-				"spec": map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+		"spec": map[string]any{
+			"template": map[string]any{
+				"spec": map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
 							ocp.SubmarinerGatewayLabel: isGateway,
 						},
 					},
