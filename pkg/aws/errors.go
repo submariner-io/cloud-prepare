@@ -33,7 +33,7 @@ func (e notFoundError) Error() string {
 	return e.s + " not found"
 }
 
-func newNotFoundError(msg string, args ...interface{}) error {
+func newNotFoundError(msg string, args ...any) error {
 	return notFoundError{fmt.Sprintf(msg, args...)}
 }
 

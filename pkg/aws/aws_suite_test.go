@@ -419,7 +419,7 @@ type authorizeSecurityGroupIngressInputMatcher struct {
 	ec2.AuthorizeSecurityGroupIngressInput
 }
 
-func (m *authorizeSecurityGroupIngressInputMatcher) Matches(i interface{}) bool {
+func (m *authorizeSecurityGroupIngressInputMatcher) Matches(i any) bool {
 	o, ok := i.(*ec2.AuthorizeSecurityGroupIngressInput)
 	Expect(ok).To(BeTrue())
 
@@ -472,7 +472,7 @@ type filtersMatcher struct {
 	expectedFilters []types.Filter
 }
 
-func (m *filtersMatcher) Matches(i interface{}) bool {
+func (m *filtersMatcher) Matches(i any) bool {
 	filtersValue := reflect.Indirect(reflect.ValueOf(i)).FieldByName("Filters")
 	filters := filtersValue.Interface().([]types.Filter)
 

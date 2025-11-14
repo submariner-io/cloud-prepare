@@ -131,7 +131,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 func getImageFromMachineSet(existing *unstructured.Unstructured) string {
 	disks, _, _ := unstructured.NestedSlice(existing.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
 	for _, o := range disks {
-		disk := o.(map[string]interface{})
+		disk := o.(map[string]any)
 
 		image, _, _ := unstructured.NestedString(disk, "image")
 		if image != "" {

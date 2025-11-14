@@ -132,7 +132,7 @@ func New(accessKeyID, secretAccessKey, region string) (Interface, error) {
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
 		//nolint:staticcheck // WithEndpointResolverWithOptions is deprecated - needs to be migrated to EndpointResolverV2.
 		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-			func(service, region string, _ ...interface{}) (aws.Endpoint, error) {
+			func(service, region string, _ ...any) (aws.Endpoint, error) {
 				if service != "route53" || region != "cn-northwest-1" {
 					return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 				}

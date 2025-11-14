@@ -405,10 +405,10 @@ func assertMachineSet(ms *unstructured.Unstructured, expSubnetID, expInstanceTyp
 	securityGroups, _, _ := unstructured.NestedSlice(ms.Object, "spec", "template", "spec", "providerSpec", "value", "securityGroups")
 	Expect(securityGroups).To(HaveLen(1))
 
-	sgFilters, _, _ := unstructured.NestedSlice(securityGroups[0].(map[string]interface{}), "filters")
+	sgFilters, _, _ := unstructured.NestedSlice(securityGroups[0].(map[string]any), "filters")
 	Expect(sgFilters).To(HaveLen(1))
 
-	filter := sgFilters[0].(map[string]interface{})
+	filter := sgFilters[0].(map[string]any)
 	Expect(filter).To(HaveKeyWithValue("name", "tag:Name"))
 	Expect(filter["values"]).To(ContainElements(workerSGName))
 
@@ -419,7 +419,7 @@ func assertMachineSet(ms *unstructured.Unstructured, expSubnetID, expInstanceTyp
 	subnetFilters, _, _ := unstructured.NestedSlice(ms.Object, "spec", "template", "spec", "providerSpec", "value", "subnet", "filters")
 	Expect(subnetFilters).To(HaveLen(1))
 
-	filter = subnetFilters[0].(map[string]interface{})
+	filter = subnetFilters[0].(map[string]any)
 	Expect(filter).To(HaveKeyWithValue("name", "tag:Name"))
 	Expect(filter["values"]).To(ContainElement(subnetName(expSubnetID)))
 }
