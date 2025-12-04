@@ -222,6 +222,10 @@ func (f *fakeAWSClientBase) expectCreateSecurityGroup(name, retGroupID string) {
 						Key:   ptr.To("Name"),
 						Value: ptr.To(name),
 					},
+					{
+						Key:   ptr.To("kubernetes.io/cluster/" + infraID),
+						Value: ptr.To("owned"),
+					},
 				},
 			},
 		},
