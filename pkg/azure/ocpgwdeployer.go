@@ -275,17 +275,43 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(gwNodes []unstructured.Unstruc
 		}
 
 		for _, resourceSKU := range nextResult.Value {
-			if *resourceSKU.ResourceType == azureVirtualMachines && *resourceSKU.Name == d.instanceType {
-				for _, zone := range resourceSKU.LocationInfo[0].Zones {
-					if !zonesWithSubmarinerGW.Has(d.azure.Region + "-" + *zone) {
-						eligibleZonesForSubmarinerGW.Insert(*zone)
-					}
-				}
-			}
+			zones := d.filterZonesByRegion(resourceSKU, zonesWithSubmarinerGW)
+			eligibleZonesForSubmarinerGW = eligibleZonesForSubmarinerGW.Union(zones)
 		}
 	}
 
 	return eligibleZonesForSubmarinerGW, nil
+}
+
+func (d *ocpGatewayDeployer) filterZonesByRegion(resourceSKU *armcompute.ResourceSKU, zonesWithSubmarinerGW set.Set[string],
+) set.Set[string] {
+	eligibleZones := set.New[string]()
+
+	if resourceSKU == nil || resourceSKU.ResourceType == nil || resourceSKU.Name == nil {
+		return eligibleZones
+	}
+
+	if *resourceSKU.ResourceType != azureVirtualMachines || *resourceSKU.Name != d.instanceType {
+		return eligibleZones
+	}
+
+	for _, locationInfo := range resourceSKU.LocationInfo {
+		if locationInfo == nil || locationInfo.Location == nil || *locationInfo.Location != d.azure.Region {
+			continue
+		}
+
+		for _, zone := range locationInfo.Zones {
+			if zone == nil {
+				continue
+			}
+
+			if !zonesWithSubmarinerGW.Has(*zone) {
+				eligibleZones.Insert(*zone)
+			}
+		}
+	}
+
+	return eligibleZones
 }
 
 func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {

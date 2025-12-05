@@ -19,12 +19,15 @@ limitations under the License.
 package azure
 
 import (
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v6"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	"github.com/submariner-io/admiral/pkg/util"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
+	"k8s.io/utils/set"
 )
 
 var _ = Describe("OCP Gateway Deployer", func() {
@@ -87,6 +90,54 @@ var _ = Describe("OCP Gateway Deployer", func() {
 
 			Expect(machineSet).ToNot(BeNil())
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "publicIP")).To(BeFalse())
+		})
+	})
+
+	Describe("filterZonesByRegion", func() {
+		It("should only return zones from matching region", func() {
+			resourceSKU := &armcompute.ResourceSKU{
+				Name:         ptr.To(instanceType),
+				ResourceType: ptr.To("virtualMachines"),
+				LocationInfo: []*armcompute.ResourceSKULocationInfo{
+					{
+						Location: ptr.To(region),
+						Zones:    []*string{ptr.To("1"), ptr.To("2"), ptr.To("3")},
+					},
+					{
+						Location: ptr.To("centralus"),
+						Zones:    []*string{ptr.To("1"), ptr.To("2"), ptr.To("3")},
+					},
+				},
+			}
+
+			zonesWithGW := set.New[string]()
+			zones := gwDeployer.filterZonesByRegion(resourceSKU, zonesWithGW)
+
+			Expect(zones.Len()).To(Equal(3))
+			Expect(zones.Has("1")).To(BeTrue())
+			Expect(zones.Has("2")).To(BeTrue())
+			Expect(zones.Has("3")).To(BeTrue())
+		})
+
+		It("should exclude zones with existing gateways", func() {
+			resourceSKU := &armcompute.ResourceSKU{
+				Name:         ptr.To(instanceType),
+				ResourceType: ptr.To("virtualMachines"),
+				LocationInfo: []*armcompute.ResourceSKULocationInfo{
+					{
+						Location: ptr.To(region),
+						Zones:    []*string{ptr.To("1"), ptr.To("2"), ptr.To("3")},
+					},
+				},
+			}
+
+			zonesWithGW := set.New[string]("1")
+			zones := gwDeployer.filterZonesByRegion(resourceSKU, zonesWithGW)
+
+			Expect(zones.Len()).To(Equal(2))
+			Expect(zones.Has("1")).To(BeFalse())
+			Expect(zones.Has("2")).To(BeTrue())
+			Expect(zones.Has("3")).To(BeTrue())
 		})
 	})
 })
