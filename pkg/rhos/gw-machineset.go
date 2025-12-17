@@ -62,9 +62,13 @@ spec:
           networks:
           - filter: {}
             subnets:
+            {{- range .SubnetNames}}
             - filter:
-                name: {{.InfraID}}-nodes
-                tags: openshiftClusterID={{.InfraID}}
+                name: {{.}}
+                {{- if not $.IsCustomSubnet}}
+                tags: openshiftClusterID={{$.InfraID}}
+                {{- end}}
+            {{- end}}
           securityGroups:
           - name: {{.InfraID}}-worker
           {{- if .UseSubmarinerInternalSG }}

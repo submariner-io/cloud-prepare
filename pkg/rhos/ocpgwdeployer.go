@@ -46,6 +46,8 @@ type ocpGatewayDeployer struct {
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
+//
+//nolint:gocritic // Ignore 'hugeParam' - pass by value for CloudInfo is intentional.
 func NewOcpGatewayDeployer(info CloudInfo, msDeployer ocp.MachineSetDeployer, projectID, instanceType, image, cloudName string,
 ) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
@@ -65,9 +67,11 @@ type machineSetConfig struct {
 	InstanceType            string
 	Region                  string
 	Image                   string
+	SubnetNames             []string
 	SubmarinerGWNodeTag     string
 	CloudName               string
 	UseSubmarinerInternalSG bool
+	IsCustomSubnet          bool
 }
 
 func (d *ocpGatewayDeployer) loadGatewayYAML(uuidGW, image string, useInternalSG bool) ([]byte, error) {
@@ -86,8 +90,10 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(uuidGW, image string, useInternalSG
 		Region:                  d.Region,
 		CloudName:               d.cloudName,
 		Image:                   image,
+		SubnetNames:             d.SubnetNames,
 		SubmarinerGWNodeTag:     submarinerGatewayNodeTag,
 		UseSubmarinerInternalSG: useInternalSG,
+		IsCustomSubnet:          len(d.SubnetNames) > 0 && d.SubnetNames[0] != d.InfraID+"-nodes",
 	}
 
 	err = tpl.Execute(&buf, tplVars)
