@@ -37,10 +37,14 @@ type rhosCloud struct {
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare RHOS for Submariner to be deployed on it.
-func NewCloud(info CloudInfo) api.Cloud {
-	return &rhosCloud{
-		CloudInfo: info,
+func NewCloud(info CloudInfo) api.Cloud { //nolint:gocritic // Ignore 'hugeParam' - pass by value for CloudInfo is intentional.
+	rhosCloud := &rhosCloud{CloudInfo: info}
+
+	if len(rhosCloud.SubnetNames) == 0 {
+		rhosCloud.SubnetNames = []string{info.InfraID + "-nodes"}
 	}
+
+	return rhosCloud
 }
 
 func (rc *rhosCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
