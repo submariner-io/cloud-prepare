@@ -26,7 +26,6 @@ import (
 	"text/template"
 
 	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
@@ -91,7 +90,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(uuidGW, image string, useInternalSG
 		CloudName:               d.cloudName,
 		Image:                   image,
 		SubnetNames:             d.SubnetNames,
-		SubmarinerGWNodeTag:     submarinerGatewayNodeTag,
+		SubmarinerGWNodeTag:     SubmarinerGatewayNodeTag,
 		UseSubmarinerInternalSG: useInternalSG,
 		IsCustomSubnet:          len(d.SubnetNames) > 0 && d.SubnetNames[0] != d.InfraID+"-nodes",
 	}
@@ -142,17 +141,17 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	status.Start("Configuring the required firewall rules for inter-cluster traffic")
 	defer status.End()
 
-	computeClient, err := openstack.NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
+	computeClient, err := NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
 	if err != nil {
 		return status.Error(err, "error creating the compute client")
 	}
 
-	networkClient, err := openstack.NewNetworkV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
+	networkClient, err := NewNetworkV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
 	if err != nil {
 		return status.Error(err, "error creating the network client")
 	}
 
-	groupName := d.InfraID + gwSecurityGroupSuffix
+	groupName := d.InfraID + GwSecurityGroupSuffix
 	if err := d.createGWSecurityGroup(input.PublicPorts, groupName, computeClient, networkClient); err != nil {
 		return status.Error(err, "creating gateway security group failed")
 	}
@@ -167,11 +166,8 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 		return status.Error(err, "listing the existing gateway nodes failed")
 	}
 
-	gwNodeItems := gwNodes.Items
-
-	gwNodesList := gwNodes.Items
-	for i := range gwNodesList {
-		err := d.openGatewayPort(groupName, gwNodesList[i].Name, computeClient)
+	for i := range gwNodes.Items {
+		err := addServerSecurityGroups(gwNodes.Items[i].Name, groupName, computeClient)
 		if err != nil {
 			return status.Error(err, "failed to open the gateway port in the existing g/w node")
 		}
@@ -180,7 +176,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	status.Success("Opened external ports %q in security group %q on RHOS for existing g/w nodes",
 		formatPorts(input.PublicPorts), groupName)
 
-	taggedExistingNodes := ocp.RemoveDuplicates(machineSets, gwNodeItems)
+	taggedExistingNodes := ocp.RemoveDuplicates(machineSets, gwNodes.Items)
 	gatewayNodesToDeploy := input.Gateways - len(machineSets) - len(taggedExistingNodes)
 
 	if gatewayNodesToDeploy == 0 {
@@ -203,7 +199,7 @@ func (d *ocpGatewayDeployer) deployGWNode(gatewayCount int,
 	if numGatewayNodes < gatewayCount {
 		gatewayNodesToDeploy := gatewayCount - numGatewayNodes
 
-		groupName := d.InfraID + internalSecurityGroupSuffix
+		groupName := d.InfraID + InternalSecurityGroupSuffix
 
 		isFound, errSG := checkIfSecurityGroupPresent(groupName, computeClient)
 		if errSG != nil {
@@ -236,12 +232,12 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gatewayNodesToDeploy int, use
 }
 
 func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
-	computeClient, err := openstack.NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
+	computeClient, err := NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
 	if err != nil {
 		return status.Error(err, "error creating the compute client for the region: %q", d.Region)
 	}
 
-	groupName := d.InfraID + gwSecurityGroupSuffix
+	groupName := d.InfraID + GwSecurityGroupSuffix
 
 	machineSetList, err := d.msDeployer.List()
 	if err != nil {
@@ -253,7 +249,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 		status.Start("Removing the Submariner gateway security group rules from node %q",
 			machineSetList[i].GetName())
 
-		err = d.removeFirewallRulesFromGW(groupName, machineSetList[i].GetName(), computeClient)
+		err = removeServerSecurityGroups(machineSetList[i].GetName(), groupName, computeClient)
 		if err != nil {
 			return status.Error(err, "error deleting the security group rules")
 		}
@@ -282,7 +278,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 	for i := range gwNodes {
 		status.Start("Deleting the Submariner gateway security group rules from node %q", gwNodes[i].Name)
 
-		err = d.removeFirewallRulesFromGW(groupName, gwNodes[i].Name, computeClient)
+		err = removeServerSecurityGroups(gwNodes[i].Name, groupName, computeClient)
 		if err != nil {
 			return status.Error(err, "error deleting the security group rules")
 		}
@@ -294,7 +290,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 
 		err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodes[i])
 		if err != nil {
-			return status.Error(err, "failed to cleanup gateway node %q"+gwNodes[i].Name)
+			return status.Error(err, "failed to cleanup gateway node %q", gwNodes[i].Name)
 		}
 	}
 

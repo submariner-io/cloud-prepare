@@ -26,10 +26,15 @@ import (
 )
 
 const (
-	gwSecurityGroupSuffix       = "-submariner-gw-sg"
-	internalSecurityGroupSuffix = "-submariner-internal-sg"
-	submarinerGatewayNodeTag    = "submariner-io-gateway-node"
+	GwSecurityGroupSuffix       = "-submariner-gw-sg"
+	InternalSecurityGroupSuffix = "-submariner-internal-sg"
+	SubmarinerGatewayNodeTag    = "submariner-io-gateway-node"
 	allNetworkCIDR              = "0.0.0.0/0"
+)
+
+var (
+	NewComputeV2 = openstack.NewComputeV2
+	NewNetworkV2 = openstack.NewNetworkV2
 )
 
 type rhosCloud struct {
@@ -51,12 +56,12 @@ func (rc *rhosCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) 
 	status.Start("Opening internal ports for intra-cluster communications on RHOS")
 	defer status.End()
 
-	computeClient, err := openstack.NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
+	computeClient, err := NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
 	if err != nil {
 		return status.Error(err, "error creating the compute client")
 	}
 
-	networkClient, err := openstack.NewNetworkV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
+	networkClient, err := NewNetworkV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
 	if err != nil {
 		return status.Error(err, "error creating the network client")
 	}
@@ -73,7 +78,7 @@ func (rc *rhosCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) 
 func (rc *rhosCloud) ClosePorts(status reporter.Interface) error {
 	status.Start("Revoking intra-cluster communication permissions")
 
-	computeClient, err := openstack.NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
+	computeClient, err := NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
 	if err != nil {
 		return status.Error(err, "creating compute client failed for region %q", rc.Region)
 	}
@@ -82,7 +87,7 @@ func (rc *rhosCloud) ClosePorts(status reporter.Interface) error {
 		return status.Error(err, "unable to remove firewall rules")
 	}
 
-	if err := rc.deleteSG(rc.InfraID+internalSecurityGroupSuffix, computeClient); err != nil {
+	if err := rc.deleteSG(rc.InfraID+InternalSecurityGroupSuffix, computeClient); err != nil {
 		return err
 	}
 

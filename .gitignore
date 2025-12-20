@@ -6,6 +6,6 @@ Makefile.dapper
 Makefile.shipyard
 /Dockerfile.*
 .idea
-*.coverprofile
+*coverprofile*
 junit.xml
 
