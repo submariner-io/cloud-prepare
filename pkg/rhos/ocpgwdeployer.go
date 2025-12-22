@@ -70,7 +70,6 @@ type machineSetConfig struct {
 	SubmarinerGWNodeTag     string
 	CloudName               string
 	UseSubmarinerInternalSG bool
-	IsCustomSubnet          bool
 }
 
 func (d *ocpGatewayDeployer) loadGatewayYAML(uuidGW, image string, useInternalSG bool) ([]byte, error) {
@@ -92,7 +91,6 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(uuidGW, image string, useInternalSG
 		SubnetNames:             d.SubnetNames,
 		SubmarinerGWNodeTag:     SubmarinerGatewayNodeTag,
 		UseSubmarinerInternalSG: useInternalSG,
-		IsCustomSubnet:          len(d.SubnetNames) > 0 && d.SubnetNames[0] != d.InfraID+"-nodes",
 	}
 
 	err = tpl.Execute(&buf, tplVars)
