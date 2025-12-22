@@ -68,6 +68,31 @@ func testDeploy() {
 		t.assertRuleCreated(rhos.GwSecurityGroupSuffix, t.gwDeployInput.PublicPorts[1])
 	})
 
+	When("custom subnets are provided", func() {
+		const (
+			subnetName1 = "subnet1"
+			subnetName2 = "subnet2"
+		)
+
+		BeforeEach(func() {
+			t.subnetNames = []string{subnetName1, subnetName2}
+		})
+
+		It("should deploy a gateway node machine with the subnets applied", func() {
+			Expect(t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout())).To(Succeed())
+
+			t.assertMachineSet(false, SubnetParam{
+				Filter: SubnetFilter{
+					Name: subnetName1,
+				},
+			}, SubnetParam{
+				Filter: SubnetFilter{
+					Name: subnetName2,
+				},
+			})
+		})
+	})
+
 	When("the internal security group exists", func() {
 		BeforeEach(func() {
 			t.existingSecurityGroups = []secgroups.SecurityGroup{
@@ -185,6 +210,7 @@ type gatewayDeployerTestDriver struct {
 	machineSetsDeployed []*unstructured.Unstructured
 	existingMachineSets []unstructured.Unstructured
 	gwDeployInput       api.GatewayDeployInput
+	subnetNames         []string
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
@@ -195,6 +221,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		t.kubeClient = k8sfake.NewClientset()
 		t.machineSetsDeployed = nil
 		t.existingMachineSets = nil
+		t.subnetNames = nil
 
 		t.gwDeployInput = api.GatewayDeployInput{
 			Gateways: 1,
@@ -225,10 +252,11 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		}).Maybe()
 
 		t.gwDeployer = rhos.NewOcpGatewayDeployer(rhos.CloudInfo{
-			Client:    &gophercloud.ProviderClient{},
-			InfraID:   testInfraID,
-			Region:    testRegion,
-			K8sClient: k8s.NewInterface(t.kubeClient),
+			Client:      &gophercloud.ProviderClient{},
+			InfraID:     testInfraID,
+			Region:      testRegion,
+			K8sClient:   k8s.NewInterface(t.kubeClient),
+			SubnetNames: t.subnetNames,
 		}, t.msDeployer, testProjectID, testInstanceType, "", testCloudName)
 	})
 
