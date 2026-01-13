@@ -308,7 +308,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 }
 
 func formatPorts(ports []api.PortSpec) string {
-	portStrs := []string{}
+	portStrs := make([]string, 0, len(ports))
 	for _, port := range ports {
 		portStrs = append(portStrs, fmt.Sprintf("%d/%s", port.Port, port.Protocol))
 	}
