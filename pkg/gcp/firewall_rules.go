@@ -64,7 +64,7 @@ func newInternalFirewallRule(projectID, infraID, network string, ports []api.Por
 }
 
 func newFirewallRule(projectID, name, direction, network string, ports []api.PortSpec) *compute.Firewall {
-	allowedPorts := []*compute.FirewallAllowed{}
+	allowedPorts := make([]*compute.FirewallAllowed, 0, len(ports))
 
 	for _, port := range ports {
 		fwRule := &compute.FirewallAllowed{

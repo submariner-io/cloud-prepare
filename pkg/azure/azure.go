@@ -72,7 +72,7 @@ func (az *azureCloud) ClosePorts(reporter reporterInterface.Interface) error {
 }
 
 func formatPorts(ports []api.PortSpec) string {
-	portStrs := []string{}
+	portStrs := make([]string, 0, len(ports))
 	for _, port := range ports {
 		portStrs = append(portStrs, fmt.Sprintf("%d/%s", port.Port, port.Protocol))
 	}
