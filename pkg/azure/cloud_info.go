@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v6"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6"
 	"github.com/pkg/errors"
@@ -33,14 +34,14 @@ import (
 )
 
 const (
-	internalSecurityGroupSuffix       = "-nsg"
-	externalSecurityGroupSuffix       = "-submariner-external-sg"
-	internalSecurityRulePrefix        = "Submariner-Internal-"
-	externalSecurityRulePrefix        = "Submariner-External-"
+	InternalSecurityGroupSuffix       = "-nsg"
+	ExternalSecurityGroupSuffix       = "-submariner-external-sg"
+	InternalSecurityRulePrefix        = "Submariner-Internal-"
+	ExternalSecurityRulePrefix        = "Submariner-External-"
 	publicIPNameSuffix                = "-pub"
 	allNetworkCIDR                    = "0.0.0.0/0"
 	basePriorityInternal        int32 = 2500
-	baseExternalInternal        int32 = 3500
+	basePriorityExternal        int32 = 3500
 )
 
 type CloudInfo struct {
@@ -50,32 +51,33 @@ type CloudInfo struct {
 	BaseGroupName   string
 	TokenCredential azcore.TokenCredential
 	K8sClient       k8s.Interface
+	ClientOptions   *arm.ClientOptions
 }
 
 //nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getNsgClient() (*armnetwork.SecurityGroupsClient, error) {
-	return armnetwork.NewSecurityGroupsClient(c.SubscriptionID, c.TokenCredential, nil)
+	return armnetwork.NewSecurityGroupsClient(c.SubscriptionID, c.TokenCredential, c.ClientOptions)
 }
 
 //nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getInterfacesClient() (*armnetwork.InterfacesClient, error) {
-	return armnetwork.NewInterfacesClient(c.SubscriptionID, c.TokenCredential, nil)
+	return armnetwork.NewInterfacesClient(c.SubscriptionID, c.TokenCredential, c.ClientOptions)
 }
 
 //nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getPublicIPClient() (*armnetwork.PublicIPAddressesClient, error) {
-	return armnetwork.NewPublicIPAddressesClient(c.SubscriptionID, c.TokenCredential, nil)
+	return armnetwork.NewPublicIPAddressesClient(c.SubscriptionID, c.TokenCredential, c.ClientOptions)
 }
 
 //nolint:wrapcheck // Let the caller wrap it.
 func (c *CloudInfo) getResourceSKUClient() (*armcompute.ResourceSKUsClient, error) {
-	return armcompute.NewResourceSKUsClient(c.SubscriptionID, c.TokenCredential, nil)
+	return armcompute.NewResourceSKUsClient(c.SubscriptionID, c.TokenCredential, c.ClientOptions)
 }
 
 func (c *CloudInfo) openInternalPorts(ctx context.Context, infraID string, ports []api.PortSpec,
 	nsgClient *armnetwork.SecurityGroupsClient,
 ) error {
-	groupName := infraID + internalSecurityGroupSuffix
+	groupName := infraID + InternalSecurityGroupSuffix
 
 	nwSecurityGroup, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, nil)
 	if err != nil {
@@ -95,9 +97,9 @@ func (c *CloudInfo) openInternalPorts(ctx context.Context, infraID string, ports
 		p := int32(i) //nolint:gosec // Ignore integer overflow conversion
 
 		nwSecurityGroup.Properties.SecurityRules = append(nwSecurityGroup.Properties.SecurityRules,
-			c.createSecurityRule(internalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
+			c.createSecurityRule(InternalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
 				basePriorityInternal+p, armnetwork.SecurityRuleDirectionInbound),
-			c.createSecurityRule(internalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
+			c.createSecurityRule(InternalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
 				basePriorityInternal+p, armnetwork.SecurityRuleDirectionOutbound))
 	}
 
@@ -112,7 +114,7 @@ func (c *CloudInfo) openInternalPorts(ctx context.Context, infraID string, ports
 }
 
 func (c *CloudInfo) removeInternalFirewallRules(ctx context.Context, infraID string, nsgClient *armnetwork.SecurityGroupsClient) error {
-	groupName := infraID + internalSecurityGroupSuffix
+	groupName := infraID + InternalSecurityGroupSuffix
 
 	nwSecurityGroup, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, nil)
 	if err != nil {
@@ -126,7 +128,7 @@ func (c *CloudInfo) removeInternalFirewallRules(ctx context.Context, infraID str
 	securityRules := []*armnetwork.SecurityRule{}
 
 	for _, existingSGRule := range nwSecurityGroup.Properties.SecurityRules {
-		if existingSGRule.Name != nil && !strings.Contains(*existingSGRule.Name, internalSecurityRulePrefix) {
+		if existingSGRule.Name != nil && !strings.Contains(*existingSGRule.Name, InternalSecurityRulePrefix) {
 			securityRules = append(securityRules, existingSGRule)
 		}
 	}
@@ -145,7 +147,7 @@ func (c *CloudInfo) removeInternalFirewallRules(ctx context.Context, infraID str
 
 func checkIfSecurityRulesPresent(securityRules []*armnetwork.SecurityRule) bool {
 	for _, existingSGRule := range securityRules {
-		if existingSGRule.Name != nil && strings.Contains(*existingSGRule.Name, internalSecurityRulePrefix) {
+		if existingSGRule.Name != nil && strings.Contains(*existingSGRule.Name, InternalSecurityRulePrefix) {
 			return true
 		}
 	}
@@ -186,10 +188,10 @@ func (c *CloudInfo) createGWSecurityGroup(ctx context.Context, groupName string,
 	for i, port := range ports {
 		p := int32(i) //nolint:gosec // Ignore integer overflow conversion
 		securityRules = append(securityRules,
-			c.createSecurityRule(externalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
-				baseExternalInternal+p, armnetwork.SecurityRuleDirectionInbound),
-			c.createSecurityRule(externalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
-				baseExternalInternal+p, armnetwork.SecurityRuleDirectionOutbound))
+			c.createSecurityRule(ExternalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
+				basePriorityExternal+p, armnetwork.SecurityRuleDirectionInbound),
+			c.createSecurityRule(ExternalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
+				basePriorityExternal+p, armnetwork.SecurityRuleDirectionOutbound))
 	}
 
 	nwSecurityGroup := armnetwork.SecurityGroup{
@@ -263,7 +265,7 @@ func (c *CloudInfo) prepareGWInterface(ctx context.Context, nodeName, groupName 
 func (c *CloudInfo) cleanupGWInterface(ctx context.Context, infraID string, nsgClient *armnetwork.SecurityGroupsClient,
 	nwClient *armnetwork.InterfacesClient,
 ) error {
-	groupName := infraID + externalSecurityGroupSuffix
+	groupName := infraID + ExternalSecurityGroupSuffix
 
 	isFound := c.checkIfSecurityGroupPresent(ctx, groupName, nsgClient)
 

@@ -40,7 +40,7 @@ import (
 
 const (
 	submarinerGatewayGW      = "subgw-"
-	azureVirtualMachines     = "virtualMachines"
+	AzureVirtualMachines     = "virtualMachines"
 	submarinerGatewayNodeTag = "submariner-io-gateway-node"
 )
 
@@ -73,17 +73,17 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 		return nil
 	}
 
-	status.Start("Deploying gateway node")
-
 	nsgClient, nwClient, pubIPClient, err := d.getClients(status)
 	if err != nil {
 		return err
 	}
 
-	groupName := d.InfraID + externalSecurityGroupSuffix
+	groupName := d.InfraID + ExternalSecurityGroupSuffix
 
 	ctx, cancel := context.WithTimeout(ctx, operationTimeout)
 	defer cancel()
+
+	status.Start("Retrieving gateway machine sets and nodes")
 
 	machineSets, err := d.msDeployer.List(ctx)
 	if err != nil {
@@ -92,24 +92,34 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 
 	gwNodes, err := d.azure.K8sClient.ListGatewayNodes(ctx)
 	if err != nil {
-		return errors.Wrap(err, "error getting the gateway node")
+		return status.Error(err, "error getting the gateway node")
 	}
+
+	status.End()
 
 	gwNodeItems := gwNodes.Items
 	taggedExistingNodes := ocp.RemoveDuplicates(machineSets, gwNodeItems)
 	gatewayNodesToDeploy := input.Gateways - len(machineSets) - len(taggedExistingNodes)
 
-	if len(machineSets) != 0 || gatewayNodesToDeploy != 0 {
+	if len(machineSets) != 0 || gatewayNodesToDeploy != 0 || len(gwNodeItems) != 0 {
+		status.Start("Creating gateway security group")
+
 		if err := d.createGWSecurityGroup(ctx, groupName, input.PublicPorts, nsgClient); err != nil {
 			return status.Error(err, "creating gateway security group failed")
 		}
+
+		status.End()
 	}
 
 	// Open the g/w ports and assign public-ip if not already done for manually tagged nodes if any
 	for i := range gwNodeItems {
+		status.Start("Preparing the gateway network interface for node %q", gwNodeItems[i].GetName())
+
 		if err = d.prepareGWInterface(ctx, gwNodeItems[i].GetName(), groupName, nsgClient, nwClient, pubIPClient); err != nil {
 			return status.Error(err, "failed to open the Submariner gateway port for already existing nodes")
 		}
+
+		status.End()
 	}
 
 	if gatewayNodesToDeploy == 0 {
@@ -130,34 +140,34 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 		return errors.Wrap(imageErr, "error retrieving worker node image")
 	}
 
-	err = d.deployDedicatedGWNode(ctx, machineSets, gatewayNodesToDeploy, input.AirGapped, image, status)
-	if err != nil {
-		status.Success("Deployed gateway node")
-	}
-
-	return err
+	return d.deployDedicatedGWNode(ctx, machineSets, gatewayNodesToDeploy, input.AirGapped, image, status)
 }
 
 func (d *ocpGatewayDeployer) deployDedicatedGWNode(ctx context.Context, gwNodes []unstructured.Unstructured,
 	gatewayNodesToDeploy int, airGapped bool, image string, status reporter.Interface,
 ) error {
+	status.Start("Retrieving the availability zones for region %q ", d.Region)
+
 	az, err := d.getAvailabilityZones(ctx, gwNodes)
 	if err != nil {
 		return status.Error(err, "error getting the availability zones for region %q", d.Region)
 	}
 
+	status.End()
+
 	for _, zone := range az.UnsortedList() {
-		status.Start("Deploying dedicated gateway node")
+		status.Start("Deploying dedicated gateway node for zone %q", zone)
 
 		err := d.deployGateway(ctx, zone, image, airGapped)
 		if err != nil {
 			return status.Error(err, "error deploying gateway for zone %q", zone)
 		}
 
+		status.End()
+
 		gatewayNodesToDeploy--
 		if gatewayNodesToDeploy <= 0 {
-			status.Success("Successfully deployed gateway node")
-			return nil
+			break
 		}
 	}
 
@@ -293,7 +303,7 @@ func (d *ocpGatewayDeployer) filterZonesByRegion(resourceSKU *armcompute.Resourc
 		return eligibleZones
 	}
 
-	if *resourceSKU.ResourceType != azureVirtualMachines || *resourceSKU.Name != d.instanceType {
+	if *resourceSKU.ResourceType != AzureVirtualMachines || *resourceSKU.Name != d.instanceType {
 		return eligibleZones
 	}
 
