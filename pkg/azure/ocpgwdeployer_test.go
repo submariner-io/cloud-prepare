@@ -393,9 +393,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 	})
 
 	JustBeforeEach(func() {
-		var err error
-		t.deployer, err = azure.NewOcpGatewayDeployer(&t.cloudInfo, azure.NewCloud(&t.cloudInfo), t.msDeployer, instanceType)
-		Expect(err).NotTo(HaveOccurred())
+		t.deployer = azure.NewOcpGatewayDeployer(&t.cloudInfo, t.msDeployer, instanceType)
 
 		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, t.cloudInfo.InfraID).Return(imageName, nil).Maybe()
 		t.msDeployer.EXPECT().List(mock.Anything).Return(slices.Clone(t.existingMachineSets), nil).Maybe()
