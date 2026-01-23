@@ -180,8 +180,8 @@ func (ac *awsCloud) setSuffixes(vpcID string) error {
 
 	for i := range publicSubnets {
 		tags := publicSubnets[i].Tags
-		for i := range tags {
-			if strings.Contains(*tags[i].Key, "Name") && re.MatchString(*tags[i].Value) {
+		for j := range tags {
+			if strings.Contains(*tags[j].Key, "Name") && re.MatchString(*tags[j].Value) {
 				ac.nodeSGSuffix = "-node"
 				ac.controlPlaneSGSuffix = "-controlplane"
 
