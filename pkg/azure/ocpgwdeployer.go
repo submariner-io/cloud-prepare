@@ -21,6 +21,7 @@ package azure
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strconv"
 	"text/template"
 	"time"
@@ -139,7 +140,7 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstru
 	airGapped bool, image string, status reporter.Interface,
 ) error {
 	az, err := d.getAvailabilityZones(gwNodes)
-	if err != nil || az.Len() == 0 {
+	if err != nil {
 		return status.Error(err, "error getting the availability zones for region %q", d.Region)
 	}
 
@@ -159,7 +160,8 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstru
 	}
 
 	if gatewayNodesToDeploy != 0 {
-		return status.Error(err, "not enough zones available in the region %q to deploy required number of gateway nodes", d.Region)
+		return status.Error(fmt.Errorf("not enough zones available in the region %q to deploy required number of gateway nodes",
+			d.Region), "")
 	}
 
 	return nil
