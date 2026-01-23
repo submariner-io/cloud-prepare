@@ -115,7 +115,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 	for i := range nodeList.Items {
 		if labels, found, _ := unstructured.NestedStringMap(nodeList.Items[i].Object, "spec", "template", "metadata", "labels"); found {
 			role := labels["machine.openshift.io/cluster-api-machine-role"]
-			if strings.Compare(strings.ToLower(role), "worker") != 0 {
+			if !strings.EqualFold(role, "worker") {
 				continue
 			}
 		}
