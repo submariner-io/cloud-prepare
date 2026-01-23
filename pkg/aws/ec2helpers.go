@@ -45,7 +45,7 @@ func ec2FilterByTag(tag types.Tag) types.Filter {
 
 func hasTag(tags []types.Tag, desired types.Tag) bool {
 	for _, tag := range tags {
-		if *tag.Key == *desired.Key {
+		if ptr.Equal(tag.Key, desired.Key) {
 			return true
 		}
 	}
@@ -55,8 +55,8 @@ func hasTag(tags []types.Tag, desired types.Tag) bool {
 
 func extractName(tags []types.Tag) string {
 	for _, tag := range tags {
-		if *tag.Key == "Name" {
-			return *tag.Value
+		if ptr.Deref(tag.Key, "") == "Name" {
+			return ptr.Deref(tag.Value, "")
 		}
 	}
 
