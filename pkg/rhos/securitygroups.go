@@ -19,6 +19,8 @@ limitations under the License.
 package rhos
 
 import (
+	"slices"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
@@ -194,13 +196,11 @@ func checkIfSecurityGroupPresent(groupName string, computeClient *gophercloud.Se
 	err := EachPage(pager, func(page pagination.Page) (bool, error) {
 		serverList, err := ExtractSecurityGroups(page)
 
-		for _, s := range serverList {
-			if s.Name == groupName {
-				isFound = true
-			}
-		}
+		isFound = slices.ContainsFunc(serverList, func(s secgroups.SecurityGroup) bool {
+			return s.Name == groupName
+		})
 
-		return true, errors.WithMessagef(err, "failed to extract the security group %q from results", groupName)
+		return !isFound, errors.WithMessagef(err, "failed to extract the security group %q from results", groupName)
 	})
 
 	return isFound, errors.WithMessagef(err, "error getting the security group : %q", groupName)
@@ -222,11 +222,11 @@ func (c *CloudInfo) deleteSG(groupName string, computeClient *gophercloud.Servic
 				isFound = true
 				securityGroupID = s.ID
 
-				return true, nil
+				break
 			}
 		}
 
-		return true, errors.WithMessagef(err, "error finding the uuid for the security group: %q", groupName)
+		return !isFound, nil
 	})
 
 	if err == nil && isFound {

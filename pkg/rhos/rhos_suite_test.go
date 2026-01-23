@@ -182,12 +182,10 @@ func newTestDriver() *testDriver {
 
 			Expect(page).NotTo(BeNil(), "No Pager for "+pager.Headers[pagerNameKey])
 
-			ok, err := handler(page)
+			_, err := handler(page)
 			if err != nil {
 				return err
 			}
-
-			Expect(ok).To(BeTrue())
 
 			return nil
 		}
