@@ -39,33 +39,23 @@ import (
 )
 
 const (
-	submarinerGatewayGW      = "subgw-"
-	AzureVirtualMachines     = "virtualMachines"
-	submarinerGatewayNodeTag = "submariner-io-gateway-node"
+	submarinerGatewayGW  = "subgw-"
+	AzureVirtualMachines = "virtualMachines"
 )
 
 type ocpGatewayDeployer struct {
 	CloudInfo
-	azure        *azureCloud
 	msDeployer   ocp.MachineSetDeployer
 	instanceType string
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable deploying gateways using OCP.
-// If the supplied cloud is not an azureCloud, an error is returned.
-func NewOcpGatewayDeployer(info *CloudInfo, cloud api.Cloud, msDeployer ocp.MachineSetDeployer, instanceType string,
-) (api.GatewayDeployer, error) {
-	azure, ok := cloud.(*azureCloud)
-	if !ok {
-		return nil, errors.New("the cloud must be Azure")
-	}
-
+func NewOcpGatewayDeployer(info *CloudInfo, msDeployer ocp.MachineSetDeployer, instanceType string) api.GatewayDeployer {
 	return &ocpGatewayDeployer{
 		CloudInfo:    *info,
-		azure:        azure,
 		msDeployer:   msDeployer,
 		instanceType: instanceType,
-	}, nil
+	}
 }
 
 func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
@@ -90,7 +80,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 		return status.Error(err, "error getting the gateway machinesets")
 	}
 
-	gwNodes, err := d.azure.K8sClient.ListGatewayNodes(ctx)
+	gwNodes, err := d.K8sClient.ListGatewayNodes(ctx)
 	if err != nil {
 		return status.Error(err, "error getting the gateway node")
 	}
@@ -199,9 +189,9 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone, image string, airGapped
 
 	tplVars := machineSetConfig{
 		Name:         name,
-		InfraID:      d.azure.InfraID,
+		InfraID:      d.InfraID,
 		InstanceType: d.instanceType,
-		Region:       d.azure.Region,
+		Region:       d.Region,
 		AZ:           zone,
 		Image:        image,
 		PublicIP:     strconv.FormatBool(!airGapped),
@@ -234,7 +224,7 @@ func (d *ocpGatewayDeployer) initMachineSet(name, zone, image string, airGapped 
 }
 
 func (d *ocpGatewayDeployer) deployGateway(ctx context.Context, zone, image string, airGapped bool) error {
-	machineSet, err := d.initMachineSet(MachineName(d.azure.Region), zone, image, airGapped)
+	machineSet, err := d.initMachineSet(MachineName(d.Region), zone, image, airGapped)
 	if err != nil {
 		return err
 	}
@@ -275,7 +265,7 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(ctx context.Context, gwNodes [
 	}
 
 	pager := resourceSKUClient.NewListPager(&armcompute.ResourceSKUsClientListOptions{
-		Filter: ptr.To(d.azure.Region),
+		Filter: ptr.To(d.Region),
 	})
 
 	eligibleZonesForSubmarinerGW := set.New[string]()
@@ -283,7 +273,7 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(ctx context.Context, gwNodes [
 	for pager.More() {
 		nextResult, err := pager.NextPage(ctx)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error paging the resource SKUs in the regiom %q", d.azure.Region)
+			return nil, errors.Wrapf(err, "error paging the resource SKUs in the region %q", d.Region)
 		}
 
 		for _, resourceSKU := range nextResult.Value {
@@ -308,7 +298,7 @@ func (d *ocpGatewayDeployer) filterZonesByRegion(resourceSKU *armcompute.Resourc
 	}
 
 	for _, locationInfo := range resourceSKU.LocationInfo {
-		if locationInfo == nil || locationInfo.Location == nil || *locationInfo.Location != d.azure.Region {
+		if locationInfo == nil || locationInfo.Location == nil || *locationInfo.Location != d.Region {
 			continue
 		}
 
