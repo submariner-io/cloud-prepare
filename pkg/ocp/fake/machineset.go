@@ -22,6 +22,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	mock "github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -54,16 +56,16 @@ func (_m *MockMachineSetDeployer) EXPECT() *MockMachineSetDeployer_Expecter {
 }
 
 // Delete provides a mock function for the type MockMachineSetDeployer
-func (_mock *MockMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) error {
-	ret := _mock.Called(machineSet)
+func (_mock *MockMachineSetDeployer) Delete(ctx context.Context, machineSet *unstructured.Unstructured) error {
+	ret := _mock.Called(ctx, machineSet)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*unstructured.Unstructured) error); ok {
-		r0 = returnFunc(machineSet)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured) error); ok {
+		r0 = returnFunc(ctx, machineSet)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -76,14 +78,15 @@ type MockMachineSetDeployer_Delete_Call struct {
 }
 
 // Delete is a helper method to define mock.On call
+//   - ctx
 //   - machineSet
-func (_e *MockMachineSetDeployer_Expecter) Delete(machineSet interface{}) *MockMachineSetDeployer_Delete_Call {
-	return &MockMachineSetDeployer_Delete_Call{Call: _e.mock.On("Delete", machineSet)}
+func (_e *MockMachineSetDeployer_Expecter) Delete(ctx interface{}, machineSet interface{}) *MockMachineSetDeployer_Delete_Call {
+	return &MockMachineSetDeployer_Delete_Call{Call: _e.mock.On("Delete", ctx, machineSet)}
 }
 
-func (_c *MockMachineSetDeployer_Delete_Call) Run(run func(machineSet *unstructured.Unstructured)) *MockMachineSetDeployer_Delete_Call {
+func (_c *MockMachineSetDeployer_Delete_Call) Run(run func(ctx context.Context, machineSet *unstructured.Unstructured)) *MockMachineSetDeployer_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*unstructured.Unstructured))
+		run(args[0].(context.Context), args[1].(*unstructured.Unstructured))
 	})
 	return _c
 }
@@ -93,22 +96,22 @@ func (_c *MockMachineSetDeployer_Delete_Call) Return(err error) *MockMachineSetD
 	return _c
 }
 
-func (_c *MockMachineSetDeployer_Delete_Call) RunAndReturn(run func(machineSet *unstructured.Unstructured) error) *MockMachineSetDeployer_Delete_Call {
+func (_c *MockMachineSetDeployer_Delete_Call) RunAndReturn(run func(ctx context.Context, machineSet *unstructured.Unstructured) error) *MockMachineSetDeployer_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteByName provides a mock function for the type MockMachineSetDeployer
-func (_mock *MockMachineSetDeployer) DeleteByName(name string, namespace string) error {
-	ret := _mock.Called(name, namespace)
+func (_mock *MockMachineSetDeployer) DeleteByName(ctx context.Context, name string, namespace string) error {
+	ret := _mock.Called(ctx, name, namespace)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteByName")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = returnFunc(name, namespace)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, name, namespace)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -121,15 +124,16 @@ type MockMachineSetDeployer_DeleteByName_Call struct {
 }
 
 // DeleteByName is a helper method to define mock.On call
+//   - ctx
 //   - name
 //   - namespace
-func (_e *MockMachineSetDeployer_Expecter) DeleteByName(name interface{}, namespace interface{}) *MockMachineSetDeployer_DeleteByName_Call {
-	return &MockMachineSetDeployer_DeleteByName_Call{Call: _e.mock.On("DeleteByName", name, namespace)}
+func (_e *MockMachineSetDeployer_Expecter) DeleteByName(ctx interface{}, name interface{}, namespace interface{}) *MockMachineSetDeployer_DeleteByName_Call {
+	return &MockMachineSetDeployer_DeleteByName_Call{Call: _e.mock.On("DeleteByName", ctx, name, namespace)}
 }
 
-func (_c *MockMachineSetDeployer_DeleteByName_Call) Run(run func(name string, namespace string)) *MockMachineSetDeployer_DeleteByName_Call {
+func (_c *MockMachineSetDeployer_DeleteByName_Call) Run(run func(ctx context.Context, name string, namespace string)) *MockMachineSetDeployer_DeleteByName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -139,22 +143,22 @@ func (_c *MockMachineSetDeployer_DeleteByName_Call) Return(err error) *MockMachi
 	return _c
 }
 
-func (_c *MockMachineSetDeployer_DeleteByName_Call) RunAndReturn(run func(name string, namespace string) error) *MockMachineSetDeployer_DeleteByName_Call {
+func (_c *MockMachineSetDeployer_DeleteByName_Call) RunAndReturn(run func(ctx context.Context, name string, namespace string) error) *MockMachineSetDeployer_DeleteByName_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Deploy provides a mock function for the type MockMachineSetDeployer
-func (_mock *MockMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
-	ret := _mock.Called(machineSet)
+func (_mock *MockMachineSetDeployer) Deploy(ctx context.Context, machineSet *unstructured.Unstructured) error {
+	ret := _mock.Called(ctx, machineSet)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Deploy")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*unstructured.Unstructured) error); ok {
-		r0 = returnFunc(machineSet)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured) error); ok {
+		r0 = returnFunc(ctx, machineSet)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -167,14 +171,15 @@ type MockMachineSetDeployer_Deploy_Call struct {
 }
 
 // Deploy is a helper method to define mock.On call
+//   - ctx
 //   - machineSet
-func (_e *MockMachineSetDeployer_Expecter) Deploy(machineSet interface{}) *MockMachineSetDeployer_Deploy_Call {
-	return &MockMachineSetDeployer_Deploy_Call{Call: _e.mock.On("Deploy", machineSet)}
+func (_e *MockMachineSetDeployer_Expecter) Deploy(ctx interface{}, machineSet interface{}) *MockMachineSetDeployer_Deploy_Call {
+	return &MockMachineSetDeployer_Deploy_Call{Call: _e.mock.On("Deploy", ctx, machineSet)}
 }
 
-func (_c *MockMachineSetDeployer_Deploy_Call) Run(run func(machineSet *unstructured.Unstructured)) *MockMachineSetDeployer_Deploy_Call {
+func (_c *MockMachineSetDeployer_Deploy_Call) Run(run func(ctx context.Context, machineSet *unstructured.Unstructured)) *MockMachineSetDeployer_Deploy_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*unstructured.Unstructured))
+		run(args[0].(context.Context), args[1].(*unstructured.Unstructured))
 	})
 	return _c
 }
@@ -184,14 +189,14 @@ func (_c *MockMachineSetDeployer_Deploy_Call) Return(err error) *MockMachineSetD
 	return _c
 }
 
-func (_c *MockMachineSetDeployer_Deploy_Call) RunAndReturn(run func(machineSet *unstructured.Unstructured) error) *MockMachineSetDeployer_Deploy_Call {
+func (_c *MockMachineSetDeployer_Deploy_Call) RunAndReturn(run func(ctx context.Context, machineSet *unstructured.Unstructured) error) *MockMachineSetDeployer_Deploy_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetWorkerNodeImage provides a mock function for the type MockMachineSetDeployer
-func (_mock *MockMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error) {
-	ret := _mock.Called(machineSet, infraID)
+func (_mock *MockMachineSetDeployer) GetWorkerNodeImage(ctx context.Context, machineSet *unstructured.Unstructured, infraID string) (string, error) {
+	ret := _mock.Called(ctx, machineSet, infraID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetWorkerNodeImage")
@@ -199,16 +204,16 @@ func (_mock *MockMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(*unstructured.Unstructured, string) (string, error)); ok {
-		return returnFunc(machineSet, infraID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured, string) (string, error)); ok {
+		return returnFunc(ctx, machineSet, infraID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(*unstructured.Unstructured, string) string); ok {
-		r0 = returnFunc(machineSet, infraID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured, string) string); ok {
+		r0 = returnFunc(ctx, machineSet, infraID)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(*unstructured.Unstructured, string) error); ok {
-		r1 = returnFunc(machineSet, infraID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *unstructured.Unstructured, string) error); ok {
+		r1 = returnFunc(ctx, machineSet, infraID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -221,15 +226,16 @@ type MockMachineSetDeployer_GetWorkerNodeImage_Call struct {
 }
 
 // GetWorkerNodeImage is a helper method to define mock.On call
+//   - ctx
 //   - machineSet
 //   - infraID
-func (_e *MockMachineSetDeployer_Expecter) GetWorkerNodeImage(machineSet interface{}, infraID interface{}) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
-	return &MockMachineSetDeployer_GetWorkerNodeImage_Call{Call: _e.mock.On("GetWorkerNodeImage", machineSet, infraID)}
+func (_e *MockMachineSetDeployer_Expecter) GetWorkerNodeImage(ctx interface{}, machineSet interface{}, infraID interface{}) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
+	return &MockMachineSetDeployer_GetWorkerNodeImage_Call{Call: _e.mock.On("GetWorkerNodeImage", ctx, machineSet, infraID)}
 }
 
-func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) Run(run func(machineSet *unstructured.Unstructured, infraID string)) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
+func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) Run(run func(ctx context.Context, machineSet *unstructured.Unstructured, infraID string)) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*unstructured.Unstructured), args[1].(string))
+		run(args[0].(context.Context), args[1].(*unstructured.Unstructured), args[2].(string))
 	})
 	return _c
 }
@@ -239,14 +245,14 @@ func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) Return(s string, err e
 	return _c
 }
 
-func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) RunAndReturn(run func(machineSet *unstructured.Unstructured, infraID string) (string, error)) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
+func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) RunAndReturn(run func(ctx context.Context, machineSet *unstructured.Unstructured, infraID string) (string, error)) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockMachineSetDeployer
-func (_mock *MockMachineSetDeployer) List() ([]unstructured.Unstructured, error) {
-	ret := _mock.Called()
+func (_mock *MockMachineSetDeployer) List(ctx context.Context) ([]unstructured.Unstructured, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -254,18 +260,18 @@ func (_mock *MockMachineSetDeployer) List() ([]unstructured.Unstructured, error)
 
 	var r0 []unstructured.Unstructured
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() ([]unstructured.Unstructured, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]unstructured.Unstructured, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() []unstructured.Unstructured); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []unstructured.Unstructured); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]unstructured.Unstructured)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -278,13 +284,14 @@ type MockMachineSetDeployer_List_Call struct {
 }
 
 // List is a helper method to define mock.On call
-func (_e *MockMachineSetDeployer_Expecter) List() *MockMachineSetDeployer_List_Call {
-	return &MockMachineSetDeployer_List_Call{Call: _e.mock.On("List")}
+//   - ctx
+func (_e *MockMachineSetDeployer_Expecter) List(ctx interface{}) *MockMachineSetDeployer_List_Call {
+	return &MockMachineSetDeployer_List_Call{Call: _e.mock.On("List", ctx)}
 }
 
-func (_c *MockMachineSetDeployer_List_Call) Run(run func()) *MockMachineSetDeployer_List_Call {
+func (_c *MockMachineSetDeployer_List_Call) Run(run func(ctx context.Context)) *MockMachineSetDeployer_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -294,7 +301,7 @@ func (_c *MockMachineSetDeployer_List_Call) Return(unstructureds []unstructured.
 	return _c
 }
 
-func (_c *MockMachineSetDeployer_List_Call) RunAndReturn(run func() ([]unstructured.Unstructured, error)) *MockMachineSetDeployer_List_Call {
+func (_c *MockMachineSetDeployer_List_Call) RunAndReturn(run func(ctx context.Context) ([]unstructured.Unstructured, error)) *MockMachineSetDeployer_List_Call {
 	_c.Call.Return(run)
 	return _c
 }

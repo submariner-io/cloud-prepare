@@ -85,7 +85,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	ctx, cancel := context.WithTimeout(ctx, operationTimeout)
 	defer cancel()
 
-	machineSets, err := d.msDeployer.List()
+	machineSets, err := d.msDeployer.List(ctx)
 	if err != nil {
 		return status.Error(err, "error getting the gateway machinesets")
 	}
@@ -125,7 +125,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 		return nil
 	}
 
-	image, imageErr := d.msDeployer.GetWorkerNodeImage(nil, d.InfraID)
+	image, imageErr := d.msDeployer.GetWorkerNodeImage(ctx, nil, d.InfraID)
 	if imageErr != nil {
 		return errors.Wrap(imageErr, "error retrieving worker node image")
 	}
@@ -149,7 +149,7 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(ctx context.Context, gwNodes 
 	for _, zone := range az.UnsortedList() {
 		status.Start("Deploying dedicated gateway node")
 
-		err := d.deployGateway(zone, image, airGapped)
+		err := d.deployGateway(ctx, zone, image, airGapped)
 		if err != nil {
 			return status.Error(err, "error deploying gateway for zone %q", zone)
 		}
@@ -223,13 +223,13 @@ func (d *ocpGatewayDeployer) initMachineSet(name, zone, image string, airGapped 
 	return machineSet, nil
 }
 
-func (d *ocpGatewayDeployer) deployGateway(zone, image string, airGapped bool) error {
+func (d *ocpGatewayDeployer) deployGateway(ctx context.Context, zone, image string, airGapped bool) error {
 	machineSet, err := d.initMachineSet(MachineName(d.azure.Region), zone, image, airGapped)
 	if err != nil {
 		return err
 	}
 
-	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
+	return errors.Wrapf(d.msDeployer.Deploy(ctx, machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
 // MachineName generates a machine name for the gateway.
@@ -321,7 +321,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 }
 
 func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, status reporter.Interface) error {
-	machineSetList, err := d.msDeployer.List()
+	machineSetList, err := d.msDeployer.List(ctx)
 	if err != nil {
 		return status.Error(err, "error listing the Submariner gateway nodes")
 	}
@@ -334,7 +334,7 @@ func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, status reporter.
 	for i := range machineSetList {
 		status.Start("Deleting the gateway instance %q", machineSetList[i].GetName())
 
-		err = d.msDeployer.DeleteByName(machineSetList[i].GetName(), machineSetList[i].GetNamespace())
+		err = d.msDeployer.DeleteByName(ctx, machineSetList[i].GetName(), machineSetList[i].GetNamespace())
 		if err != nil {
 			return status.Error(err, "error deleting the gateway instance from node: %q",
 				machineSetList[i].GetName())

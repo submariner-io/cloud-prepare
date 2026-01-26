@@ -45,19 +45,19 @@ const (
 // MachineSetDeployer can deploy and delete machinesets from OCP.
 type MachineSetDeployer interface {
 	// Deploy makes sure to deploy the given machine set (creating or updating it).
-	Deploy(machineSet *unstructured.Unstructured) error
+	Deploy(ctx context.Context, machineSet *unstructured.Unstructured) error
 
 	// GetWorkerNodeImage returns the image used by OCP worker nodes.
-	GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error)
+	GetWorkerNodeImage(ctx context.Context, machineSet *unstructured.Unstructured, infraID string) (string, error)
 
 	// List will list all the machineSets that have the submariner.io/gateway set to "true".
-	List() ([]unstructured.Unstructured, error)
+	List(ctx context.Context) ([]unstructured.Unstructured, error)
 
 	// Delete will remove the given machineset.
-	Delete(machineSet *unstructured.Unstructured) error
+	Delete(ctx context.Context, machineSet *unstructured.Unstructured) error
 
 	// DeleteByName will remove the machineset with given name.
-	DeleteByName(name, namespace string) error
+	DeleteByName(ctx context.Context, name, namespace string) error
 }
 
 type k8sMachineSetDeployer struct {
@@ -94,7 +94,7 @@ func (msd *k8sMachineSetDeployer) clientForMsd(nameSpace string) dynamic.Resourc
 	return msd.dynamicClient.Resource(machinesetGVR).Namespace(nameSpace)
 }
 
-func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string,
+func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(ctx context.Context, machineSet *unstructured.Unstructured, infraID string,
 ) (string, error) {
 	machineSetClient := msd.clientForMsd("openshift-machine-api")
 
@@ -107,7 +107,7 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 		}
 	}
 
-	nodeList, err := machineSetClient.List(context.TODO(), metav1.ListOptions{})
+	nodeList, err := machineSetClient.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return "", errors.Wrapf(err, "error listing the machineSets")
 	}
@@ -154,25 +154,25 @@ func getImageFromMachineSet(existing *unstructured.Unstructured) string {
 	return ""
 }
 
-func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
+func (msd *k8sMachineSetDeployer) Deploy(ctx context.Context, machineSet *unstructured.Unstructured) error {
 	machineSetClient, err := msd.clientFor(machineSet)
 	if err != nil {
 		return err
 	}
 
-	_, err = util.CreateOrUpdate(context.TODO(), resource.ForDynamic(machineSetClient), machineSet,
+	_, err = util.CreateOrUpdate(ctx, resource.ForDynamic(machineSetClient), machineSet,
 		util.Replace[*unstructured.Unstructured](machineSet))
 
 	return errors.Wrapf(err, "error creating machine set %#v", machineSet)
 }
 
-func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) error {
+func (msd *k8sMachineSetDeployer) Delete(ctx context.Context, machineSet *unstructured.Unstructured) error {
 	machineSetClient, err := msd.clientFor(machineSet)
 	if err != nil {
 		return err
 	}
 
-	err = machineSetClient.Delete(context.TODO(), machineSet.GetName(), metav1.DeleteOptions{})
+	err = machineSetClient.Delete(ctx, machineSet.GetName(), metav1.DeleteOptions{})
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
@@ -180,10 +180,10 @@ func (msd *k8sMachineSetDeployer) Delete(machineSet *unstructured.Unstructured) 
 	return errors.Wrapf(err, "error deleting machine set %q", machineSet.GetName())
 }
 
-func (msd *k8sMachineSetDeployer) DeleteByName(name, namespace string) error {
+func (msd *k8sMachineSetDeployer) DeleteByName(ctx context.Context, name, namespace string) error {
 	machineSetClient := msd.clientForMsd(namespace)
 
-	err := machineSetClient.Delete(context.TODO(), name, metav1.DeleteOptions{})
+	err := machineSetClient.Delete(ctx, name, metav1.DeleteOptions{})
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
@@ -191,10 +191,10 @@ func (msd *k8sMachineSetDeployer) DeleteByName(name, namespace string) error {
 	return errors.Wrapf(err, "error deleting machine set %q", name)
 }
 
-func (msd *k8sMachineSetDeployer) List() ([]unstructured.Unstructured, error) {
+func (msd *k8sMachineSetDeployer) List(ctx context.Context) ([]unstructured.Unstructured, error) {
 	machineSetClient := msd.clientForMsd("")
 
-	machineSetList, err := machineSetClient.List(context.TODO(), metav1.ListOptions{})
+	machineSetList, err := machineSetClient.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to list machinesets")
 	}

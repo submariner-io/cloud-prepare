@@ -124,8 +124,8 @@ func testDeploy() {
 		var machineSets map[string]*unstructured.Unstructured
 
 		BeforeEach(func() {
-			t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, infraID).Return("test-image", nil).Maybe()
-			t.msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(machineSetFn(&machineSets)).Times(2)
+			t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, infraID).Return("test-image", nil).Maybe()
+			t.msDeployer.EXPECT().Deploy(mock.Anything, mock.Anything).RunAndReturn(machineSetFn(&machineSets)).Times(2)
 
 			t.numGateways = 2
 		})
@@ -215,7 +215,7 @@ func testCleanup() {
 			t.instances[zone1][0].Tags.Items = []string{submarinerGatewayNodeTag}
 			t.instances[zone2][0].Tags.Items = []string{submarinerGatewayNodeTag}
 
-			t.msDeployer.EXPECT().Delete(mock.Anything).RunAndReturn(machineSetFn(&machineSets)).Times(2)
+			t.msDeployer.EXPECT().Delete(mock.Anything, mock.Anything).RunAndReturn(machineSetFn(&machineSets)).Times(2)
 		})
 
 		It("should delete them", func() {
@@ -454,10 +454,10 @@ func labelNode(node *corev1.Node) *corev1.Node {
 }
 
 //nolint:gocritic // Error: "consider `machineSets' to be of non-pointer type"
-func machineSetFn(machineSets *map[string]*unstructured.Unstructured) func(ms *unstructured.Unstructured) error {
+func machineSetFn(machineSets *map[string]*unstructured.Unstructured) func(_ context.Context, ms *unstructured.Unstructured) error {
 	*machineSets = map[string]*unstructured.Unstructured{}
 
-	return func(ms *unstructured.Unstructured) error {
+	return func(_ context.Context, ms *unstructured.Unstructured) error {
 		zone, ok, _ := unstructured.NestedString(ms.Object, "spec", "template", "spec", "providerSpec", "value", "zone")
 		Expect(ok).To(BeTrue())
 

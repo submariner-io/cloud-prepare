@@ -37,6 +37,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
+var ctx = context.TODO()
+
 var _ = Describe("K8s MachineSetDeployer", func() {
 	const (
 		infraID        = "test-infraID"
@@ -64,7 +66,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 	Context("on GetWorkerNodeImage", func() {
 		When("no worker node exists", func() {
 			It("should return an error", func() {
-				_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+				_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 				Expect(err).ToNot(Succeed())
 			})
 		})
@@ -75,7 +77,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 			})
 
 			JustBeforeEach(func() {
-				_, err := msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				_, err := msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
 			})
 
@@ -91,7 +93,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				})
 
 				It("should return its disk image", func() {
-					image, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+					image, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).To(Succeed())
 					Expect(image).To(Equal("some-image"))
 				})
@@ -99,7 +101,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 			Context("and has no disks", func() {
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).ToNot(Succeed())
 				})
 			})
@@ -113,7 +115,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				})
 
 				It("should return an error", func() {
-					_, err := deployer.GetWorkerNodeImage(machineSet, infraID)
+					_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).To(ContainErrorSubstring(expectedErr))
 				})
 			})
@@ -126,9 +128,9 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 		})
 
 		It("should successfully create the machine set", func() {
-			Expect(deployer.Deploy(machineSet)).To(Succeed())
+			Expect(deployer.Deploy(ctx, machineSet)).To(Succeed())
 
-			_, err := msClient.Get(context.TODO(), machineSetName, metav1.GetOptions{})
+			_, err := msClient.Get(ctx, machineSetName, metav1.GetOptions{})
 			Expect(err).To(Succeed())
 		})
 	})
@@ -140,14 +142,14 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 		When("the machine set exists", func() {
 			BeforeEach(func() {
-				_, err := msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				_, err := msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
 			})
 
 			It("should successfully delete the machine set", func() {
-				Expect(deployer.Delete(machineSet)).To(Succeed())
+				Expect(deployer.Delete(ctx, machineSet)).To(Succeed())
 
-				_, err := msClient.Get(context.TODO(), machineSetName, metav1.GetOptions{})
+				_, err := msClient.Get(ctx, machineSetName, metav1.GetOptions{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 
@@ -157,14 +159,14 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				})
 
 				It("should return an error", func() {
-					Expect(deployer.Delete(machineSet)).ToNot(Succeed())
+					Expect(deployer.Delete(ctx, machineSet)).ToNot(Succeed())
 				})
 			})
 		})
 
 		When("the machine set does not exist", func() {
 			It("should not return an error", func() {
-				Expect(deployer.Delete(machineSet)).To(Succeed())
+				Expect(deployer.Delete(ctx, machineSet)).To(Succeed())
 			})
 		})
 	})
@@ -173,15 +175,15 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 		When("matching and non-matching machine sets exist", func() {
 			BeforeEach(func() {
 				machineSet.SetName(machineSetName)
-				_, err := msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				_, err := msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
 				machineSet = newMachineSet("false")
-				_, err = msClient.Create(context.TODO(), machineSet, metav1.CreateOptions{})
+				_, err = msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
 			})
 
 			It("should return only the matching machine set", func() {
-				machineSetList, err := deployer.List()
+				machineSetList, err := deployer.List(ctx)
 				Expect(err).To(Succeed())
 
 				Expect(machineSetList).To(HaveLen(1))
@@ -191,7 +193,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 		When("a matching machine set does not exist", func() {
 			It("should not return an error", func() {
-				machineSetList, err := deployer.List()
+				machineSetList, err := deployer.List(ctx)
 				Expect(err).To(Succeed())
 				Expect(machineSetList).To(BeEmpty())
 			})
