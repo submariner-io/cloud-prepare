@@ -19,6 +19,7 @@ limitations under the License.
 package gcp
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -46,7 +47,7 @@ func NewCloud(info CloudInfo, //nolint: gocritic //Ignore 'hugeParam' - pass by 
 	return gcpCloud
 }
 
-func (gc *gcpCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
+func (gc *gcpCloud) OpenPorts(_ context.Context, ports []api.PortSpec, status reporter.Interface) error {
 	// Create the inbound firewall rule for submariner internal ports.
 	status.Start("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(ports))
 	defer status.End()
@@ -62,7 +63,7 @@ func (gc *gcpCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) e
 	return nil
 }
 
-func (gc *gcpCloud) ClosePorts(status reporter.Interface) error {
+func (gc *gcpCloud) ClosePorts(_ context.Context, status reporter.Interface) error {
 	// Delete the inbound and outbound firewall rules to close submariner internal ports.
 	internalIngressName := generateRuleName(gc.InfraID, internalPortsRuleName)
 

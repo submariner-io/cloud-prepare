@@ -19,6 +19,7 @@ limitations under the License.
 package gcp_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -45,7 +46,7 @@ func testOpenPorts() {
 	var retError error
 
 	JustBeforeEach(func() {
-		retError = t.cloud.OpenPorts([]api.PortSpec{
+		retError = t.cloud.OpenPorts(context.TODO(), []api.PortSpec{
 			{
 				Port:     100,
 				Protocol: "TCP",
@@ -145,7 +146,7 @@ func testClosePorts() {
 	var retError error
 
 	JustBeforeEach(func() {
-		retError = t.cloud.ClosePorts(reporter.Stdout())
+		retError = t.cloud.ClosePorts(context.TODO(), reporter.Stdout())
 	})
 
 	Context("on success", func() {

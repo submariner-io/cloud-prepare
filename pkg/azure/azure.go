@@ -19,12 +19,16 @@ limitations under the License.
 package azure
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	reporterInterface "github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 )
+
+var operationTimeout = 300 * time.Second
 
 type azureCloud struct {
 	CloudInfo
@@ -37,7 +41,7 @@ func NewCloud(info *CloudInfo) api.Cloud {
 	}
 }
 
-func (az *azureCloud) OpenPorts(ports []api.PortSpec, reporter reporterInterface.Interface) error {
+func (az *azureCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, reporter reporterInterface.Interface) error {
 	reporter.Start("Opening internal ports for intra-cluster communications on Azure")
 
 	nsgClient, err := az.getNsgClient()
@@ -45,7 +49,10 @@ func (az *azureCloud) OpenPorts(ports []api.PortSpec, reporter reporterInterface
 		return reporter.Error(err, "Failed to get network security groups client")
 	}
 
-	if err := az.openInternalPorts(az.InfraID, ports, nsgClient); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, operationTimeout)
+	defer cancel()
+
+	if err := az.openInternalPorts(ctx, az.InfraID, ports, nsgClient); err != nil {
 		return reporter.Error(err, "Failed to open internal ports")
 	}
 
@@ -54,7 +61,7 @@ func (az *azureCloud) OpenPorts(ports []api.PortSpec, reporter reporterInterface
 	return nil
 }
 
-func (az *azureCloud) ClosePorts(reporter reporterInterface.Interface) error {
+func (az *azureCloud) ClosePorts(ctx context.Context, reporter reporterInterface.Interface) error {
 	reporter.Start("Revoking intra-cluster communication permissions")
 
 	nsgClient, err := az.getNsgClient()
@@ -62,7 +69,10 @@ func (az *azureCloud) ClosePorts(reporter reporterInterface.Interface) error {
 		return reporter.Error(err, "Failed to get network security groups client")
 	}
 
-	if err := az.removeInternalFirewallRules(az.InfraID, nsgClient); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, operationTimeout)
+	defer cancel()
+
+	if err := az.removeInternalFirewallRules(ctx, az.InfraID, nsgClient); err != nil {
 		return reporter.Error(err, "Failed to revoke intra-cluster communication permissions")
 	}
 

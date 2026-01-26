@@ -40,7 +40,7 @@ func determinePermissionError(err error, operation string) error {
 	return errors.Wrapf(err, "error while checking permissions for %s", operation)
 }
 
-func (ac *awsCloud) validateCreateSecGroup(vpcID string) error {
+func (ac *awsCloud) validateCreateSecGroup(ctx context.Context, vpcID string) error {
 	input := &ec2.CreateSecurityGroupInput{
 		DryRun:      ptr.To(true),
 		GroupName:   ptr.To(permissionsTest),
@@ -48,12 +48,12 @@ func (ac *awsCloud) validateCreateSecGroup(vpcID string) error {
 		VpcId:       ptr.To(vpcID),
 	}
 
-	_, err := ac.client.CreateSecurityGroup(context.TODO(), input)
+	_, err := ac.client.CreateSecurityGroup(ctx, input)
 
 	return determinePermissionError(err, "create security group")
 }
 
-func (ac *awsCloud) validateCreateSecGroupRule(vpcID string) error {
+func (ac *awsCloud) validateCreateSecGroupRule(ctx context.Context, vpcID string) error {
 	var workerGroupID *string
 
 	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
@@ -65,7 +65,7 @@ func (ac *awsCloud) validateCreateSecGroupRule(vpcID string) error {
 	} else {
 		var err error
 
-		workerGroupID, err = ac.getSecurityGroupName(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
+		workerGroupID, err = ac.getSecurityGroupName(ctx, vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 		if err != nil {
 			return err
 		}
@@ -76,13 +76,13 @@ func (ac *awsCloud) validateCreateSecGroupRule(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err := ac.client.AuthorizeSecurityGroupIngress(context.TODO(), input)
+	_, err := ac.client.AuthorizeSecurityGroupIngress(ctx, input)
 
 	return determinePermissionError(err, "authorize security group ingress")
 }
 
-func (ac *awsCloud) validateCreateTag(subnetID string) error {
-	_, err := ac.client.CreateTags(context.TODO(), &ec2.CreateTagsInput{
+func (ac *awsCloud) validateCreateTag(ctx context.Context, subnetID string) error {
+	_, err := ac.client.CreateTags(ctx, &ec2.CreateTagsInput{
 		DryRun:    ptr.To(true),
 		Resources: []string{subnetID},
 		Tags: []types.Tag{
@@ -93,15 +93,15 @@ func (ac *awsCloud) validateCreateTag(subnetID string) error {
 	return determinePermissionError(err, "create tags on subnets")
 }
 
-func (ac *awsCloud) validateDescribeInstanceTypeOfferings() error {
-	_, err := ac.client.DescribeInstanceTypeOfferings(context.TODO(), &ec2.DescribeInstanceTypeOfferingsInput{
+func (ac *awsCloud) validateDescribeInstanceTypeOfferings(ctx context.Context) error {
+	_, err := ac.client.DescribeInstanceTypeOfferings(ctx, &ec2.DescribeInstanceTypeOfferingsInput{
 		DryRun: ptr.To(true),
 	})
 
 	return determinePermissionError(err, "describe instance type offerings")
 }
 
-func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
+func (ac *awsCloud) validateDeleteSecGroup(ctx context.Context, vpcID string) error {
 	var workerGroupID *string
 
 	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
@@ -113,7 +113,7 @@ func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
 	} else {
 		var err error
 
-		workerGroupID, err = ac.getSecurityGroupName(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
+		workerGroupID, err = ac.getSecurityGroupName(ctx, vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 		if err != nil {
 			return err
 		}
@@ -124,12 +124,12 @@ func (ac *awsCloud) validateDeleteSecGroup(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err := ac.client.DeleteSecurityGroup(context.TODO(), input)
+	_, err := ac.client.DeleteSecurityGroup(ctx, input)
 
 	return determinePermissionError(err, "delete security group")
 }
 
-func (ac *awsCloud) validateDeleteSecGroupRule(vpcID string) error {
+func (ac *awsCloud) validateDeleteSecGroupRule(ctx context.Context, vpcID string) error {
 	var workerGroupID *string
 
 	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
@@ -141,7 +141,7 @@ func (ac *awsCloud) validateDeleteSecGroupRule(vpcID string) error {
 	} else {
 		var err error
 
-		workerGroupID, err = ac.getSecurityGroupName(vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
+		workerGroupID, err = ac.getSecurityGroupName(ctx, vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
 		if err != nil {
 			return err
 		}
@@ -152,13 +152,13 @@ func (ac *awsCloud) validateDeleteSecGroupRule(vpcID string) error {
 		GroupId: workerGroupID,
 	}
 
-	_, err := ac.client.RevokeSecurityGroupIngress(context.TODO(), input)
+	_, err := ac.client.RevokeSecurityGroupIngress(ctx, input)
 
 	return determinePermissionError(err, "revoke security group ingress")
 }
 
-func (ac *awsCloud) validateRemoveTag(subnetID *string) error {
-	_, err := ac.client.DeleteTags(context.TODO(), &ec2.DeleteTagsInput{
+func (ac *awsCloud) validateRemoveTag(ctx context.Context, subnetID *string) error {
+	_, err := ac.client.DeleteTags(ctx, &ec2.DeleteTagsInput{
 		DryRun:    ptr.To(true),
 		Resources: []string{*subnetID},
 		Tags: []types.Tag{

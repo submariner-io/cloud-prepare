@@ -20,6 +20,7 @@ package rhos
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -135,7 +136,7 @@ func (d *ocpGatewayDeployer) deployGateway(useInternalSG bool) error {
 	return errors.Wrap(d.msDeployer.Deploy(machineSet), "failed to deploy submariner gateway node")
 }
 
-func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Deploy(_ context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
 	status.Start("Configuring the required firewall rules for inter-cluster traffic")
 	defer status.End()
 
@@ -229,7 +230,7 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gatewayNodesToDeploy int, use
 	return nil
 }
 
-func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Cleanup(_ context.Context, status reporter.Interface) error {
 	computeClient, err := NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
 	if err != nil {
 		return status.Error(err, "error creating the compute client for the region: %q", d.Region)

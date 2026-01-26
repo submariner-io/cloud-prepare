@@ -19,6 +19,7 @@ limitations under the License.
 package aws_test
 
 import (
+	"context"
 	"errors"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -305,7 +306,7 @@ func (t *gatewayDeployerTestDriver) expectedInstanceType() string {
 }
 
 func (t *gatewayDeployerTestDriver) doDeploy() {
-	t.retError = t.gwDeployer.Deploy(api.GatewayDeployInput{
+	t.retError = t.gwDeployer.Deploy(context.TODO(), api.GatewayDeployInput{
 		Gateways: t.numGateways,
 		PublicPorts: []api.PortSpec{
 			{
@@ -321,7 +322,7 @@ func (t *gatewayDeployerTestDriver) doDeploy() {
 }
 
 func (t *gatewayDeployerTestDriver) doCleanup() {
-	t.retError = t.gwDeployer.Cleanup(reporter.Stdout())
+	t.retError = t.gwDeployer.Cleanup(context.TODO(), reporter.Stdout())
 }
 
 func (t *gatewayDeployerTestDriver) expectDeployValidations(enforce bool) {

@@ -19,6 +19,7 @@ limitations under the License.
 package rhos_test
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -54,6 +55,8 @@ const (
 	gwSecurityGroup       = testInfraID + rhos.GwSecurityGroupSuffix
 	internalSecurityGroup = testInfraID + rhos.InternalSecurityGroupSuffix
 )
+
+var ctx = context.TODO()
 
 func TestRHOS(t *testing.T) {
 	RegisterFailHandler(Fail)

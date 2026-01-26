@@ -19,7 +19,6 @@ limitations under the License.
 package rhos_test
 
 import (
-	"context"
 	"slices"
 
 	"github.com/gophercloud/gophercloud"
@@ -53,7 +52,7 @@ func testDeploy() {
 	})
 
 	It("should deploy a gateway node machine set and security group rules", func() {
-		Expect(t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout())).To(Succeed())
+		Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 
 		t.assertMachineSet(false, SubnetParam{
 			Filter: SubnetFilter{
@@ -79,7 +78,7 @@ func testDeploy() {
 		})
 
 		It("should deploy a gateway node machine with the subnets applied", func() {
-			Expect(t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout())).To(Succeed())
+			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 
 			t.assertMachineSet(false, SubnetParam{
 				Filter: SubnetFilter{
@@ -103,7 +102,7 @@ func testDeploy() {
 		})
 
 		It("should deploy a gateway node machine set with the internal security group", func() {
-			Expect(t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout())).To(Succeed())
+			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 			t.assertMachineSet(true)
 		})
 	})
@@ -118,7 +117,7 @@ func testDeploy() {
 		})
 
 		It("should not try to recreate it", func() {
-			Expect(t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout())).To(Succeed())
+			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 			Expect(t.securityGroupsCreated).To(BeEmpty())
 		})
 	})
@@ -131,15 +130,15 @@ func testDeploy() {
 		})
 
 		It("should open the gateway port and not deploy a machine set", func() {
-			Expect(t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout())).To(Succeed())
+			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 			t.assertServerSecGroup(gwSecurityGroup)
 		})
 
-		t.testErrors(func() error { return t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout()) },
+		t.testErrors(func() error { return t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout()) },
 			extractServersErrEntry())
 	})
 
-	t.testErrors(func() error { return t.gwDeployer.Deploy(t.gwDeployInput, reporter.Stdout()) },
+	t.testErrors(func() error { return t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		newNetworkV2ErrEntry(),
 		createSecurityGroupErrEntry(),
@@ -184,17 +183,17 @@ func testCleanup() {
 	})
 
 	It("should delete the gateway machine sets and security groups", func() {
-		Expect(t.gwDeployer.Cleanup(reporter.Stdout())).To(Succeed())
+		Expect(t.gwDeployer.Cleanup(ctx, reporter.Stdout())).To(Succeed())
 		Expect(t.existingMachineSets).To(BeEmpty())
 		Expect(t.existingSecurityGroups).To(BeEmpty())
 		t.assertNoServerSecGroup(gwSecurityGroup)
 
-		node, err := t.kubeClient.CoreV1().Nodes().Get(context.TODO(), nodeName3, metav1.GetOptions{})
+		node, err := t.kubeClient.CoreV1().Nodes().Get(ctx, nodeName3, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(node.Labels).NotTo(HaveKey(k8s.SubmarinerGatewayLabel))
 	})
 
-	t.testErrors(func() error { return t.gwDeployer.Cleanup(reporter.Stdout()) },
+	t.testErrors(func() error { return t.gwDeployer.Cleanup(ctx, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		deleteSecurityGroupErrEntry(),
 		extractSecurityGroupsErrEntry(),
@@ -319,7 +318,7 @@ func (t *gatewayDeployerTestDriver) assertMachineSet(useInternalSG bool, expSubn
 }
 
 func (t *gatewayDeployerTestDriver) createGatewayNode(name string) {
-	_, err := t.kubeClient.CoreV1().Nodes().Create(context.TODO(), &corev1.Node{
+	_, err := t.kubeClient.CoreV1().Nodes().Create(ctx, &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: map[string]string{k8s.SubmarinerGatewayLabel: "true"},

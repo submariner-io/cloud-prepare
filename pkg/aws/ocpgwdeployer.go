@@ -58,11 +58,11 @@ func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, i
 	}, nil
 }
 
-func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
 
-	vpcID, err := d.aws.getVpcID()
+	vpcID, err := d.aws.getVpcID(ctx)
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
@@ -70,7 +70,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	status.Success(messageRetrievedVPCID, vpcID)
 
 	if _, found := d.aws.cloudConfig[VPCIDKey]; !found {
-		err = d.aws.setSuffixes(vpcID)
+		err = d.aws.setSuffixes(ctx, vpcID)
 		if err != nil {
 			return status.Error(err, "unable to retrieve the security group names")
 		}
@@ -83,7 +83,7 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 	if subnets, exists := d.aws.cloudConfig[PublicSubnetListKey]; exists {
 		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
 			for _, id := range subnetIDs {
-				subnet, err := d.aws.getSubnetByID(id)
+				subnet, err := d.aws.getSubnetByID(ctx, id)
 				if err != nil {
 					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
 				}
@@ -94,13 +94,13 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
 		}
 	} else {
-		publicSubnets, err = d.aws.findPublicSubnets(vpcID, d.aws.filterByName("{infraID}*-public-{region}*"))
+		publicSubnets, err = d.aws.findPublicSubnets(ctx, vpcID, d.aws.filterByName("{infraID}*-public-{region}*"))
 		if err != nil {
 			return status.Error(err, "unable to find public subnets")
 		}
 	}
 
-	err = d.validateDeployPrerequisites(vpcID, input, publicSubnets)
+	err = d.validateDeployPrerequisites(ctx, vpcID, input, publicSubnets)
 	if err != nil {
 		return status.Error(err, "unable to validate prerequisites")
 	}
@@ -109,20 +109,20 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 
 	status.Start("Creating Submariner gateway security group")
 
-	gatewaySG, err := d.aws.createGatewaySG(vpcID, input.PublicPorts)
+	gatewaySG, err := d.aws.createGatewaySG(ctx, vpcID, input.PublicPorts)
 	if err != nil {
 		return status.Error(err, "unable to create gateway")
 	}
 
 	status.Success("Created Submariner gateway security group %s", gatewaySG)
 
-	return d.processSubnets(vpcID, gatewaySG, publicSubnets, input, status)
+	return d.processSubnets(ctx, vpcID, gatewaySG, publicSubnets, input, status)
 }
 
-func (d *ocpGatewayDeployer) processSubnets(vpcID, gatewaySG string, publicSubnets []types.Subnet,
+func (d *ocpGatewayDeployer) processSubnets(ctx context.Context, vpcID, gatewaySG string, publicSubnets []types.Subnet,
 	input api.GatewayDeployInput, status reporter.Interface,
 ) error {
-	subnets, err := d.aws.getSubnetsSupportingInstanceType(publicSubnets, d.instanceType)
+	subnets, err := d.aws.getSubnetsSupportingInstanceType(ctx, publicSubnets, d.instanceType)
 	if err != nil {
 		return status.Error(err, "unable to get subnets supporting instance type")
 	}
@@ -145,7 +145,7 @@ func (d *ocpGatewayDeployer) processSubnets(vpcID, gatewaySG string, publicSubne
 
 		status.Start("Adjusting public subnet %s to support Submariner", subnetName)
 
-		err = d.aws.tagPublicSubnet(subnet.SubnetId)
+		err = d.aws.tagPublicSubnet(ctx, subnet.SubnetId)
 		if err != nil {
 			return status.Error(err, "unable to tag public subnet")
 		}
@@ -161,7 +161,7 @@ func (d *ocpGatewayDeployer) processSubnets(vpcID, gatewaySG string, publicSubne
 
 		status.Start("Deploying gateway node for public subnet %s", subnetName)
 
-		err = d.deployGateway(vpcID, gatewaySG, subnet)
+		err = d.deployGateway(ctx, vpcID, gatewaySG, subnet)
 		if err != nil {
 			return status.Error(err, "unable to deploy gateway")
 		}
@@ -172,15 +172,15 @@ func (d *ocpGatewayDeployer) processSubnets(vpcID, gatewaySG string, publicSubne
 	return nil
 }
 
-func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api.GatewayDeployInput,
+func (d *ocpGatewayDeployer) validateDeployPrerequisites(ctx context.Context, vpcID string, input api.GatewayDeployInput,
 	publicSubnets []types.Subnet,
 ) error {
 	var errs []error
 	var subnets []types.Subnet
 
-	errs = appendIfError(errs, d.aws.validateCreateSecGroup(vpcID))
-	errs = appendIfError(errs, d.aws.validateCreateSecGroupRule(vpcID))
-	err := d.aws.validateDescribeInstanceTypeOfferings()
+	errs = appendIfError(errs, d.aws.validateCreateSecGroup(ctx, vpcID))
+	errs = appendIfError(errs, d.aws.validateCreateSecGroupRule(ctx, vpcID))
+	err := d.aws.validateDescribeInstanceTypeOfferings(ctx)
 	errs = appendIfError(errs, err)
 
 	if err != nil {
@@ -190,7 +190,7 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 	// If instanceType is not specified, auto-select the most suitable one.
 	if d.instanceType == "" {
 		for _, instanceType := range PreferredInstances {
-			subnets, err = d.aws.getSubnetsSupportingInstanceType(publicSubnets, instanceType)
+			subnets, err = d.aws.getSubnetsSupportingInstanceType(ctx, publicSubnets, instanceType)
 			if err != nil {
 				return err
 			}
@@ -201,7 +201,7 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 			}
 		}
 	} else {
-		subnets, err = d.aws.getSubnetsSupportingInstanceType(publicSubnets, d.instanceType)
+		subnets, err = d.aws.getSubnetsSupportingInstanceType(ctx, publicSubnets, d.instanceType)
 		if err != nil {
 			return err
 		}
@@ -214,7 +214,7 @@ func (d *ocpGatewayDeployer) validateDeployPrerequisites(vpcID string, input api
 	}
 
 	if len(subnets) > 0 {
-		errs = appendIfError(errs, d.aws.validateCreateTag(*subnets[0].SubnetId))
+		errs = appendIfError(errs, d.aws.validateCreateTag(ctx, *subnets[0].SubnetId))
 	}
 
 	return goerrors.Join(errs...)
@@ -231,13 +231,13 @@ type machineSetConfig struct {
 	NodeSG        string
 }
 
-func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
+func (d *ocpGatewayDeployer) findAMIID(ctx context.Context, vpcID string) (string, error) {
 	ownedFilters := d.aws.filterByCurrentCluster()
 	var err error
 	var result *ec2.DescribeInstancesOutput
 
 	for i := range ownedFilters {
-		result, err = d.aws.client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{
+		result, err = d.aws.client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 			Filters: []types.Filter{
 				ec2Filter("vpc-id", vpcID),
 				d.aws.filterByName("{infraID}-worker*"),
@@ -268,7 +268,9 @@ func (d *ocpGatewayDeployer) findAMIID(vpcID string) (string, error) {
 	return *result.Reservations[0].Instances[0].ImageId, nil
 }
 
-func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string, publicSubnet *types.Subnet) ([]byte, error) {
+func (d *ocpGatewayDeployer) loadGatewayYAML(ctx context.Context, gatewaySecurityGroup, amiID string,
+	publicSubnet *types.Subnet,
+) ([]byte, error) {
 	var buf bytes.Buffer
 
 	tpl, err := template.New("").Parse(machineSetYAML)
@@ -288,7 +290,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 
 	if id, exists := d.aws.cloudConfig[WorkerSecurityGroupIDKey]; exists {
 		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
-			workerSecurityGroup, err := d.aws.getSecurityGroupByID(workerGroupIDStr)
+			workerSecurityGroup, err := d.aws.getSecurityGroupByID(ctx, workerGroupIDStr)
 			if err != nil {
 				return nil, errors.Wrapf(err, "error finding the worker security group with ID %s", workerGroupIDStr)
 			}
@@ -313,8 +315,10 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(gatewaySecurityGroup, amiID string,
 	return buf.Bytes(), nil
 }
 
-func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publicSubnet *types.Subnet) (*unstructured.Unstructured, error) {
-	gatewayYAML, err := d.loadGatewayYAML(gwSecurityGroup, amiID, publicSubnet)
+func (d *ocpGatewayDeployer) initMachineSet(ctx context.Context, gwSecurityGroup, amiID string,
+	publicSubnet *types.Subnet,
+) (*unstructured.Unstructured, error) {
+	gatewayYAML, err := d.loadGatewayYAML(ctx, gwSecurityGroup, amiID, publicSubnet)
 	if err != nil {
 		return nil, err
 	}
@@ -331,13 +335,13 @@ func (d *ocpGatewayDeployer) initMachineSet(gwSecurityGroup, amiID string, publi
 	return machineSet, nil
 }
 
-func (d *ocpGatewayDeployer) deployGateway(vpcID, gatewaySecurityGroup string, publicSubnet *types.Subnet) error {
-	amiID, err := d.findAMIID(vpcID)
+func (d *ocpGatewayDeployer) deployGateway(ctx context.Context, vpcID, gatewaySecurityGroup string, publicSubnet *types.Subnet) error {
+	amiID, err := d.findAMIID(ctx, vpcID)
 	if err != nil {
 		return err
 	}
 
-	machineSet, err := d.initMachineSet(gatewaySecurityGroup, amiID, publicSubnet)
+	machineSet, err := d.initMachineSet(ctx, gatewaySecurityGroup, amiID, publicSubnet)
 	if err != nil {
 		return err
 	}
@@ -345,11 +349,11 @@ func (d *ocpGatewayDeployer) deployGateway(vpcID, gatewaySecurityGroup string, p
 	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
-func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
 
-	vpcID, err := d.aws.getVpcID()
+	vpcID, err := d.aws.getVpcID(ctx)
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
@@ -357,7 +361,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 	status.Success(messageRetrievedVPCID, vpcID)
 
 	if _, found := d.aws.cloudConfig[VPCIDKey]; !found {
-		err = d.aws.setSuffixes(vpcID)
+		err = d.aws.setSuffixes(ctx, vpcID)
 		if err != nil {
 			return status.Error(err, "unable to retrieve the security group names")
 		}
@@ -365,7 +369,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 
 	status.Start(messageValidatePrerequisites)
 
-	err = d.validateCleanupPrerequisites(vpcID)
+	err = d.validateCleanupPrerequisites(ctx, vpcID)
 	if err != nil {
 		return status.Error(err, "unable to validate prerequisites")
 	}
@@ -377,7 +381,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 	if subnets, exists := d.aws.cloudConfig[PublicSubnetListKey]; exists {
 		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
 			for _, id := range subnetIDs {
-				subnet, err := d.aws.getSubnetByID(id)
+				subnet, err := d.aws.getSubnetByID(ctx, id)
 				if err != nil {
 					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
 				}
@@ -388,7 +392,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
 		}
 	} else {
-		publicSubnets, err = d.aws.getTaggedPublicSubnets(vpcID)
+		publicSubnets, err = d.aws.getTaggedPublicSubnets(ctx, vpcID)
 		if err != nil {
 			return err
 		}
@@ -400,7 +404,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 
 		status.Start("Removing gateway node for public subnet %s", subnetName)
 
-		err = d.deleteGateway(subnet)
+		err = d.deleteGateway(ctx, subnet)
 		if err != nil {
 			return status.Error(err, "unable to remove gateway node")
 		}
@@ -409,7 +413,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 
 		status.Start("Untagging public subnet %s from supporting Submariner", subnetName)
 
-		err = d.aws.untagPublicSubnet(subnet.SubnetId)
+		err = d.aws.untagPublicSubnet(ctx, subnet.SubnetId)
 		if err != nil {
 			return status.Error(err, "unable to untag subnet")
 		}
@@ -419,7 +423,7 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 
 	status.Start("Deleting Submariner gateway security group")
 
-	err = d.aws.deleteGatewaySG(vpcID)
+	err = d.aws.deleteGatewaySG(ctx, vpcID)
 	if err != nil {
 		return status.Error(err, "unable to delete gateway")
 	}
@@ -429,25 +433,25 @@ func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
 	return nil
 }
 
-func (d *ocpGatewayDeployer) validateCleanupPrerequisites(vpcID string) error {
+func (d *ocpGatewayDeployer) validateCleanupPrerequisites(ctx context.Context, vpcID string) error {
 	var errs []error
 
-	errs = appendIfError(errs, d.aws.validateDeleteSecGroup(vpcID))
+	errs = appendIfError(errs, d.aws.validateDeleteSecGroup(ctx, vpcID))
 
-	subnets, err := d.aws.getTaggedPublicSubnets(vpcID)
+	subnets, err := d.aws.getTaggedPublicSubnets(ctx, vpcID)
 	if err != nil {
 		return err
 	}
 
 	if len(subnets) > 0 {
-		errs = appendIfError(errs, d.aws.validateRemoveTag(subnets[0].SubnetId))
+		errs = appendIfError(errs, d.aws.validateRemoveTag(ctx, subnets[0].SubnetId))
 	}
 
 	return goerrors.Join(errs...)
 }
 
-func (d *ocpGatewayDeployer) deleteGateway(publicSubnet *types.Subnet) error {
-	machineSet, err := d.initMachineSet("", "", publicSubnet)
+func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, publicSubnet *types.Subnet) error {
+	machineSet, err := d.initMachineSet(ctx, "", "", publicSubnet)
 	if err != nil {
 		return err
 	}

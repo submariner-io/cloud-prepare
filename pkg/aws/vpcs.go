@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (ac *awsCloud) getVpcID() (string, error) {
+func (ac *awsCloud) getVpcID(ctx context.Context) (string, error) {
 	var err error
 	var result *ec2.DescribeVpcsOutput
 
@@ -48,7 +48,7 @@ func (ac *awsCloud) getVpcID() (string, error) {
 			ownedFilters[i],
 		}
 
-		result, err = ac.client.DescribeVpcs(context.TODO(), &ec2.DescribeVpcsInput{Filters: filters})
+		result, err = ac.client.DescribeVpcs(ctx, &ec2.DescribeVpcsInput{Filters: filters})
 		if err != nil {
 			return "", errors.Wrap(err, "error describing AWS VPCs")
 		}

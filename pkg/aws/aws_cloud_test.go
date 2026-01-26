@@ -19,6 +19,7 @@ limitations under the License.
 package aws_test
 
 import (
+	"context"
 	"errors"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -43,7 +44,7 @@ func testOpenPorts() {
 		t.expectDescribeVpcsSigs(t.vpcID)
 		t.expectDescribePublicSubnets(t.subnets...)
 
-		retError = t.cloud.OpenPorts([]api.PortSpec{
+		retError = t.cloud.OpenPorts(context.TODO(), []api.PortSpec{
 			{
 				Port:     100,
 				Protocol: "TCP",
@@ -121,7 +122,7 @@ func testClosePorts() {
 		t.expectDescribePublicSubnets(t.subnets...)
 		t.expectDescribePublicSubnetsSigs(t.subnets...)
 
-		retError = t.cloud.ClosePorts(reporter.Stdout())
+		retError = t.cloud.ClosePorts(context.TODO(), reporter.Stdout())
 	})
 
 	Context("on success", func() {

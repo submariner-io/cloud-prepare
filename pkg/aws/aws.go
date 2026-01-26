@@ -118,13 +118,13 @@ func NewCloudFromConfig(cfg *aws.Config, infraID, region string, opts ...CloudOp
 
 // NewCloudFromSettings creates a new api.Cloud instance using the given credentials file and profile
 // which can prepare AWS for Submariner to be deployed on it.
-func NewCloudFromSettings(credentialsFile, profile, infraID, region string, opts ...CloudOption) (api.Cloud, error) {
+func NewCloudFromSettings(ctx context.Context, credentialsFile, profile, infraID, region string, opts ...CloudOption) (api.Cloud, error) {
 	options := []func(*config.LoadOptions) error{config.WithRegion(region), config.WithSharedConfigProfile(profile)}
 	if credentialsFile != DefaultCredentialsFile() {
 		options = append(options, config.WithSharedCredentialsFiles([]string{credentialsFile}))
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(), options...)
+	cfg, err := config.LoadDefaultConfig(ctx, options...)
 	if err != nil {
 		return nil, errors.Wrap(err, "error loading default config")
 	}
@@ -142,7 +142,7 @@ func DefaultProfile() string {
 	return "default"
 }
 
-func (ac *awsCloud) setSuffixes(vpcID string) error {
+func (ac *awsCloud) setSuffixes(ctx context.Context, vpcID string) error {
 	if ac.nodeSGSuffix != "" {
 		return nil
 	}
@@ -152,7 +152,7 @@ func (ac *awsCloud) setSuffixes(vpcID string) error {
 	if subnets, exists := ac.cloudConfig[PublicSubnetListKey]; exists {
 		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
 			for _, id := range subnetIDs {
-				subnet, err := ac.getSubnetByID(id)
+				subnet, err := ac.getSubnetByID(ctx, id)
 				if err != nil {
 					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
 				}
@@ -165,7 +165,7 @@ func (ac *awsCloud) setSuffixes(vpcID string) error {
 	} else {
 		var err error
 
-		publicSubnets, err = ac.findPublicSubnets(vpcID, ac.filterByName("{infraID}*-public-{region}*"))
+		publicSubnets, err = ac.findPublicSubnets(ctx, vpcID, ac.filterByName("{infraID}*-public-{region}*"))
 		if err != nil {
 			return errors.Wrapf(err, "unable to find the public subnet")
 		}
@@ -196,17 +196,17 @@ func (ac *awsCloud) setSuffixes(vpcID string) error {
 	return nil
 }
 
-func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
+func (ac *awsCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
 
-	vpcID, err := ac.getVpcID()
+	vpcID, err := ac.getVpcID(ctx)
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
 
 	if _, found := ac.cloudConfig[VPCIDKey]; !found {
-		err = ac.setSuffixes(vpcID)
+		err = ac.setSuffixes(ctx, vpcID)
 		if err != nil {
 			return status.Error(err, "unable to retrieve the security group names")
 		}
@@ -216,7 +216,7 @@ func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) e
 
 	status.Start(messageValidatePrerequisites)
 
-	err = ac.validatePreparePrerequisites(vpcID)
+	err = ac.validatePreparePrerequisites(ctx, vpcID)
 	if err != nil {
 		return status.Error(err, "unable to validate prerequisites")
 	}
@@ -226,7 +226,7 @@ func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) e
 	for _, port := range ports {
 		status.Start("Opening port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
 
-		err = ac.allowPortInCluster(vpcID, port.Port, port.Protocol)
+		err = ac.allowPortInCluster(ctx, vpcID, port.Port, port.Protocol)
 		if err != nil {
 			return status.Error(err, "unable to open port")
 		}
@@ -237,21 +237,21 @@ func (ac *awsCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) e
 	return nil
 }
 
-func (ac *awsCloud) validatePreparePrerequisites(vpcID string) error {
-	return ac.validateCreateSecGroupRule(vpcID)
+func (ac *awsCloud) validatePreparePrerequisites(ctx context.Context, vpcID string) error {
+	return ac.validateCreateSecGroupRule(ctx, vpcID)
 }
 
-func (ac *awsCloud) ClosePorts(status reporter.Interface) error {
+func (ac *awsCloud) ClosePorts(ctx context.Context, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
 	defer status.End()
 
-	vpcID, err := ac.getVpcID()
+	vpcID, err := ac.getVpcID(ctx)
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
 
 	if _, found := ac.cloudConfig[VPCIDKey]; !found {
-		err = ac.setSuffixes(vpcID)
+		err = ac.setSuffixes(ctx, vpcID)
 		if err != nil {
 			return status.Error(err, "unable to retrieve the security group names")
 		}
@@ -261,7 +261,7 @@ func (ac *awsCloud) ClosePorts(status reporter.Interface) error {
 
 	status.Start(messageValidatePrerequisites)
 
-	err = ac.validateCleanupPrerequisites(vpcID)
+	err = ac.validateCleanupPrerequisites(ctx, vpcID)
 	if err != nil {
 		return status.Error(err, "unable to validate prerequisites")
 	}
@@ -270,7 +270,7 @@ func (ac *awsCloud) ClosePorts(status reporter.Interface) error {
 
 	status.Start("Revoking intra-cluster communication permissions")
 
-	err = ac.revokePortsInCluster(vpcID)
+	err = ac.revokePortsInCluster(ctx, vpcID)
 	if err != nil {
 		return status.Error(err, "unable to revoke permissions")
 	}
@@ -280,6 +280,6 @@ func (ac *awsCloud) ClosePorts(status reporter.Interface) error {
 	return nil
 }
 
-func (ac *awsCloud) validateCleanupPrerequisites(vpcID string) error {
-	return ac.validateDeleteSecGroupRule(vpcID)
+func (ac *awsCloud) validateCleanupPrerequisites(ctx context.Context, vpcID string) error {
+	return ac.validateDeleteSecGroupRule(ctx, vpcID)
 }

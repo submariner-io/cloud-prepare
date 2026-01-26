@@ -55,7 +55,7 @@ func testOpenPorts() {
 
 	When("the internal security group does not exist", func() {
 		It("should create the security group and open internal ports", func() {
-			Expect(t.cloud.OpenPorts(ports, reporter.Stdout())).To(Succeed())
+			Expect(t.cloud.OpenPorts(ctx, ports, reporter.Stdout())).To(Succeed())
 
 			Expect(t.securityGroupsCreated).To(ContainElement(internalSecurityGroup))
 
@@ -78,14 +78,14 @@ func testOpenPorts() {
 		})
 
 		It("should not recreate it but should add servers to it", func() {
-			Expect(t.cloud.OpenPorts(ports, reporter.Stdout())).To(Succeed())
+			Expect(t.cloud.OpenPorts(ctx, ports, reporter.Stdout())).To(Succeed())
 
 			Expect(t.securityGroupsCreated).To(BeEmpty())
 			t.assertServerSecGroup(internalSecurityGroup)
 		})
 	})
 
-	t.testErrors(func() error { return t.cloud.OpenPorts(ports, reporter.Stdout()) },
+	t.testErrors(func() error { return t.cloud.OpenPorts(ctx, ports, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		newNetworkV2ErrEntry(),
 		createSecurityGroupErrEntry(),
@@ -114,12 +114,12 @@ func testClosePorts() {
 	})
 
 	It("should remove the security group from servers and delete it", func() {
-		Expect(t.cloud.ClosePorts(reporter.Stdout())).To(Succeed())
+		Expect(t.cloud.ClosePorts(ctx, reporter.Stdout())).To(Succeed())
 
 		t.assertNoServerSecGroup(internalSecurityGroup)
 	})
 
-	t.testErrors(func() error { return t.cloud.ClosePorts(reporter.Stdout()) },
+	t.testErrors(func() error { return t.cloud.ClosePorts(ctx, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		deleteSecurityGroupErrEntry(),
 		extractSecurityGroupsErrEntry(),

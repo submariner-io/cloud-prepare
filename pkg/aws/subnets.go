@@ -54,7 +54,7 @@ func subnetTagged(subnet *types.Subnet) bool {
 	return hasTag(subnet.Tags, tagSubmarinerGateway)
 }
 
-func (ac *awsCloud) findPublicSubnets(vpcID string, filter types.Filter) ([]types.Subnet, error) {
+func (ac *awsCloud) findPublicSubnets(ctx context.Context, vpcID string, filter types.Filter) ([]types.Subnet, error) {
 	ownedFilters := ac.filterByCurrentCluster()
 	var err error
 	var result *ec2.DescribeSubnetsOutput
@@ -66,7 +66,7 @@ func (ac *awsCloud) findPublicSubnets(vpcID string, filter types.Filter) ([]type
 			filter,
 		}
 
-		result, err = ac.client.DescribeSubnets(context.TODO(), &ec2.DescribeSubnetsInput{Filters: filters})
+		result, err = ac.client.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 		if err != nil {
 			return nil, errors.Wrap(err, "error describing AWS subnets")
 		}
@@ -79,9 +79,11 @@ func (ac *awsCloud) findPublicSubnets(vpcID string, filter types.Filter) ([]type
 	return result.Subnets, nil
 }
 
-func (ac *awsCloud) getSubnetsSupportingInstanceType(subnets []types.Subnet, instanceType string) ([]types.Subnet, error) {
+func (ac *awsCloud) getSubnetsSupportingInstanceType(ctx context.Context, subnets []types.Subnet,
+	instanceType string,
+) ([]types.Subnet, error) {
 	return filterSubnets(subnets, func(subnet *types.Subnet) (bool, error) {
-		output, err := ac.client.DescribeInstanceTypeOfferings(context.TODO(), &ec2.DescribeInstanceTypeOfferingsInput{
+		output, err := ac.client.DescribeInstanceTypeOfferings(ctx, &ec2.DescribeInstanceTypeOfferingsInput{
 			LocationType: types.LocationTypeAvailabilityZone,
 			Filters: []types.Filter{
 				ec2Filter("location", *subnet.AvailabilityZone),
@@ -96,12 +98,12 @@ func (ac *awsCloud) getSubnetsSupportingInstanceType(subnets []types.Subnet, ins
 	})
 }
 
-func (ac *awsCloud) getTaggedPublicSubnets(vpcID string) ([]types.Subnet, error) {
-	return ac.findPublicSubnets(vpcID, ec2FilterByTag(tagSubmarinerGateway))
+func (ac *awsCloud) getTaggedPublicSubnets(ctx context.Context, vpcID string) ([]types.Subnet, error) {
+	return ac.findPublicSubnets(ctx, vpcID, ec2FilterByTag(tagSubmarinerGateway))
 }
 
-func (ac *awsCloud) tagPublicSubnet(subnetID *string) error {
-	_, err := ac.client.CreateTags(context.TODO(), &ec2.CreateTagsInput{
+func (ac *awsCloud) tagPublicSubnet(ctx context.Context, subnetID *string) error {
+	_, err := ac.client.CreateTags(ctx, &ec2.CreateTagsInput{
 		Resources: []string{*subnetID},
 		Tags: []types.Tag{
 			tagInternalELB,
@@ -112,8 +114,8 @@ func (ac *awsCloud) tagPublicSubnet(subnetID *string) error {
 	return errors.Wrap(err, "error creating AWS tag")
 }
 
-func (ac *awsCloud) untagPublicSubnet(subnetID *string) error {
-	_, err := ac.client.DeleteTags(context.TODO(), &ec2.DeleteTagsInput{
+func (ac *awsCloud) untagPublicSubnet(ctx context.Context, subnetID *string) error {
+	_, err := ac.client.DeleteTags(ctx, &ec2.DeleteTagsInput{
 		Resources: []string{*subnetID},
 		Tags: []types.Tag{
 			tagInternalELB,
@@ -124,8 +126,8 @@ func (ac *awsCloud) untagPublicSubnet(subnetID *string) error {
 	return errors.Wrap(err, "error deleting AWS tag")
 }
 
-func (ac *awsCloud) getSubnetByID(subnetID string) (*types.Subnet, error) {
-	output, err := ac.client.DescribeSubnets(context.TODO(), &ec2.DescribeSubnetsInput{
+func (ac *awsCloud) getSubnetByID(ctx context.Context, subnetID string) (*types.Subnet, error) {
+	output, err := ac.client.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{
 		SubnetIds: []string{subnetID},
 	})
 	if err != nil {
