@@ -35,11 +35,11 @@ const (
 )
 
 type Interface interface {
-	ListNodesWithLabel(labelSelector string) (*v1.NodeList, error)
-	ListGatewayNodes() (*v1.NodeList, error)
-	AddGWLabelOnNode(nodeName string) error
-	RemoveGWLabelFromWorkerNodes() error
-	RemoveGWLabelFromWorkerNode(node *v1.Node) error
+	ListNodesWithLabel(ctx context.Context, labelSelector string) (*v1.NodeList, error)
+	ListGatewayNodes(ctx context.Context) (*v1.NodeList, error)
+	AddGWLabelOnNode(ctx context.Context, nodeName string) error
+	RemoveGWLabelFromWorkerNodes(ctx context.Context) error
+	RemoveGWLabelFromWorkerNode(ctx context.Context, node *v1.Node) error
 }
 
 type k8sIface struct {
@@ -50,8 +50,8 @@ func NewInterface(clientSet kubernetes.Interface) Interface {
 	return &k8sIface{clientSet: clientSet}
 }
 
-func (k *k8sIface) ListNodesWithLabel(labelSelector string) (*v1.NodeList, error) {
-	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+func (k *k8sIface) ListNodesWithLabel(ctx context.Context, labelSelector string) (*v1.NodeList, error) {
+	nodes, err := k.clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to list the nodes in the cluster")
 	}
@@ -59,10 +59,10 @@ func (k *k8sIface) ListNodesWithLabel(labelSelector string) (*v1.NodeList, error
 	return nodes, nil
 }
 
-func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
+func (k *k8sIface) ListGatewayNodes(ctx context.Context) (*v1.NodeList, error) {
 	labelSelector := SubmarinerGatewayLabel + "=true"
 
-	nodes, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector})
+	nodes, err := k.clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to list the Gateway nodes in the cluster")
 	}
@@ -70,7 +70,7 @@ func (k *k8sIface) ListGatewayNodes() (*v1.NodeList, error) {
 	return nodes, nil
 }
 
-func (k *k8sIface) updateLabel(nodeName string, mutate func(existing *v1.Node)) error {
+func (k *k8sIface) updateLabel(ctx context.Context, nodeName string, mutate func(existing *v1.Node)) error {
 	client := &resource.InterfaceFuncs[*v1.Node]{
 		GetFunc: func(ctx context.Context, name string, options metav1.GetOptions) (*v1.Node, error) {
 			return k.clientSet.CoreV1().Nodes().Get(ctx, name, options)
@@ -80,7 +80,7 @@ func (k *k8sIface) updateLabel(nodeName string, mutate func(existing *v1.Node)) 
 		},
 	}
 
-	return errors.Wrap(util.Update[*v1.Node](context.TODO(), client, &v1.Node{
+	return errors.Wrap(util.Update[*v1.Node](ctx, client, &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: nodeName,
 		},
@@ -90,8 +90,8 @@ func (k *k8sIface) updateLabel(nodeName string, mutate func(existing *v1.Node)) 
 	}), "error updating node")
 }
 
-func (k *k8sIface) AddGWLabelOnNode(nodeName string) error {
-	return k.updateLabel(nodeName, func(existing *v1.Node) {
+func (k *k8sIface) AddGWLabelOnNode(ctx context.Context, nodeName string) error {
+	return k.updateLabel(ctx, nodeName, func(existing *v1.Node) {
 		labels := existing.GetLabels()
 		if labels == nil {
 			labels = map[string]string{}
@@ -102,15 +102,15 @@ func (k *k8sIface) AddGWLabelOnNode(nodeName string) error {
 	})
 }
 
-func (k *k8sIface) RemoveGWLabelFromWorkerNodes() error {
-	gwNodeList, err := k.clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{LabelSelector: SubmarinerGatewayLabel})
+func (k *k8sIface) RemoveGWLabelFromWorkerNodes(ctx context.Context) error {
+	gwNodeList, err := k.clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{LabelSelector: SubmarinerGatewayLabel})
 	if err != nil {
 		return errors.Wrap(err, "error listing submariner gateway nodes")
 	}
 
 	gwNodes := gwNodeList.Items
 	for i := range gwNodes {
-		err = k.RemoveGWLabelFromWorkerNode(&gwNodes[i])
+		err = k.RemoveGWLabelFromWorkerNode(ctx, &gwNodes[i])
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("error removing the label from the gateway node %q", gwNodes[i].Name))
 		}
@@ -119,8 +119,8 @@ func (k *k8sIface) RemoveGWLabelFromWorkerNodes() error {
 	return nil
 }
 
-func (k *k8sIface) RemoveGWLabelFromWorkerNode(node *v1.Node) error {
-	return k.updateLabel(node.Name, func(existing *v1.Node) {
+func (k *k8sIface) RemoveGWLabelFromWorkerNode(ctx context.Context, node *v1.Node) error {
+	return k.updateLabel(ctx, node.Name, func(existing *v1.Node) {
 		delete(existing.Labels, SubmarinerGatewayLabel)
 	})
 }

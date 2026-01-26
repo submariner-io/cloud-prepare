@@ -32,6 +32,8 @@ import (
 	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
+var ctx = context.TODO()
+
 var _ = Describe("Interface", func() {
 	Describe("ListNodesWithLabel", testListNodesWithLabel)
 	Describe("ListGatewayNodes", testListGatewayNodes)
@@ -51,7 +53,7 @@ func testRemoveGWLabelFromWorkerNodes() {
 	})
 
 	It("should remove the label from all nodes", func() {
-		Expect(t.client.RemoveGWLabelFromWorkerNodes()).To(Succeed())
+		Expect(t.client.RemoveGWLabelFromWorkerNodes(ctx)).To(Succeed())
 		t.assertNoLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel)
 		t.assertNoLabel(t.nodes[1].Name, k8s.SubmarinerGatewayLabel)
 		t.assertNoLabel(t.nodes[2].Name, k8s.SubmarinerGatewayLabel)
@@ -64,7 +66,7 @@ func testRemoveGWLabelFromWorkerNodes() {
 		})
 
 		It("should return an error", func() {
-			Expect(t.client.RemoveGWLabelFromWorkerNodes()).ToNot(Succeed())
+			Expect(t.client.RemoveGWLabelFromWorkerNodes(ctx)).ToNot(Succeed())
 		})
 	})
 }
@@ -78,7 +80,7 @@ func testAddGWLabelOnNode() {
 
 	When("the gateway label isn't present", func() {
 		It("should add it", func() {
-			Expect(t.client.AddGWLabelOnNode("node")).To(Succeed())
+			Expect(t.client.AddGWLabelOnNode(ctx, "node")).To(Succeed())
 			t.assertLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
 			t.assertLabel(t.nodes[0].Name, "foo", "bar")
 		})
@@ -90,7 +92,7 @@ func testAddGWLabelOnNode() {
 		})
 
 		It("should set it to true", func() {
-			Expect(t.client.AddGWLabelOnNode(t.nodes[0].Name)).To(Succeed())
+			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).To(Succeed())
 			t.assertLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
 		})
 	})
@@ -101,7 +103,7 @@ func testAddGWLabelOnNode() {
 		})
 
 		It("should not try to update it", func() {
-			Expect(t.client.AddGWLabelOnNode(t.nodes[0].Name)).To(Succeed())
+			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).To(Succeed())
 
 			actualActions := t.kubeClient.Fake.Actions()
 			for i := range actualActions {
@@ -118,7 +120,7 @@ func testAddGWLabelOnNode() {
 		})
 
 		It("should add the gateway label", func() {
-			Expect(t.client.AddGWLabelOnNode(t.nodes[0].Name)).To(Succeed())
+			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).To(Succeed())
 			t.assertLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
 		})
 	})
@@ -129,7 +131,7 @@ func testAddGWLabelOnNode() {
 		})
 
 		It("should not return an error", func() {
-			Expect(t.client.AddGWLabelOnNode("node")).To(Succeed())
+			Expect(t.client.AddGWLabelOnNode(ctx, "node")).To(Succeed())
 		})
 	})
 
@@ -139,7 +141,7 @@ func testAddGWLabelOnNode() {
 		})
 
 		It("should return an error", func() {
-			Expect(t.client.AddGWLabelOnNode(t.nodes[0].Name)).ToNot(Succeed())
+			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).ToNot(Succeed())
 		})
 	})
 }
@@ -157,7 +159,7 @@ func testListGatewayNodes() {
 	})
 
 	It("should return the correct nodes", func() {
-		list, err := t.client.ListGatewayNodes()
+		list, err := t.client.ListGatewayNodes(ctx)
 		Expect(err).To(Succeed())
 
 		assertNodeNames(list, "node-1", "node-2")
@@ -169,7 +171,7 @@ func testListGatewayNodes() {
 		})
 
 		It("should return an error", func() {
-			_, err := t.client.ListGatewayNodes()
+			_, err := t.client.ListGatewayNodes(ctx)
 			Expect(err).ToNot(Succeed())
 		})
 	})
@@ -199,7 +201,7 @@ func testListNodesWithLabel() {
 		})
 
 		It("should return an error", func() {
-			_, err := t.client.ListNodesWithLabel("")
+			_, err := t.client.ListNodesWithLabel(ctx, "")
 			Expect(err).ToNot(Succeed())
 		})
 	})
@@ -233,7 +235,7 @@ func newInterfaceTestDriver() *interfaceTestDriver {
 }
 
 func (t *interfaceTestDriver) testListNodesWithLabel(labelSelector string, expNodes ...string) {
-	list, err := t.client.ListNodesWithLabel(labelSelector)
+	list, err := t.client.ListNodesWithLabel(ctx, labelSelector)
 	Expect(err).To(Succeed())
 
 	assertNodeNames(list, expNodes...)

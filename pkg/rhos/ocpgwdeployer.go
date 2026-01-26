@@ -136,7 +136,7 @@ func (d *ocpGatewayDeployer) deployGateway(useInternalSG bool) error {
 	return errors.Wrap(d.msDeployer.Deploy(machineSet), "failed to deploy submariner gateway node")
 }
 
-func (d *ocpGatewayDeployer) Deploy(_ context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
 	status.Start("Configuring the required firewall rules for inter-cluster traffic")
 	defer status.End()
 
@@ -160,7 +160,7 @@ func (d *ocpGatewayDeployer) Deploy(_ context.Context, input api.GatewayDeployIn
 		return status.Error(err, "error getting the gateway machinesets")
 	}
 
-	gwNodes, err := d.K8sClient.ListGatewayNodes()
+	gwNodes, err := d.K8sClient.ListGatewayNodes(ctx)
 	if err != nil {
 		return status.Error(err, "listing the existing gateway nodes failed")
 	}
@@ -230,7 +230,7 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gatewayNodesToDeploy int, use
 	return nil
 }
 
-func (d *ocpGatewayDeployer) Cleanup(_ context.Context, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interface) error {
 	computeClient, err := NewComputeV2(d.Client, gophercloud.EndpointOpts{Region: d.Region})
 	if err != nil {
 		return status.Error(err, "error creating the compute client for the region: %q", d.Region)
@@ -267,7 +267,7 @@ func (d *ocpGatewayDeployer) Cleanup(_ context.Context, status reporter.Interfac
 		status.Success("Successfully deleted the instance")
 	}
 
-	gwNodesList, err := d.K8sClient.ListGatewayNodes()
+	gwNodesList, err := d.K8sClient.ListGatewayNodes(ctx)
 	if err != nil {
 		return status.Error(err, "error listing the Submariner gateway nodes")
 	}
@@ -287,7 +287,7 @@ func (d *ocpGatewayDeployer) Cleanup(_ context.Context, status reporter.Interfac
 
 		status.Start(fmt.Sprintf("Removing Submariner gateway label from instance %q", gwNodes[i].Name))
 
-		err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodes[i])
+		err = d.K8sClient.RemoveGWLabelFromWorkerNode(ctx, &gwNodes[i])
 		if err != nil {
 			return status.Error(err, "failed to cleanup gateway node %q", gwNodes[i].Name)
 		}
