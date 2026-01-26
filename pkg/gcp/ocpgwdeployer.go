@@ -249,7 +249,7 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
-func (d *ocpGatewayDeployer) Cleanup(_ context.Context, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interface) error {
 	status.Start("Retrieving the Submariner gateway firewall rules")
 	defer status.End()
 
@@ -312,7 +312,7 @@ func (d *ocpGatewayDeployer) Cleanup(_ context.Context, status reporter.Interfac
 
 	status.Start("Removing the Submariner gateway label from worker nodes")
 
-	err = d.k8sClient.RemoveGWLabelFromWorkerNodes()
+	err = d.k8sClient.RemoveGWLabelFromWorkerNodes(ctx)
 	if err != nil {
 		return status.Error(err, "error removing the gateway label from worker nodes")
 	}

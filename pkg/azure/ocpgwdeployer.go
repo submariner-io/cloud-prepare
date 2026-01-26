@@ -90,7 +90,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 		return status.Error(err, "error getting the gateway machinesets")
 	}
 
-	gwNodes, err := d.azure.K8sClient.ListGatewayNodes()
+	gwNodes, err := d.azure.K8sClient.ListGatewayNodes(ctx)
 	if err != nil {
 		return errors.Wrap(err, "error getting the gateway node")
 	}
@@ -351,7 +351,7 @@ func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, status reporter.
 	}
 
 	// Cleanup nodes that are not dedicated gateway nodes.
-	gwNodesList, err := d.K8sClient.ListGatewayNodes()
+	gwNodesList, err := d.K8sClient.ListGatewayNodes(ctx)
 	if err != nil {
 		return status.Error(err, "error listing the Submariner gateway nodes")
 	}
@@ -359,7 +359,7 @@ func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, status reporter.
 	gwNodes := ocp.RemoveDuplicates(machineSetList, gwNodesList.Items)
 
 	for i := range gwNodes {
-		err = d.K8sClient.RemoveGWLabelFromWorkerNode(&gwNodes[i])
+		err = d.K8sClient.RemoveGWLabelFromWorkerNode(ctx, &gwNodes[i])
 		if err != nil {
 			return status.Error(err, "failed to cleanup node %q", gwNodes[i].Name)
 		}
