@@ -60,17 +60,19 @@ func testOpenPorts() {
 
 	When("the firewall rule doesn't exist", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().GetFirewallRule(projectID, ingressRuleName).Return(nil, &googleapi.Error{Code: http.StatusNotFound})
+			t.gcpClient.EXPECT().GetFirewallRule(mock.Anything, projectID, ingressRuleName).Return(
+				nil, &googleapi.Error{Code: http.StatusNotFound})
 		})
 
 		Context("", func() {
 			var actualRule *compute.Firewall
 
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().InsertFirewallRule(projectID, mock.Anything).RunAndReturn(func(_ string, rule *compute.Firewall) error {
-					actualRule = rule
-					return nil
-				})
+				t.gcpClient.EXPECT().InsertFirewallRule(mock.Anything, projectID, mock.Anything).RunAndReturn(
+					func(_ context.Context, _ string, rule *compute.Firewall) error {
+						actualRule = rule
+						return nil
+					})
 			})
 
 			It("should correctly insert it", func() {
@@ -83,7 +85,7 @@ func testOpenPorts() {
 
 		Context("and insertion fails", func() {
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().InsertFirewallRule(projectID, mock.Anything).Return(errors.New("fake insert error"))
+				t.gcpClient.EXPECT().InsertFirewallRule(mock.Anything, projectID, mock.Anything).Return(errors.New("fake insert error"))
 			})
 
 			It("should return an error", func() {
@@ -94,17 +96,18 @@ func testOpenPorts() {
 
 	When("the firewall rule already exists", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().GetFirewallRule(projectID, ingressRuleName).RunAndReturn(func(_, ruleName string) (*compute.Firewall, error) {
-				return &compute.Firewall{Name: ruleName}, nil
-			})
+			t.gcpClient.EXPECT().GetFirewallRule(mock.Anything, projectID, ingressRuleName).RunAndReturn(
+				func(_ context.Context, _, ruleName string) (*compute.Firewall, error) {
+					return &compute.Firewall{Name: ruleName}, nil
+				})
 		})
 
 		Context("", func() {
 			var actualRule *compute.Firewall
 
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().UpdateFirewallRule(projectID, ingressRuleName, mock.Anything).RunAndReturn(
-					func(_, _ string, rule *compute.Firewall) error {
+				t.gcpClient.EXPECT().UpdateFirewallRule(mock.Anything, projectID, ingressRuleName, mock.Anything).RunAndReturn(
+					func(_ context.Context, _, _ string, rule *compute.Firewall) error {
 						actualRule = rule
 						return nil
 					})
@@ -120,7 +123,8 @@ func testOpenPorts() {
 
 		Context("and update fails", func() {
 			BeforeEach(func() {
-				t.gcpClient.EXPECT().UpdateFirewallRule(projectID, ingressRuleName, mock.Anything).Return(errors.New("fake update error"))
+				t.gcpClient.EXPECT().UpdateFirewallRule(mock.Anything, projectID, ingressRuleName, mock.Anything).Return(
+					errors.New("fake update error"))
 			})
 
 			It("should return an error", func() {
@@ -131,7 +135,8 @@ func testOpenPorts() {
 
 	When("retrieval of the firewall rule fails", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().GetFirewallRule(projectID, ingressRuleName).Return(nil, errors.New("fake get error"))
+			t.gcpClient.EXPECT().GetFirewallRule(mock.Anything, projectID, ingressRuleName).Return(
+				nil, errors.New("fake get error"))
 		})
 
 		It("should return an error", func() {
@@ -151,7 +156,7 @@ func testClosePorts() {
 
 	Context("on success", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().DeleteFirewallRule(projectID, ingressRuleName).Return(nil)
+			t.gcpClient.EXPECT().DeleteFirewallRule(mock.Anything, projectID, ingressRuleName).Return(nil)
 		})
 
 		It("should delete the firewall rule", func() {
@@ -161,7 +166,8 @@ func testClosePorts() {
 
 	When("the firewall rule doesn't exist", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().DeleteFirewallRule(projectID, ingressRuleName).Return(&googleapi.Error{Code: http.StatusNotFound})
+			t.gcpClient.EXPECT().DeleteFirewallRule(mock.Anything, projectID, ingressRuleName).Return(
+				&googleapi.Error{Code: http.StatusNotFound})
 		})
 
 		It("should succeed", func() {
@@ -171,7 +177,7 @@ func testClosePorts() {
 
 	When("deletion fails", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().DeleteFirewallRule(projectID, ingressRuleName).Return(errors.New("fake delete error"))
+			t.gcpClient.EXPECT().DeleteFirewallRule(mock.Anything, projectID, ingressRuleName).Return(errors.New("fake delete error"))
 		})
 
 		It("should return an error", func() {

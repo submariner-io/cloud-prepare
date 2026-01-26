@@ -35,17 +35,17 @@ import (
 
 // Interface wraps an actual GCP library client to allow for easier testing.
 type Interface interface {
-	InsertFirewallRule(projectID string, rule *compute.Firewall) error
-	GetFirewallRule(projectID, name string) (*compute.Firewall, error)
-	DeleteFirewallRule(projectID, name string) error
-	UpdateFirewallRule(projectID, name string, rule *compute.Firewall) error
-	GetInstance(zone string, instance string) (*compute.Instance, error)
-	ListInstances(zone string) (*compute.InstanceList, error)
-	ListZones() (*compute.ZoneList, error)
-	InstanceHasPublicIP(instance *compute.Instance) (bool, error)
-	UpdateInstanceNetworkTags(project, zone, instance string, tags *compute.Tags) error
-	ConfigurePublicIPOnInstance(instance *compute.Instance) error
-	DeletePublicIPOnInstance(instance *compute.Instance) error
+	InsertFirewallRule(ctx context.Context, projectID string, rule *compute.Firewall) error
+	GetFirewallRule(ctx context.Context, projectID, name string) (*compute.Firewall, error)
+	DeleteFirewallRule(ctx context.Context, projectID, name string) error
+	UpdateFirewallRule(ctx context.Context, projectID, name string, rule *compute.Firewall) error
+	GetInstance(ctx context.Context, zone string, instance string) (*compute.Instance, error)
+	ListInstances(ctx context.Context, zone string) (*compute.InstanceList, error)
+	ListZones(ctx context.Context) (*compute.ZoneList, error)
+	InstanceHasPublicIP(ctx context.Context, instance *compute.Instance) (bool, error)
+	UpdateInstanceNetworkTags(ctx context.Context, project, zone, instance string, tags *compute.Tags) error
+	ConfigurePublicIPOnInstance(ctx context.Context, instance *compute.Instance) error
+	DeletePublicIPOnInstance(ctx context.Context, instance *compute.Instance) error
 }
 
 type gcpClient struct {
@@ -53,28 +53,26 @@ type gcpClient struct {
 	computeClient *compute.Service
 }
 
-func (g *gcpClient) InsertFirewallRule(projectID string, rule *compute.Firewall) error {
-	_, err := g.computeClient.Firewalls.Insert(projectID, rule).Context(context.TODO()).Do()
+func (g *gcpClient) InsertFirewallRule(ctx context.Context, projectID string, rule *compute.Firewall) error {
+	_, err := g.computeClient.Firewalls.Insert(projectID, rule).Context(ctx).Do()
 	return err
 }
 
-func (g *gcpClient) GetFirewallRule(projectID, name string) (*compute.Firewall, error) {
-	return g.computeClient.Firewalls.Get(projectID, name).Context(context.TODO()).Do()
+func (g *gcpClient) GetFirewallRule(ctx context.Context, projectID, name string) (*compute.Firewall, error) {
+	return g.computeClient.Firewalls.Get(projectID, name).Context(ctx).Do()
 }
 
-func (g *gcpClient) DeleteFirewallRule(projectID, name string) error {
-	_, err := g.computeClient.Firewalls.Delete(projectID, name).Context(context.TODO()).Do()
+func (g *gcpClient) DeleteFirewallRule(ctx context.Context, projectID, name string) error {
+	_, err := g.computeClient.Firewalls.Delete(projectID, name).Context(ctx).Do()
 	return err
 }
 
-func (g *gcpClient) UpdateFirewallRule(projectID, name string, rule *compute.Firewall) error {
-	_, err := g.computeClient.Firewalls.Update(projectID, name, rule).Context(context.TODO()).Do()
+func (g *gcpClient) UpdateFirewallRule(ctx context.Context, projectID, name string, rule *compute.Firewall) error {
+	_, err := g.computeClient.Firewalls.Update(projectID, name, rule).Context(ctx).Do()
 	return err
 }
 
-func NewClient(projectID string, options []option.ClientOption) (Interface, error) {
-	ctx := context.TODO()
-
+func NewClient(ctx context.Context, projectID string, options []option.ClientOption) (Interface, error) {
 	computeClient, err := compute.NewService(ctx, options...)
 	if err != nil {
 		return nil, err
@@ -95,19 +93,19 @@ func IsGCPNotFoundError(err error) bool {
 	return false
 }
 
-func (g *gcpClient) GetInstance(zone, instance string) (*compute.Instance, error) {
-	return g.computeClient.Instances.Get(g.projectID, zone, instance).Context(context.TODO()).Do()
+func (g *gcpClient) GetInstance(ctx context.Context, zone, instance string) (*compute.Instance, error) {
+	return g.computeClient.Instances.Get(g.projectID, zone, instance).Context(ctx).Do()
 }
 
-func (g *gcpClient) ListInstances(zone string) (*compute.InstanceList, error) {
-	return g.computeClient.Instances.List(g.projectID, zone).Context(context.TODO()).Do()
+func (g *gcpClient) ListInstances(ctx context.Context, zone string) (*compute.InstanceList, error) {
+	return g.computeClient.Instances.List(g.projectID, zone).Context(ctx).Do()
 }
 
-func (g *gcpClient) ListZones() (*compute.ZoneList, error) {
-	return g.computeClient.Zones.List(g.projectID).Context(context.TODO()).Do()
+func (g *gcpClient) ListZones(ctx context.Context) (*compute.ZoneList, error) {
+	return g.computeClient.Zones.List(g.projectID).Context(ctx).Do()
 }
 
-func (g *gcpClient) InstanceHasPublicIP(instance *compute.Instance) (bool, error) {
+func (g *gcpClient) InstanceHasPublicIP(ctx context.Context, instance *compute.Instance) (bool, error) {
 	networkInterface, err := getNetworkInterface(instance)
 	if err != nil {
 		return false, err
@@ -116,13 +114,13 @@ func (g *gcpClient) InstanceHasPublicIP(instance *compute.Instance) (bool, error
 	return len(networkInterface.AccessConfigs) > 0, nil
 }
 
-func (g *gcpClient) UpdateInstanceNetworkTags(project, zone, instance string, tags *compute.Tags) error {
-	_, err := g.computeClient.Instances.SetTags(project, zone, instance, tags).Context(context.TODO()).Do()
+func (g *gcpClient) UpdateInstanceNetworkTags(ctx context.Context, project, zone, instance string, tags *compute.Tags) error {
+	_, err := g.computeClient.Instances.SetTags(project, zone, instance, tags).Context(ctx).Do()
 
 	return err
 }
 
-func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) error {
+func (g *gcpClient) ConfigurePublicIPOnInstance(ctx context.Context, instance *compute.Instance) error {
 	networkInterface, err := getNetworkInterface(instance)
 	if err != nil {
 		return err
@@ -138,12 +136,12 @@ func (g *gcpClient) ConfigurePublicIPOnInstance(instance *compute.Instance) erro
 
 	_, err = g.computeClient.Instances.AddAccessConfig(g.projectID, zone, instance.Name,
 		networkInterface.Name, &compute.AccessConfig{}).
-		Context(context.TODO()).Do()
+		Context(ctx).Do()
 
 	return err
 }
 
-func (g *gcpClient) DeletePublicIPOnInstance(instance *compute.Instance) error {
+func (g *gcpClient) DeletePublicIPOnInstance(ctx context.Context, instance *compute.Instance) error {
 	networkInterface, err := getNetworkInterface(instance)
 	if err != nil {
 		return err
@@ -153,7 +151,7 @@ func (g *gcpClient) DeletePublicIPOnInstance(instance *compute.Instance) error {
 	zone := instance.Zone[strings.LastIndex(instance.Zone, "/")+1:]
 	_, err = g.computeClient.Instances.DeleteAccessConfig(
 		g.projectID, zone, instance.Name, "External NAT", networkInterface.Name).
-		Context(context.TODO()).Do()
+		Context(ctx).Do()
 
 	return err
 }

@@ -22,6 +22,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	mock "github.com/stretchr/testify/mock"
 	"google.golang.org/api/compute/v1"
 )
@@ -54,16 +56,16 @@ func (_m *MockInterface) EXPECT() *MockInterface_Expecter {
 }
 
 // ConfigurePublicIPOnInstance provides a mock function for the type MockInterface
-func (_mock *MockInterface) ConfigurePublicIPOnInstance(instance *compute.Instance) error {
-	ret := _mock.Called(instance)
+func (_mock *MockInterface) ConfigurePublicIPOnInstance(ctx context.Context, instance *compute.Instance) error {
+	ret := _mock.Called(ctx, instance)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ConfigurePublicIPOnInstance")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*compute.Instance) error); ok {
-		r0 = returnFunc(instance)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *compute.Instance) error); ok {
+		r0 = returnFunc(ctx, instance)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -76,14 +78,15 @@ type MockInterface_ConfigurePublicIPOnInstance_Call struct {
 }
 
 // ConfigurePublicIPOnInstance is a helper method to define mock.On call
+//   - ctx
 //   - instance
-func (_e *MockInterface_Expecter) ConfigurePublicIPOnInstance(instance interface{}) *MockInterface_ConfigurePublicIPOnInstance_Call {
-	return &MockInterface_ConfigurePublicIPOnInstance_Call{Call: _e.mock.On("ConfigurePublicIPOnInstance", instance)}
+func (_e *MockInterface_Expecter) ConfigurePublicIPOnInstance(ctx interface{}, instance interface{}) *MockInterface_ConfigurePublicIPOnInstance_Call {
+	return &MockInterface_ConfigurePublicIPOnInstance_Call{Call: _e.mock.On("ConfigurePublicIPOnInstance", ctx, instance)}
 }
 
-func (_c *MockInterface_ConfigurePublicIPOnInstance_Call) Run(run func(instance *compute.Instance)) *MockInterface_ConfigurePublicIPOnInstance_Call {
+func (_c *MockInterface_ConfigurePublicIPOnInstance_Call) Run(run func(ctx context.Context, instance *compute.Instance)) *MockInterface_ConfigurePublicIPOnInstance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*compute.Instance))
+		run(args[0].(context.Context), args[1].(*compute.Instance))
 	})
 	return _c
 }
@@ -93,22 +96,22 @@ func (_c *MockInterface_ConfigurePublicIPOnInstance_Call) Return(err error) *Moc
 	return _c
 }
 
-func (_c *MockInterface_ConfigurePublicIPOnInstance_Call) RunAndReturn(run func(instance *compute.Instance) error) *MockInterface_ConfigurePublicIPOnInstance_Call {
+func (_c *MockInterface_ConfigurePublicIPOnInstance_Call) RunAndReturn(run func(ctx context.Context, instance *compute.Instance) error) *MockInterface_ConfigurePublicIPOnInstance_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteFirewallRule provides a mock function for the type MockInterface
-func (_mock *MockInterface) DeleteFirewallRule(projectID string, name string) error {
-	ret := _mock.Called(projectID, name)
+func (_mock *MockInterface) DeleteFirewallRule(ctx context.Context, projectID string, name string) error {
+	ret := _mock.Called(ctx, projectID, name)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteFirewallRule")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) error); ok {
-		r0 = returnFunc(projectID, name)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, projectID, name)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -121,15 +124,16 @@ type MockInterface_DeleteFirewallRule_Call struct {
 }
 
 // DeleteFirewallRule is a helper method to define mock.On call
+//   - ctx
 //   - projectID
 //   - name
-func (_e *MockInterface_Expecter) DeleteFirewallRule(projectID interface{}, name interface{}) *MockInterface_DeleteFirewallRule_Call {
-	return &MockInterface_DeleteFirewallRule_Call{Call: _e.mock.On("DeleteFirewallRule", projectID, name)}
+func (_e *MockInterface_Expecter) DeleteFirewallRule(ctx interface{}, projectID interface{}, name interface{}) *MockInterface_DeleteFirewallRule_Call {
+	return &MockInterface_DeleteFirewallRule_Call{Call: _e.mock.On("DeleteFirewallRule", ctx, projectID, name)}
 }
 
-func (_c *MockInterface_DeleteFirewallRule_Call) Run(run func(projectID string, name string)) *MockInterface_DeleteFirewallRule_Call {
+func (_c *MockInterface_DeleteFirewallRule_Call) Run(run func(ctx context.Context, projectID string, name string)) *MockInterface_DeleteFirewallRule_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -139,22 +143,22 @@ func (_c *MockInterface_DeleteFirewallRule_Call) Return(err error) *MockInterfac
 	return _c
 }
 
-func (_c *MockInterface_DeleteFirewallRule_Call) RunAndReturn(run func(projectID string, name string) error) *MockInterface_DeleteFirewallRule_Call {
+func (_c *MockInterface_DeleteFirewallRule_Call) RunAndReturn(run func(ctx context.Context, projectID string, name string) error) *MockInterface_DeleteFirewallRule_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeletePublicIPOnInstance provides a mock function for the type MockInterface
-func (_mock *MockInterface) DeletePublicIPOnInstance(instance *compute.Instance) error {
-	ret := _mock.Called(instance)
+func (_mock *MockInterface) DeletePublicIPOnInstance(ctx context.Context, instance *compute.Instance) error {
+	ret := _mock.Called(ctx, instance)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeletePublicIPOnInstance")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*compute.Instance) error); ok {
-		r0 = returnFunc(instance)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *compute.Instance) error); ok {
+		r0 = returnFunc(ctx, instance)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -167,14 +171,15 @@ type MockInterface_DeletePublicIPOnInstance_Call struct {
 }
 
 // DeletePublicIPOnInstance is a helper method to define mock.On call
+//   - ctx
 //   - instance
-func (_e *MockInterface_Expecter) DeletePublicIPOnInstance(instance interface{}) *MockInterface_DeletePublicIPOnInstance_Call {
-	return &MockInterface_DeletePublicIPOnInstance_Call{Call: _e.mock.On("DeletePublicIPOnInstance", instance)}
+func (_e *MockInterface_Expecter) DeletePublicIPOnInstance(ctx interface{}, instance interface{}) *MockInterface_DeletePublicIPOnInstance_Call {
+	return &MockInterface_DeletePublicIPOnInstance_Call{Call: _e.mock.On("DeletePublicIPOnInstance", ctx, instance)}
 }
 
-func (_c *MockInterface_DeletePublicIPOnInstance_Call) Run(run func(instance *compute.Instance)) *MockInterface_DeletePublicIPOnInstance_Call {
+func (_c *MockInterface_DeletePublicIPOnInstance_Call) Run(run func(ctx context.Context, instance *compute.Instance)) *MockInterface_DeletePublicIPOnInstance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*compute.Instance))
+		run(args[0].(context.Context), args[1].(*compute.Instance))
 	})
 	return _c
 }
@@ -184,14 +189,14 @@ func (_c *MockInterface_DeletePublicIPOnInstance_Call) Return(err error) *MockIn
 	return _c
 }
 
-func (_c *MockInterface_DeletePublicIPOnInstance_Call) RunAndReturn(run func(instance *compute.Instance) error) *MockInterface_DeletePublicIPOnInstance_Call {
+func (_c *MockInterface_DeletePublicIPOnInstance_Call) RunAndReturn(run func(ctx context.Context, instance *compute.Instance) error) *MockInterface_DeletePublicIPOnInstance_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFirewallRule provides a mock function for the type MockInterface
-func (_mock *MockInterface) GetFirewallRule(projectID string, name string) (*compute.Firewall, error) {
-	ret := _mock.Called(projectID, name)
+func (_mock *MockInterface) GetFirewallRule(ctx context.Context, projectID string, name string) (*compute.Firewall, error) {
+	ret := _mock.Called(ctx, projectID, name)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFirewallRule")
@@ -199,18 +204,18 @@ func (_mock *MockInterface) GetFirewallRule(projectID string, name string) (*com
 
 	var r0 *compute.Firewall
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (*compute.Firewall, error)); ok {
-		return returnFunc(projectID, name)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*compute.Firewall, error)); ok {
+		return returnFunc(ctx, projectID, name)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) *compute.Firewall); ok {
-		r0 = returnFunc(projectID, name)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *compute.Firewall); ok {
+		r0 = returnFunc(ctx, projectID, name)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*compute.Firewall)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = returnFunc(projectID, name)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, projectID, name)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -223,15 +228,16 @@ type MockInterface_GetFirewallRule_Call struct {
 }
 
 // GetFirewallRule is a helper method to define mock.On call
+//   - ctx
 //   - projectID
 //   - name
-func (_e *MockInterface_Expecter) GetFirewallRule(projectID interface{}, name interface{}) *MockInterface_GetFirewallRule_Call {
-	return &MockInterface_GetFirewallRule_Call{Call: _e.mock.On("GetFirewallRule", projectID, name)}
+func (_e *MockInterface_Expecter) GetFirewallRule(ctx interface{}, projectID interface{}, name interface{}) *MockInterface_GetFirewallRule_Call {
+	return &MockInterface_GetFirewallRule_Call{Call: _e.mock.On("GetFirewallRule", ctx, projectID, name)}
 }
 
-func (_c *MockInterface_GetFirewallRule_Call) Run(run func(projectID string, name string)) *MockInterface_GetFirewallRule_Call {
+func (_c *MockInterface_GetFirewallRule_Call) Run(run func(ctx context.Context, projectID string, name string)) *MockInterface_GetFirewallRule_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -241,14 +247,14 @@ func (_c *MockInterface_GetFirewallRule_Call) Return(firewall *compute.Firewall,
 	return _c
 }
 
-func (_c *MockInterface_GetFirewallRule_Call) RunAndReturn(run func(projectID string, name string) (*compute.Firewall, error)) *MockInterface_GetFirewallRule_Call {
+func (_c *MockInterface_GetFirewallRule_Call) RunAndReturn(run func(ctx context.Context, projectID string, name string) (*compute.Firewall, error)) *MockInterface_GetFirewallRule_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetInstance provides a mock function for the type MockInterface
-func (_mock *MockInterface) GetInstance(zone string, instance string) (*compute.Instance, error) {
-	ret := _mock.Called(zone, instance)
+func (_mock *MockInterface) GetInstance(ctx context.Context, zone string, instance string) (*compute.Instance, error) {
+	ret := _mock.Called(ctx, zone, instance)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetInstance")
@@ -256,18 +262,18 @@ func (_mock *MockInterface) GetInstance(zone string, instance string) (*compute.
 
 	var r0 *compute.Instance
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (*compute.Instance, error)); ok {
-		return returnFunc(zone, instance)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*compute.Instance, error)); ok {
+		return returnFunc(ctx, zone, instance)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) *compute.Instance); ok {
-		r0 = returnFunc(zone, instance)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *compute.Instance); ok {
+		r0 = returnFunc(ctx, zone, instance)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*compute.Instance)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = returnFunc(zone, instance)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, zone, instance)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -280,15 +286,16 @@ type MockInterface_GetInstance_Call struct {
 }
 
 // GetInstance is a helper method to define mock.On call
+//   - ctx
 //   - zone
 //   - instance
-func (_e *MockInterface_Expecter) GetInstance(zone interface{}, instance interface{}) *MockInterface_GetInstance_Call {
-	return &MockInterface_GetInstance_Call{Call: _e.mock.On("GetInstance", zone, instance)}
+func (_e *MockInterface_Expecter) GetInstance(ctx interface{}, zone interface{}, instance interface{}) *MockInterface_GetInstance_Call {
+	return &MockInterface_GetInstance_Call{Call: _e.mock.On("GetInstance", ctx, zone, instance)}
 }
 
-func (_c *MockInterface_GetInstance_Call) Run(run func(zone string, instance string)) *MockInterface_GetInstance_Call {
+func (_c *MockInterface_GetInstance_Call) Run(run func(ctx context.Context, zone string, instance string)) *MockInterface_GetInstance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
 	return _c
 }
@@ -298,22 +305,22 @@ func (_c *MockInterface_GetInstance_Call) Return(instance1 *compute.Instance, er
 	return _c
 }
 
-func (_c *MockInterface_GetInstance_Call) RunAndReturn(run func(zone string, instance string) (*compute.Instance, error)) *MockInterface_GetInstance_Call {
+func (_c *MockInterface_GetInstance_Call) RunAndReturn(run func(ctx context.Context, zone string, instance string) (*compute.Instance, error)) *MockInterface_GetInstance_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // InsertFirewallRule provides a mock function for the type MockInterface
-func (_mock *MockInterface) InsertFirewallRule(projectID string, rule *compute.Firewall) error {
-	ret := _mock.Called(projectID, rule)
+func (_mock *MockInterface) InsertFirewallRule(ctx context.Context, projectID string, rule *compute.Firewall) error {
+	ret := _mock.Called(ctx, projectID, rule)
 
 	if len(ret) == 0 {
 		panic("no return value specified for InsertFirewallRule")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string, *compute.Firewall) error); ok {
-		r0 = returnFunc(projectID, rule)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *compute.Firewall) error); ok {
+		r0 = returnFunc(ctx, projectID, rule)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -326,15 +333,16 @@ type MockInterface_InsertFirewallRule_Call struct {
 }
 
 // InsertFirewallRule is a helper method to define mock.On call
+//   - ctx
 //   - projectID
 //   - rule
-func (_e *MockInterface_Expecter) InsertFirewallRule(projectID interface{}, rule interface{}) *MockInterface_InsertFirewallRule_Call {
-	return &MockInterface_InsertFirewallRule_Call{Call: _e.mock.On("InsertFirewallRule", projectID, rule)}
+func (_e *MockInterface_Expecter) InsertFirewallRule(ctx interface{}, projectID interface{}, rule interface{}) *MockInterface_InsertFirewallRule_Call {
+	return &MockInterface_InsertFirewallRule_Call{Call: _e.mock.On("InsertFirewallRule", ctx, projectID, rule)}
 }
 
-func (_c *MockInterface_InsertFirewallRule_Call) Run(run func(projectID string, rule *compute.Firewall)) *MockInterface_InsertFirewallRule_Call {
+func (_c *MockInterface_InsertFirewallRule_Call) Run(run func(ctx context.Context, projectID string, rule *compute.Firewall)) *MockInterface_InsertFirewallRule_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(*compute.Firewall))
+		run(args[0].(context.Context), args[1].(string), args[2].(*compute.Firewall))
 	})
 	return _c
 }
@@ -344,14 +352,14 @@ func (_c *MockInterface_InsertFirewallRule_Call) Return(err error) *MockInterfac
 	return _c
 }
 
-func (_c *MockInterface_InsertFirewallRule_Call) RunAndReturn(run func(projectID string, rule *compute.Firewall) error) *MockInterface_InsertFirewallRule_Call {
+func (_c *MockInterface_InsertFirewallRule_Call) RunAndReturn(run func(ctx context.Context, projectID string, rule *compute.Firewall) error) *MockInterface_InsertFirewallRule_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // InstanceHasPublicIP provides a mock function for the type MockInterface
-func (_mock *MockInterface) InstanceHasPublicIP(instance *compute.Instance) (bool, error) {
-	ret := _mock.Called(instance)
+func (_mock *MockInterface) InstanceHasPublicIP(ctx context.Context, instance *compute.Instance) (bool, error) {
+	ret := _mock.Called(ctx, instance)
 
 	if len(ret) == 0 {
 		panic("no return value specified for InstanceHasPublicIP")
@@ -359,16 +367,16 @@ func (_mock *MockInterface) InstanceHasPublicIP(instance *compute.Instance) (boo
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(*compute.Instance) (bool, error)); ok {
-		return returnFunc(instance)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *compute.Instance) (bool, error)); ok {
+		return returnFunc(ctx, instance)
 	}
-	if returnFunc, ok := ret.Get(0).(func(*compute.Instance) bool); ok {
-		r0 = returnFunc(instance)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *compute.Instance) bool); ok {
+		r0 = returnFunc(ctx, instance)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(*compute.Instance) error); ok {
-		r1 = returnFunc(instance)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *compute.Instance) error); ok {
+		r1 = returnFunc(ctx, instance)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -381,14 +389,15 @@ type MockInterface_InstanceHasPublicIP_Call struct {
 }
 
 // InstanceHasPublicIP is a helper method to define mock.On call
+//   - ctx
 //   - instance
-func (_e *MockInterface_Expecter) InstanceHasPublicIP(instance interface{}) *MockInterface_InstanceHasPublicIP_Call {
-	return &MockInterface_InstanceHasPublicIP_Call{Call: _e.mock.On("InstanceHasPublicIP", instance)}
+func (_e *MockInterface_Expecter) InstanceHasPublicIP(ctx interface{}, instance interface{}) *MockInterface_InstanceHasPublicIP_Call {
+	return &MockInterface_InstanceHasPublicIP_Call{Call: _e.mock.On("InstanceHasPublicIP", ctx, instance)}
 }
 
-func (_c *MockInterface_InstanceHasPublicIP_Call) Run(run func(instance *compute.Instance)) *MockInterface_InstanceHasPublicIP_Call {
+func (_c *MockInterface_InstanceHasPublicIP_Call) Run(run func(ctx context.Context, instance *compute.Instance)) *MockInterface_InstanceHasPublicIP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*compute.Instance))
+		run(args[0].(context.Context), args[1].(*compute.Instance))
 	})
 	return _c
 }
@@ -398,14 +407,14 @@ func (_c *MockInterface_InstanceHasPublicIP_Call) Return(b bool, err error) *Moc
 	return _c
 }
 
-func (_c *MockInterface_InstanceHasPublicIP_Call) RunAndReturn(run func(instance *compute.Instance) (bool, error)) *MockInterface_InstanceHasPublicIP_Call {
+func (_c *MockInterface_InstanceHasPublicIP_Call) RunAndReturn(run func(ctx context.Context, instance *compute.Instance) (bool, error)) *MockInterface_InstanceHasPublicIP_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListInstances provides a mock function for the type MockInterface
-func (_mock *MockInterface) ListInstances(zone string) (*compute.InstanceList, error) {
-	ret := _mock.Called(zone)
+func (_mock *MockInterface) ListInstances(ctx context.Context, zone string) (*compute.InstanceList, error) {
+	ret := _mock.Called(ctx, zone)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListInstances")
@@ -413,18 +422,18 @@ func (_mock *MockInterface) ListInstances(zone string) (*compute.InstanceList, e
 
 	var r0 *compute.InstanceList
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*compute.InstanceList, error)); ok {
-		return returnFunc(zone)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*compute.InstanceList, error)); ok {
+		return returnFunc(ctx, zone)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) *compute.InstanceList); ok {
-		r0 = returnFunc(zone)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *compute.InstanceList); ok {
+		r0 = returnFunc(ctx, zone)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*compute.InstanceList)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(zone)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, zone)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -437,14 +446,15 @@ type MockInterface_ListInstances_Call struct {
 }
 
 // ListInstances is a helper method to define mock.On call
+//   - ctx
 //   - zone
-func (_e *MockInterface_Expecter) ListInstances(zone interface{}) *MockInterface_ListInstances_Call {
-	return &MockInterface_ListInstances_Call{Call: _e.mock.On("ListInstances", zone)}
+func (_e *MockInterface_Expecter) ListInstances(ctx interface{}, zone interface{}) *MockInterface_ListInstances_Call {
+	return &MockInterface_ListInstances_Call{Call: _e.mock.On("ListInstances", ctx, zone)}
 }
 
-func (_c *MockInterface_ListInstances_Call) Run(run func(zone string)) *MockInterface_ListInstances_Call {
+func (_c *MockInterface_ListInstances_Call) Run(run func(ctx context.Context, zone string)) *MockInterface_ListInstances_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
@@ -454,14 +464,14 @@ func (_c *MockInterface_ListInstances_Call) Return(instanceList *compute.Instanc
 	return _c
 }
 
-func (_c *MockInterface_ListInstances_Call) RunAndReturn(run func(zone string) (*compute.InstanceList, error)) *MockInterface_ListInstances_Call {
+func (_c *MockInterface_ListInstances_Call) RunAndReturn(run func(ctx context.Context, zone string) (*compute.InstanceList, error)) *MockInterface_ListInstances_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListZones provides a mock function for the type MockInterface
-func (_mock *MockInterface) ListZones() (*compute.ZoneList, error) {
-	ret := _mock.Called()
+func (_mock *MockInterface) ListZones(ctx context.Context) (*compute.ZoneList, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListZones")
@@ -469,18 +479,18 @@ func (_mock *MockInterface) ListZones() (*compute.ZoneList, error) {
 
 	var r0 *compute.ZoneList
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*compute.ZoneList, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*compute.ZoneList, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *compute.ZoneList); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *compute.ZoneList); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*compute.ZoneList)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -493,13 +503,14 @@ type MockInterface_ListZones_Call struct {
 }
 
 // ListZones is a helper method to define mock.On call
-func (_e *MockInterface_Expecter) ListZones() *MockInterface_ListZones_Call {
-	return &MockInterface_ListZones_Call{Call: _e.mock.On("ListZones")}
+//   - ctx
+func (_e *MockInterface_Expecter) ListZones(ctx interface{}) *MockInterface_ListZones_Call {
+	return &MockInterface_ListZones_Call{Call: _e.mock.On("ListZones", ctx)}
 }
 
-func (_c *MockInterface_ListZones_Call) Run(run func()) *MockInterface_ListZones_Call {
+func (_c *MockInterface_ListZones_Call) Run(run func(ctx context.Context)) *MockInterface_ListZones_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -509,22 +520,22 @@ func (_c *MockInterface_ListZones_Call) Return(zoneList *compute.ZoneList, err e
 	return _c
 }
 
-func (_c *MockInterface_ListZones_Call) RunAndReturn(run func() (*compute.ZoneList, error)) *MockInterface_ListZones_Call {
+func (_c *MockInterface_ListZones_Call) RunAndReturn(run func(ctx context.Context) (*compute.ZoneList, error)) *MockInterface_ListZones_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateFirewallRule provides a mock function for the type MockInterface
-func (_mock *MockInterface) UpdateFirewallRule(projectID string, name string, rule *compute.Firewall) error {
-	ret := _mock.Called(projectID, name, rule)
+func (_mock *MockInterface) UpdateFirewallRule(ctx context.Context, projectID string, name string, rule *compute.Firewall) error {
+	ret := _mock.Called(ctx, projectID, name, rule)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateFirewallRule")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string, string, *compute.Firewall) error); ok {
-		r0 = returnFunc(projectID, name, rule)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, *compute.Firewall) error); ok {
+		r0 = returnFunc(ctx, projectID, name, rule)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -537,16 +548,17 @@ type MockInterface_UpdateFirewallRule_Call struct {
 }
 
 // UpdateFirewallRule is a helper method to define mock.On call
+//   - ctx
 //   - projectID
 //   - name
 //   - rule
-func (_e *MockInterface_Expecter) UpdateFirewallRule(projectID interface{}, name interface{}, rule interface{}) *MockInterface_UpdateFirewallRule_Call {
-	return &MockInterface_UpdateFirewallRule_Call{Call: _e.mock.On("UpdateFirewallRule", projectID, name, rule)}
+func (_e *MockInterface_Expecter) UpdateFirewallRule(ctx interface{}, projectID interface{}, name interface{}, rule interface{}) *MockInterface_UpdateFirewallRule_Call {
+	return &MockInterface_UpdateFirewallRule_Call{Call: _e.mock.On("UpdateFirewallRule", ctx, projectID, name, rule)}
 }
 
-func (_c *MockInterface_UpdateFirewallRule_Call) Run(run func(projectID string, name string, rule *compute.Firewall)) *MockInterface_UpdateFirewallRule_Call {
+func (_c *MockInterface_UpdateFirewallRule_Call) Run(run func(ctx context.Context, projectID string, name string, rule *compute.Firewall)) *MockInterface_UpdateFirewallRule_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(*compute.Firewall))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*compute.Firewall))
 	})
 	return _c
 }
@@ -556,22 +568,22 @@ func (_c *MockInterface_UpdateFirewallRule_Call) Return(err error) *MockInterfac
 	return _c
 }
 
-func (_c *MockInterface_UpdateFirewallRule_Call) RunAndReturn(run func(projectID string, name string, rule *compute.Firewall) error) *MockInterface_UpdateFirewallRule_Call {
+func (_c *MockInterface_UpdateFirewallRule_Call) RunAndReturn(run func(ctx context.Context, projectID string, name string, rule *compute.Firewall) error) *MockInterface_UpdateFirewallRule_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateInstanceNetworkTags provides a mock function for the type MockInterface
-func (_mock *MockInterface) UpdateInstanceNetworkTags(project string, zone string, instance string, tags *compute.Tags) error {
-	ret := _mock.Called(project, zone, instance, tags)
+func (_mock *MockInterface) UpdateInstanceNetworkTags(ctx context.Context, project string, zone string, instance string, tags *compute.Tags) error {
+	ret := _mock.Called(ctx, project, zone, instance, tags)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateInstanceNetworkTags")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string, string, string, *compute.Tags) error); ok {
-		r0 = returnFunc(project, zone, instance, tags)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, *compute.Tags) error); ok {
+		r0 = returnFunc(ctx, project, zone, instance, tags)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -584,17 +596,18 @@ type MockInterface_UpdateInstanceNetworkTags_Call struct {
 }
 
 // UpdateInstanceNetworkTags is a helper method to define mock.On call
+//   - ctx
 //   - project
 //   - zone
 //   - instance
 //   - tags
-func (_e *MockInterface_Expecter) UpdateInstanceNetworkTags(project interface{}, zone interface{}, instance interface{}, tags interface{}) *MockInterface_UpdateInstanceNetworkTags_Call {
-	return &MockInterface_UpdateInstanceNetworkTags_Call{Call: _e.mock.On("UpdateInstanceNetworkTags", project, zone, instance, tags)}
+func (_e *MockInterface_Expecter) UpdateInstanceNetworkTags(ctx interface{}, project interface{}, zone interface{}, instance interface{}, tags interface{}) *MockInterface_UpdateInstanceNetworkTags_Call {
+	return &MockInterface_UpdateInstanceNetworkTags_Call{Call: _e.mock.On("UpdateInstanceNetworkTags", ctx, project, zone, instance, tags)}
 }
 
-func (_c *MockInterface_UpdateInstanceNetworkTags_Call) Run(run func(project string, zone string, instance string, tags *compute.Tags)) *MockInterface_UpdateInstanceNetworkTags_Call {
+func (_c *MockInterface_UpdateInstanceNetworkTags_Call) Run(run func(ctx context.Context, project string, zone string, instance string, tags *compute.Tags)) *MockInterface_UpdateInstanceNetworkTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(string), args[3].(*compute.Tags))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(*compute.Tags))
 	})
 	return _c
 }
@@ -604,7 +617,7 @@ func (_c *MockInterface_UpdateInstanceNetworkTags_Call) Return(err error) *MockI
 	return _c
 }
 
-func (_c *MockInterface_UpdateInstanceNetworkTags_Call) RunAndReturn(run func(project string, zone string, instance string, tags *compute.Tags) error) *MockInterface_UpdateInstanceNetworkTags_Call {
+func (_c *MockInterface_UpdateInstanceNetworkTags_Call) RunAndReturn(run func(ctx context.Context, project string, zone string, instance string, tags *compute.Tags) error) *MockInterface_UpdateInstanceNetworkTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
