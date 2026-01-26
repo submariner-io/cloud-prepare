@@ -73,14 +73,14 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	defer status.End()
 
 	externalIngress := newExternalFirewallRules(d.ProjectID, d.InfraID, d.VpcName, input.PublicPorts)
-	if err := d.openPorts(externalIngress); err != nil {
+	if err := d.openPorts(ctx, externalIngress); err != nil {
 		return status.Error(err, "error creating firewall rule %q", externalIngress.Name)
 	}
 
 	status.Success("Opened External ports %q with firewall rule %q on GCP",
 		formatPorts(input.PublicPorts), externalIngress.Name)
 
-	numGatewayNodes, eligibleZonesForGW, err := d.parseCurrentGatewayInstances(status)
+	numGatewayNodes, eligibleZonesForGW, err := d.parseCurrentGatewayInstances(ctx, status)
 	if err != nil {
 		return status.Error(err, "error parsing current gateway instances")
 	}
@@ -124,8 +124,8 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	return err
 }
 
-func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interface) (int, set.Set[string], error) {
-	zones, err := d.retrieveZones(status)
+func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(ctx context.Context, status reporter.Interface) (int, set.Set[string], error) {
+	zones, err := d.retrieveZones(ctx, status)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -143,7 +143,7 @@ func (d *ocpGatewayDeployer) parseCurrentGatewayInstances(status reporter.Interf
 			continue
 		}
 
-		instanceList, err := d.Client.ListInstances(zone.Name)
+		instanceList, err := d.Client.ListInstances(ctx, zone.Name)
 		if err != nil {
 			return 0, nil, status.Error(err, "failed to list instances in zone %q of project %q", zone.Name, d.ProjectID)
 		}
@@ -253,14 +253,14 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 	status.Start("Retrieving the Submariner gateway firewall rules")
 	defer status.End()
 
-	err := d.deleteExternalFWRules(status)
+	err := d.deleteExternalFWRules(ctx, status)
 	if err != nil {
 		return status.Error(err, "failed to delete the gateway firewall rules in the project %q", d.ProjectID)
 	}
 
 	status.Success("Successfully deleted the firewall rules")
 
-	zones, err := d.retrieveZones(status)
+	zones, err := d.retrieveZones(ctx, status)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 			continue
 		}
 
-		instanceList, err := d.Client.ListInstances(zone.Name)
+		instanceList, err := d.Client.ListInstances(ctx, zone.Name)
 		if err != nil {
 			return status.Error(err, "failed to list instances in zone %q of project %q", zone.Name, d.ProjectID)
 		}
@@ -300,7 +300,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 			} else {
 				status.Start(fmt.Sprintf("Removing the gateway configuration from instance %q", instance.Name))
 
-				err = d.resetExistingGWNode(zone.Name, instance)
+				err = d.resetExistingGWNode(ctx, zone.Name, instance)
 				if err != nil {
 					return status.Error(err, "failed to delete gateway instance %q", instance.Name)
 				}
@@ -331,10 +331,10 @@ func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, zone string) err
 	return errors.Wrapf(d.msDeployer.Delete(ctx, machineSet), "error deleting machine set %q", machineSet.GetName())
 }
 
-func (d *ocpGatewayDeployer) deleteExternalFWRules(status reporter.Interface) error {
+func (d *ocpGatewayDeployer) deleteExternalFWRules(ctx context.Context, status reporter.Interface) error {
 	ingressName := generateRuleName(d.InfraID, publicPortsRuleName)
 
-	if err := d.deleteFirewallRule(ingressName, status); err != nil {
+	if err := d.deleteFirewallRule(ctx, ingressName, status); err != nil {
 		return errors.Wrapf(err, "error deleting firewall rule %q", ingressName)
 	}
 
@@ -355,7 +355,7 @@ func (d *ocpGatewayDeployer) isInstanceGatewayNode(instance *compute.Instance) b
 	return slices.Contains(instance.Tags.Items, submarinerGatewayNodeTag)
 }
 
-func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.Instance) error {
+func (d *ocpGatewayDeployer) resetExistingGWNode(ctx context.Context, zone string, instance *compute.Instance) error {
 	for i := range instance.Tags.Items {
 		if instance.Tags.Items[i] == submarinerGatewayNodeTag {
 			instance.Tags.Items = append(instance.Tags.Items[:i], instance.Tags.Items[i+1:]...)
@@ -367,12 +367,12 @@ func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.
 		Fingerprint: instance.Tags.Fingerprint,
 	}
 
-	err := d.Client.UpdateInstanceNetworkTags(d.ProjectID, zone, instance.Name, tags)
+	err := d.Client.UpdateInstanceNetworkTags(ctx, d.ProjectID, zone, instance.Name, tags)
 	if err != nil {
 		return errors.Wrapf(err, "error updating network tags for GCP instance %q in zode %q", instance.Name, zone)
 	}
 
-	err = d.Client.DeletePublicIPOnInstance(instance)
+	err = d.Client.DeletePublicIPOnInstance(ctx, instance)
 	if err != nil {
 		return errors.Wrapf(err, "error deleting public IP for GCP instance %q in zode %q", instance.Name, zone)
 	}
@@ -380,11 +380,11 @@ func (d *ocpGatewayDeployer) resetExistingGWNode(zone string, instance *compute.
 	return nil
 }
 
-func (d *ocpGatewayDeployer) retrieveZones(status reporter.Interface) (*compute.ZoneList, error) {
+func (d *ocpGatewayDeployer) retrieveZones(ctx context.Context, status reporter.Interface) (*compute.ZoneList, error) {
 	status.Start("Retrieving the current zones in the project")
 	status.End()
 
-	zones, err := d.Client.ListZones()
+	zones, err := d.Client.ListZones(ctx)
 	if err != nil {
 		return nil, status.Error(err, "failed to list the zones in the project %q", d.ProjectID)
 	}

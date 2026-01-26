@@ -62,11 +62,13 @@ func testDeploy() {
 	BeforeEach(func() {
 		actualRule = nil
 
-		t.gcpClient.EXPECT().GetFirewallRule(projectID, publicPortsRuleName).Return(nil, &googleapi.Error{Code: http.StatusNotFound})
-		t.gcpClient.EXPECT().InsertFirewallRule(projectID, mock.Anything).RunAndReturn(func(_ string, rule *compute.Firewall) error {
-			actualRule = rule
-			return nil
-		})
+		t.gcpClient.EXPECT().GetFirewallRule(mock.Anything, projectID, publicPortsRuleName).Return(
+			nil, &googleapi.Error{Code: http.StatusNotFound})
+		t.gcpClient.EXPECT().InsertFirewallRule(mock.Anything, projectID, mock.Anything).RunAndReturn(
+			func(_ context.Context, _ string, rule *compute.Firewall) error {
+				actualRule = rule
+				return nil
+			})
 	})
 
 	JustBeforeEach(func() {
@@ -155,7 +157,7 @@ func testDeploy() {
 
 	When("zone retrieval fails", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().ListZones().Return(nil, errors.New("fake error"))
+			t.gcpClient.EXPECT().ListZones(mock.Anything).Return(nil, errors.New("fake error"))
 		})
 
 		It("should return an error", func() {
@@ -177,7 +179,7 @@ func testCleanup() {
 	})
 
 	JustBeforeEach(func() {
-		t.gcpClient.EXPECT().DeleteFirewallRule(projectID, publicPortsRuleName).Return(deleteFirewallRule)
+		t.gcpClient.EXPECT().DeleteFirewallRule(mock.Anything, projectID, publicPortsRuleName).Return(deleteFirewallRule)
 		retError = t.gwDeployer.Cleanup(context.TODO(), reporter.Stdout())
 	})
 
@@ -229,7 +231,7 @@ func testCleanup() {
 
 	When("zone retrieval fails", func() {
 		BeforeEach(func() {
-			t.gcpClient.EXPECT().ListZones().Return(nil, errors.New("fake error"))
+			t.gcpClient.EXPECT().ListZones(mock.Anything).Return(nil, errors.New("fake error"))
 		})
 
 		It("should return an error", func() {
@@ -307,26 +309,28 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 	})
 
 	JustBeforeEach(func() {
-		t.gcpClient.EXPECT().ListZones().Return(&compute.ZoneList{Items: t.zones}, nil).Maybe()
-		t.gcpClient.EXPECT().ListInstances(mock.Anything).RunAndReturn(func(zone string) (*compute.InstanceList, error) {
-			list := t.instances[zone]
-			if list != nil {
-				return &compute.InstanceList{Items: list}, nil
-			}
-
-			return &compute.InstanceList{}, nil
-		}).Maybe()
-
-		t.gcpClient.EXPECT().GetInstance(mock.Anything, mock.Anything).RunAndReturn(func(zone, instance string) (*compute.Instance, error) {
-			list := t.instances[zone]
-			for _, i := range list {
-				if i.Name == instance {
-					return i, nil
+		t.gcpClient.EXPECT().ListZones(mock.Anything).Return(&compute.ZoneList{Items: t.zones}, nil).Maybe()
+		t.gcpClient.EXPECT().ListInstances(mock.Anything, mock.Anything).RunAndReturn(
+			func(_ context.Context, zone string) (*compute.InstanceList, error) {
+				list := t.instances[zone]
+				if list != nil {
+					return &compute.InstanceList{Items: list}, nil
 				}
-			}
 
-			return nil, fmt.Errorf("instance %q not found", instance)
-		}).Maybe()
+				return &compute.InstanceList{}, nil
+			}).Maybe()
+
+		t.gcpClient.EXPECT().GetInstance(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+			func(_ context.Context, zone, instance string) (*compute.Instance, error) {
+				list := t.instances[zone]
+				for _, i := range list {
+					if i.Name == instance {
+						return i, nil
+					}
+				}
+
+				return nil, fmt.Errorf("instance %q not found", instance)
+			}).Maybe()
 
 		for _, node := range t.nodes {
 			_, err := t.kubeClient.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
@@ -401,11 +405,11 @@ func (t *gatewayDeployerTestDriver) assertIngressRule(rule *compute.Firewall) {
 }
 
 func (t *gatewayDeployerTestDriver) expInstanceUntagged(zone string, instance *compute.Instance) {
-	t.gcpClient.EXPECT().UpdateInstanceNetworkTags(projectID, zone, instance.Name, &compute.Tags{
+	t.gcpClient.EXPECT().UpdateInstanceNetworkTags(mock.Anything, projectID, zone, instance.Name, &compute.Tags{
 		Items: []string{},
 	}).Return(nil)
 
-	t.gcpClient.EXPECT().DeletePublicIPOnInstance(instance).Return(nil)
+	t.gcpClient.EXPECT().DeletePublicIPOnInstance(mock.Anything, instance).Return(nil)
 }
 
 func (t *gatewayDeployerTestDriver) assertMachineSet(ms *unstructured.Unstructured, expImage string) {

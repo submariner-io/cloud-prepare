@@ -47,13 +47,13 @@ func NewCloud(info CloudInfo, //nolint: gocritic //Ignore 'hugeParam' - pass by 
 	return gcpCloud
 }
 
-func (gc *gcpCloud) OpenPorts(_ context.Context, ports []api.PortSpec, status reporter.Interface) error {
+func (gc *gcpCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, status reporter.Interface) error {
 	// Create the inbound firewall rule for submariner internal ports.
 	status.Start("Opening internal ports %q for intra-cluster communications on GCP", formatPorts(ports))
 	defer status.End()
 
 	internalIngress := newInternalFirewallRule(gc.ProjectID, gc.InfraID, gc.VpcName, ports)
-	if err := gc.openPorts(internalIngress); err != nil {
+	if err := gc.openPorts(ctx, internalIngress); err != nil {
 		return status.Error(err, "unable to open ports")
 	}
 
@@ -63,11 +63,11 @@ func (gc *gcpCloud) OpenPorts(_ context.Context, ports []api.PortSpec, status re
 	return nil
 }
 
-func (gc *gcpCloud) ClosePorts(_ context.Context, status reporter.Interface) error {
+func (gc *gcpCloud) ClosePorts(ctx context.Context, status reporter.Interface) error {
 	// Delete the inbound and outbound firewall rules to close submariner internal ports.
 	internalIngressName := generateRuleName(gc.InfraID, internalPortsRuleName)
 
-	return gc.deleteFirewallRule(internalIngressName, status)
+	return gc.deleteFirewallRule(ctx, internalIngressName, status)
 }
 
 func formatPorts(ports []api.PortSpec) string {

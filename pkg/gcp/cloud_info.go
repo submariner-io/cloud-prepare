@@ -19,6 +19,8 @@ limitations under the License.
 package gcp
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	gcpclient "github.com/submariner-io/cloud-prepare/pkg/gcp/client"
@@ -37,11 +39,11 @@ type CloudInfo struct {
 // Open expected ports by creating related firewall rule.
 // - if the firewall rule is not found, we will create it.
 // - if the firewall rule is found and changed, we will update it.
-func (c *CloudInfo) openPorts(rules ...*compute.Firewall) error {
+func (c *CloudInfo) openPorts(ctx context.Context, rules ...*compute.Firewall) error {
 	for _, rule := range rules {
-		_, err := c.Client.GetFirewallRule(c.ProjectID, rule.Name)
+		_, err := c.Client.GetFirewallRule(ctx, c.ProjectID, rule.Name)
 		if gcpclient.IsGCPNotFoundError(err) {
-			if err := c.Client.InsertFirewallRule(c.ProjectID, rule); err != nil {
+			if err := c.Client.InsertFirewallRule(ctx, c.ProjectID, rule); err != nil {
 				return errors.Wrapf(err, "error inserting firewall rule %#v", rule)
 			}
 
@@ -52,7 +54,7 @@ func (c *CloudInfo) openPorts(rules ...*compute.Firewall) error {
 			return errors.Wrapf(err, "error retrieving firewall rule %q", rule.Name)
 		}
 
-		if err := c.Client.UpdateFirewallRule(c.ProjectID, rule.Name, rule); err != nil {
+		if err := c.Client.UpdateFirewallRule(ctx, c.ProjectID, rule.Name, rule); err != nil {
 			return errors.Wrapf(err, "error updating firewall rule %#v", rule)
 		}
 	}
@@ -60,10 +62,10 @@ func (c *CloudInfo) openPorts(rules ...*compute.Firewall) error {
 	return nil
 }
 
-func (c *CloudInfo) deleteFirewallRule(name string, status reporter.Interface) error {
+func (c *CloudInfo) deleteFirewallRule(ctx context.Context, name string, status reporter.Interface) error {
 	status.Start("Deleting firewall rule %q on GCP", name)
 
-	if err := c.Client.DeleteFirewallRule(c.ProjectID, name); err != nil {
+	if err := c.Client.DeleteFirewallRule(ctx, c.ProjectID, name); err != nil {
 		if !gcpclient.IsGCPNotFoundError(err) {
 			return status.Error(err, "unable to delete firewall rule %q", name)
 		}
