@@ -346,7 +346,7 @@ func (d *ocpGatewayDeployer) deployGateway(ctx context.Context, vpcID, gatewaySe
 		return err
 	}
 
-	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
+	return errors.Wrapf(d.msDeployer.Deploy(ctx, machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
 func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interface) error {
@@ -456,5 +456,5 @@ func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, publicSubnet *ty
 		return err
 	}
 
-	return errors.Wrapf(d.msDeployer.Delete(machineSet), "error deleting machine set %q", machineSet.GetName())
+	return errors.Wrapf(d.msDeployer.Delete(ctx, machineSet), "error deleting machine set %q", machineSet.GetName())
 }

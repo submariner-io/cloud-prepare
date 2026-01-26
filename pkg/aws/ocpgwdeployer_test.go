@@ -46,7 +46,7 @@ func testDeploy() {
 	var deployCall *mock.Call
 
 	JustBeforeEach(func() {
-		deployCall = t.msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(machineSetFn(&t.machineSets)).Call
+		deployCall = t.msDeployer.EXPECT().Deploy(mock.Anything, mock.Anything).RunAndReturn(machineSetFn(&t.machineSets)).Call
 
 		t.expectDescribePublicSubnets(t.subnets...)
 
@@ -196,7 +196,7 @@ func testCleanup() {
 	When("on success", func() {
 		BeforeEach(func() {
 			t.expectCleanupValidations(true)
-			t.msDeployer.EXPECT().Delete(mock.Anything).RunAndReturn(machineSetFn(&t.machineSets)).Times(len(t.subnets))
+			t.msDeployer.EXPECT().Delete(mock.Anything, mock.Anything).RunAndReturn(machineSetFn(&t.machineSets)).Times(len(t.subnets))
 			t.expectDeleteSecurityGroup(gatewayGroupID)
 
 			for i := range t.subnets {
@@ -375,10 +375,10 @@ func (t *gatewayDeployerTestDriver) testDeploySuccess(msgPrefix, msgSuffix strin
 }
 
 //nolint:gocritic // Error: "consider `machineSets' to be of non-pointer type"
-func machineSetFn(machineSets *map[string]*unstructured.Unstructured) func(ms *unstructured.Unstructured) error {
+func machineSetFn(machineSets *map[string]*unstructured.Unstructured) func(_ context.Context, ms *unstructured.Unstructured) error {
 	*machineSets = map[string]*unstructured.Unstructured{}
 
-	return func(ms *unstructured.Unstructured) error {
+	return func(_ context.Context, ms *unstructured.Unstructured) error {
 		zone, ok, _ := unstructured.NestedString(ms.Object, "spec", "template", "spec", "providerSpec", "value",
 			"placement", "availabilityZone")
 		Expect(ok).To(BeTrue())

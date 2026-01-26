@@ -19,6 +19,8 @@ limitations under the License.
 package azure
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
@@ -62,14 +64,15 @@ var _ = Describe("OCP Gateway Deployer", func() {
 
 	Describe("deployGateway", func() {
 		JustBeforeEach(func() {
-			msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(func(ms *unstructured.Unstructured) error {
-				machineSet = ms
-				return nil
-			}).Maybe()
+			msDeployer.EXPECT().Deploy(mock.Anything, mock.Anything).RunAndReturn(
+				func(_ context.Context, ms *unstructured.Unstructured) error {
+					machineSet = ms
+					return nil
+				}).Maybe()
 		})
 
 		It("should deploy the correct MachineSet", func() {
-			Expect(gwDeployer.deployGateway(zone, image, false)).To(Succeed())
+			Expect(gwDeployer.deployGateway(context.TODO(), zone, image, false)).To(Succeed())
 
 			Expect(machineSet).ToNot(BeNil())
 			Expect(machineSet.GetLabels()).To(HaveKeyWithValue("machine.openshift.io/cluster-api-cluster", infraID))
@@ -83,7 +86,7 @@ var _ = Describe("OCP Gateway Deployer", func() {
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "publicIP")).To(BeTrue())
 
 			machineSet = nil
-			Expect(gwDeployer.deployGateway(zone, image, true)).To(Succeed())
+			Expect(gwDeployer.deployGateway(context.TODO(), zone, image, true)).To(Succeed())
 
 			Expect(machineSet).ToNot(BeNil())
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "publicIP")).To(BeFalse())

@@ -68,7 +68,7 @@ func NewOcpGatewayDeployer(info CloudInfo, //nolint: gocritic // Ignore 'hugePar
 	}
 }
 
-func (d *ocpGatewayDeployer) Deploy(_ context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
 	status.Start("Configuring the required firewall rules for inter-cluster traffic")
 	defer status.End()
 
@@ -103,7 +103,7 @@ func (d *ocpGatewayDeployer) Deploy(_ context.Context, input api.GatewayDeployIn
 	for _, zone := range eligibleZonesForGW.UnsortedList() {
 		status.Start("Deploying dedicated gateway node in zone %q", zone)
 
-		err = d.deployGateway(zone)
+		err = d.deployGateway(ctx, zone)
 		if err != nil {
 			return status.Error(err, "error deploying gateway for zone %q", zone)
 		}
@@ -228,14 +228,14 @@ func (d *ocpGatewayDeployer) initMachineSet(zone string) (*unstructured.Unstruct
 	return machineSet, nil
 }
 
-func (d *ocpGatewayDeployer) deployGateway(zone string) error {
+func (d *ocpGatewayDeployer) deployGateway(ctx context.Context, zone string) error {
 	machineSet, err := d.initMachineSet(zone)
 	if err != nil {
 		return err
 	}
 
 	if d.image == "" {
-		d.image, err = d.msDeployer.GetWorkerNodeImage(machineSet, d.InfraID)
+		d.image, err = d.msDeployer.GetWorkerNodeImage(ctx, machineSet, d.InfraID)
 		if err != nil {
 			return errors.Wrap(err, "error retrieving worker node image")
 		}
@@ -246,7 +246,7 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 		}
 	}
 
-	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
+	return errors.Wrapf(d.msDeployer.Deploy(ctx, machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
 func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interface) error {
@@ -291,7 +291,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 			if strings.HasPrefix(instance.Name, prefix) {
 				status.Start(fmt.Sprintf("Deleting the gateway instance %q", instance.Name))
 
-				err := d.deleteGateway(zone.Name)
+				err := d.deleteGateway(ctx, zone.Name)
 				if err != nil {
 					return status.Error(err, "failed to delete dedicated gateway instance %q", instance.Name)
 				}
@@ -322,13 +322,13 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 	return nil
 }
 
-func (d *ocpGatewayDeployer) deleteGateway(zone string) error {
+func (d *ocpGatewayDeployer) deleteGateway(ctx context.Context, zone string) error {
 	machineSet, err := d.initMachineSet(zone)
 	if err != nil {
 		return err
 	}
 
-	return errors.Wrapf(d.msDeployer.Delete(machineSet), "error deleting machine set %q", machineSet.GetName())
+	return errors.Wrapf(d.msDeployer.Delete(ctx, machineSet), "error deleting machine set %q", machineSet.GetName())
 }
 
 func (d *ocpGatewayDeployer) deleteExternalFWRules(status reporter.Interface) error {

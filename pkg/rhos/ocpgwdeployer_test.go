@@ -19,6 +19,7 @@ limitations under the License.
 package rhos_test
 
 import (
+	"context"
 	"slices"
 
 	"github.com/gophercloud/gophercloud"
@@ -48,7 +49,7 @@ func testDeploy() {
 	t := newGatewayDeployerTestDriver()
 
 	BeforeEach(func() {
-		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, testInfraID).Return(testImage, nil).Maybe()
+		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, testInfraID).Return(testImage, nil).Maybe()
 	})
 
 	It("should deploy a gateway node machine set and security group rules", func() {
@@ -238,17 +239,18 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 	})
 
 	JustBeforeEach(func() {
-		t.msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(t.machineSetFn()).Maybe()
-		t.msDeployer.EXPECT().List().Return(slices.Clone(t.existingMachineSets), nil).Maybe()
+		t.msDeployer.EXPECT().Deploy(mock.Anything, mock.Anything).RunAndReturn(t.machineSetFn()).Maybe()
+		t.msDeployer.EXPECT().List(mock.Anything).Return(slices.Clone(t.existingMachineSets), nil).Maybe()
 
-		t.msDeployer.EXPECT().DeleteByName(mock.Anything, mock.Anything).RunAndReturn(func(msName, _ string) error {
-			t.existingMachineSets = slices.DeleteFunc(t.existingMachineSets, func(u unstructured.Unstructured) bool {
-				name, _, _ := unstructured.NestedString(u.Object, "metadata", "name")
-				return name == msName
-			})
+		t.msDeployer.EXPECT().DeleteByName(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+			func(_ context.Context, msName, _ string) error {
+				t.existingMachineSets = slices.DeleteFunc(t.existingMachineSets, func(u unstructured.Unstructured) bool {
+					name, _, _ := unstructured.NestedString(u.Object, "metadata", "name")
+					return name == msName
+				})
 
-			return nil
-		}).Maybe()
+				return nil
+			}).Maybe()
 
 		t.gwDeployer = rhos.NewOcpGatewayDeployer(rhos.CloudInfo{
 			Client:      &gophercloud.ProviderClient{},
@@ -262,8 +264,8 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 	return t
 }
 
-func (t *gatewayDeployerTestDriver) machineSetFn() func(ms *unstructured.Unstructured) error {
-	return func(ms *unstructured.Unstructured) error {
+func (t *gatewayDeployerTestDriver) machineSetFn() func(_ context.Context, ms *unstructured.Unstructured) error {
+	return func(_ context.Context, ms *unstructured.Unstructured) error {
 		t.machineSetsDeployed = append(t.machineSetsDeployed, ms)
 		return nil
 	}
