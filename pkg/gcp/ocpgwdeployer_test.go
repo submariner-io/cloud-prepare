@@ -178,7 +178,7 @@ func testCleanup() {
 
 	JustBeforeEach(func() {
 		t.gcpClient.EXPECT().DeleteFirewallRule(projectID, publicPortsRuleName).Return(deleteFirewallRule)
-		retError = t.gwDeployer.Cleanup(reporter.Stdout())
+		retError = t.gwDeployer.Cleanup(context.TODO(), reporter.Stdout())
 	})
 
 	It("should delete the firewall rule", func() {
@@ -347,7 +347,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 }
 
 func (t *gatewayDeployerTestDriver) doDeploy() error {
-	return t.gwDeployer.Deploy(api.GatewayDeployInput{
+	return t.gwDeployer.Deploy(context.TODO(), api.GatewayDeployInput{
 		Gateways: t.numGateways,
 		PublicPorts: []api.PortSpec{
 			{

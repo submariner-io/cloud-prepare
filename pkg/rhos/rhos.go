@@ -19,6 +19,8 @@ limitations under the License.
 package rhos
 
 import (
+	"context"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/submariner-io/admiral/pkg/reporter"
@@ -46,7 +48,7 @@ func NewCloud(info CloudInfo) api.Cloud { //nolint:gocritic // Ignore 'hugeParam
 	return &rhosCloud{CloudInfo: info}
 }
 
-func (rc *rhosCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) error {
+func (rc *rhosCloud) OpenPorts(_ context.Context, ports []api.PortSpec, status reporter.Interface) error {
 	status.Start("Opening internal ports for intra-cluster communications on RHOS")
 	defer status.End()
 
@@ -69,7 +71,7 @@ func (rc *rhosCloud) OpenPorts(ports []api.PortSpec, status reporter.Interface) 
 	return nil
 }
 
-func (rc *rhosCloud) ClosePorts(status reporter.Interface) error {
+func (rc *rhosCloud) ClosePorts(_ context.Context, status reporter.Interface) error {
 	status.Start("Revoking intra-cluster communication permissions")
 
 	computeClient, err := NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})

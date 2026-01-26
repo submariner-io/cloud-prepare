@@ -20,6 +20,7 @@ package gcp
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -67,7 +68,7 @@ func NewOcpGatewayDeployer(info CloudInfo, //nolint: gocritic // Ignore 'hugePar
 	}
 }
 
-func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Deploy(_ context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
 	status.Start("Configuring the required firewall rules for inter-cluster traffic")
 	defer status.End()
 
@@ -248,7 +249,7 @@ func (d *ocpGatewayDeployer) deployGateway(zone string) error {
 	return errors.Wrapf(d.msDeployer.Deploy(machineSet), "error deploying machine set %q", machineSet.GetName())
 }
 
-func (d *ocpGatewayDeployer) Cleanup(status reporter.Interface) error {
+func (d *ocpGatewayDeployer) Cleanup(_ context.Context, status reporter.Interface) error {
 	status.Start("Retrieving the Submariner gateway firewall rules")
 	defer status.End()
 

@@ -18,7 +18,11 @@ limitations under the License.
 
 package api
 
-import "github.com/submariner-io/admiral/pkg/reporter"
+import (
+	"context"
+
+	"github.com/submariner-io/admiral/pkg/reporter"
+)
 
 // PortSpec is a specification of port+protocol to open.
 type PortSpec struct {
@@ -29,10 +33,10 @@ type PortSpec struct {
 // Cloud is a potential cloud for installing Submariner on.
 type Cloud interface {
 	// OpenPorts inside the cloud for submariner to communicate through.
-	OpenPorts(ports []PortSpec, status reporter.Interface) error
+	OpenPorts(ctx context.Context, ports []PortSpec, status reporter.Interface) error
 
 	// ClosePorts will close any internal ports that were opened, after Submariner is removed.
-	ClosePorts(status reporter.Interface) error
+	ClosePorts(ctx context.Context, status reporter.Interface) error
 }
 
 type GatewayDeployInput struct {
@@ -56,8 +60,8 @@ type GatewayDeployInput struct {
 // GatewayDeployer will deploy and cleanup dedicated gateways according to the requested policy.
 type GatewayDeployer interface {
 	// Deploy dedicated gateways as requested.
-	Deploy(input GatewayDeployInput, status reporter.Interface) error
+	Deploy(ctx context.Context, input GatewayDeployInput, status reporter.Interface) error
 
 	// Cleanup any dedicated gateways that were previously deployed.
-	Cleanup(status reporter.Interface) error
+	Cleanup(ctx context.Context, status reporter.Interface) error
 }

@@ -34,8 +34,8 @@ import (
 
 const internalTraffic = "Internal Submariner traffic"
 
-func (ac *awsCloud) getSecurityGroupName(vpcID, name string) (*string, error) {
-	group, err := ac.getSecurityGroup(vpcID, name)
+func (ac *awsCloud) getSecurityGroupName(ctx context.Context, vpcID, name string) (*string, error) {
+	group, err := ac.getSecurityGroup(ctx, vpcID, name)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +43,8 @@ func (ac *awsCloud) getSecurityGroupName(vpcID, name string) (*string, error) {
 	return group.GroupId, nil
 }
 
-func (ac *awsCloud) getSecurityGroupByID(groupID string) (types.SecurityGroup, error) {
-	output, err := ac.client.DescribeSecurityGroups(context.TODO(), &ec2.DescribeSecurityGroupsInput{
+func (ac *awsCloud) getSecurityGroupByID(ctx context.Context, groupID string) (types.SecurityGroup, error) {
+	output, err := ac.client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
 		GroupIds: []string{groupID},
 	})
 	if err != nil {
@@ -58,13 +58,13 @@ func (ac *awsCloud) getSecurityGroupByID(groupID string) (types.SecurityGroup, e
 	return output.SecurityGroups[0], nil
 }
 
-func (ac *awsCloud) getSecurityGroup(vpcID, name string) (types.SecurityGroup, error) {
+func (ac *awsCloud) getSecurityGroup(ctx context.Context, vpcID, name string) (types.SecurityGroup, error) {
 	filters := []types.Filter{
 		ec2Filter("vpc-id", vpcID),
 		ac.filterByName(name),
 	}
 
-	result, err := ac.client.DescribeSecurityGroups(context.TODO(), &ec2.DescribeSecurityGroupsInput{
+	result, err := ac.client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
 		Filters: filters,
 	})
 	if err != nil {
@@ -78,13 +78,13 @@ func (ac *awsCloud) getSecurityGroup(vpcID, name string) (types.SecurityGroup, e
 	return result.SecurityGroups[0], nil
 }
 
-func (ac *awsCloud) authorizeSecurityGroupIngress(groupID *string, ipPermissions []types.IpPermission) error {
+func (ac *awsCloud) authorizeSecurityGroupIngress(ctx context.Context, groupID *string, ipPermissions []types.IpPermission) error {
 	input := &ec2.AuthorizeSecurityGroupIngressInput{
 		GroupId:       groupID,
 		IpPermissions: ipPermissions,
 	}
 
-	_, err := ac.client.AuthorizeSecurityGroupIngress(context.TODO(), input)
+	_, err := ac.client.AuthorizeSecurityGroupIngress(ctx, input)
 	if isAWSError(err, "InvalidPermission.Duplicate") {
 		return nil
 	}
@@ -92,7 +92,7 @@ func (ac *awsCloud) authorizeSecurityGroupIngress(groupID *string, ipPermissions
 	return errors.Wrap(err, "error authorizing AWS security groups ingress")
 }
 
-func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16, protocol, description string) error {
+func (ac *awsCloud) createClusterSGRule(ctx context.Context, srcGroup, destGroup *string, port uint16, protocol, description string) error {
 	ipPermissions := []types.IpPermission{
 		{
 			FromPort:   ptr.To(int32(port)),
@@ -107,10 +107,10 @@ func (ac *awsCloud) createClusterSGRule(srcGroup, destGroup *string, port uint16
 		},
 	}
 
-	return ac.authorizeSecurityGroupIngress(destGroup, ipPermissions)
+	return ac.authorizeSecurityGroupIngress(ctx, destGroup, ipPermissions)
 }
 
-func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol string) error {
+func (ac *awsCloud) allowPortInCluster(ctx context.Context, vpcID string, port uint16, protocol string) error {
 	var workerGroupID, controlPlaneGroupID *string
 	var err error
 
@@ -123,7 +123,7 @@ func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol strin
 	} else {
 		workerGroupName := withInfraIDPrefix(ac.nodeSGSuffix)
 
-		workerGroupID, err = ac.getSecurityGroupName(vpcID, workerGroupName)
+		workerGroupID, err = ac.getSecurityGroupName(ctx, vpcID, workerGroupName)
 		if err != nil {
 			return err
 		}
@@ -138,28 +138,28 @@ func (ac *awsCloud) allowPortInCluster(vpcID string, port uint16, protocol strin
 	} else {
 		controlPlaneGroupName := withInfraIDPrefix(ac.controlPlaneSGSuffix)
 
-		controlPlaneGroupID, err = ac.getSecurityGroupName(vpcID, controlPlaneGroupName)
+		controlPlaneGroupID, err = ac.getSecurityGroupName(ctx, vpcID, controlPlaneGroupName)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = ac.createClusterSGRule(workerGroupID, workerGroupID, port, protocol, internalTraffic+" between the workers")
+	err = ac.createClusterSGRule(ctx, workerGroupID, workerGroupID, port, protocol, internalTraffic+" between the workers")
 	if err != nil {
 		return err
 	}
 
-	err = ac.createClusterSGRule(workerGroupID, controlPlaneGroupID, port, protocol,
+	err = ac.createClusterSGRule(ctx, workerGroupID, controlPlaneGroupID, port, protocol,
 		internalTraffic+" from worker to control plane nodes")
 	if err != nil {
 		return err
 	}
 
-	return ac.createClusterSGRule(controlPlaneGroupID, workerGroupID, port, protocol,
+	return ac.createClusterSGRule(ctx, controlPlaneGroupID, workerGroupID, port, protocol,
 		internalTraffic+" from control plane to worker nodes")
 }
 
-func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, description string) error {
+func (ac *awsCloud) createPublicSGRule(ctx context.Context, groupID *string, port uint16, protocol, description string) error {
 	ipPermissions := []types.IpPermission{
 		{
 			FromPort:   ptr.To(int32(port)),
@@ -174,13 +174,13 @@ func (ac *awsCloud) createPublicSGRule(groupID *string, port uint16, protocol, d
 		},
 	}
 
-	return ac.authorizeSecurityGroupIngress(groupID, ipPermissions)
+	return ac.authorizeSecurityGroupIngress(ctx, groupID, ipPermissions)
 }
 
-func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string, error) {
+func (ac *awsCloud) createGatewaySG(ctx context.Context, vpcID string, ports []api.PortSpec) (string, error) {
 	groupName := ac.withAWSInfo(withInfraIDPrefix("-submariner-gw-sg"))
 
-	gatewayGroupID, err := ac.getSecurityGroupName(vpcID, groupName)
+	gatewayGroupID, err := ac.getSecurityGroupName(ctx, vpcID, groupName)
 	if err != nil {
 		if !isNotFoundError(err) {
 			return "", err
@@ -201,7 +201,7 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 			},
 		}
 
-		result, err := ac.client.CreateSecurityGroup(context.TODO(), input)
+		result, err := ac.client.CreateSecurityGroup(ctx, input)
 
 		if err != nil && !isAWSError(err, "InvalidGroup.Duplicate") {
 			return "", errors.Wrap(err, "error creating AWS security group")
@@ -211,7 +211,7 @@ func (ac *awsCloud) createGatewaySG(vpcID string, ports []api.PortSpec) (string,
 	}
 
 	for _, port := range ports {
-		err = ac.createPublicSGRule(gatewayGroupID, port.Port, port.Protocol, "Public Submariner traffic")
+		err = ac.createPublicSGRule(ctx, gatewayGroupID, port.Port, port.Protocol, "Public Submariner traffic")
 		if err != nil {
 			return "", err
 		}
@@ -224,10 +224,10 @@ func gatewayDeletionRetriable(err error) bool {
 	return isAWSError(err, "DependencyViolation")
 }
 
-func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
+func (ac *awsCloud) deleteGatewaySG(ctx context.Context, vpcID string) error {
 	groupName := ac.withAWSInfo(withInfraIDPrefix("-submariner-gw-sg"))
 
-	gatewayGroupID, err := ac.getSecurityGroupName(vpcID, groupName)
+	gatewayGroupID, err := ac.getSecurityGroupName(ctx, vpcID, groupName)
 	if err != nil {
 		if isNotFoundError(err) {
 			return nil
@@ -244,7 +244,7 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 	}
 
 	err = retry.OnError(backoff, gatewayDeletionRetriable, func() error {
-		_, err = ac.client.DeleteSecurityGroup(context.TODO(), &ec2.DeleteSecurityGroupInput{
+		_, err = ac.client.DeleteSecurityGroup(ctx, &ec2.DeleteSecurityGroupInput{
 			GroupId: gatewayGroupID,
 		})
 
@@ -258,13 +258,13 @@ func (ac *awsCloud) deleteGatewaySG(vpcID string) error {
 	return errors.Wrap(err, "error deleting AWS security group")
 }
 
-func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
+func (ac *awsCloud) revokePortsInCluster(ctx context.Context, vpcID string) error {
 	var workerGroup, controlPlaneGroup types.SecurityGroup
 	var err error
 
 	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
 		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
-			workerGroup, err = ac.getSecurityGroupByID(workerGroupIDStr)
+			workerGroup, err = ac.getSecurityGroupByID(ctx, workerGroupIDStr)
 			if err != nil {
 				return errors.Wrap(err, "unable to get Worker Security Group by ID")
 			}
@@ -274,7 +274,7 @@ func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
 	} else {
 		workerGroupName := withInfraIDPrefix(ac.nodeSGSuffix)
 
-		workerGroup, err = ac.getSecurityGroup(vpcID, workerGroupName)
+		workerGroup, err = ac.getSecurityGroup(ctx, vpcID, workerGroupName)
 		if err != nil {
 			return err
 		}
@@ -282,7 +282,7 @@ func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
 
 	if id, exists := ac.cloudConfig[ControlPlaneSecurityGroupIDKey]; exists {
 		if controlPlaneGroupIDStr, ok := id.(string); ok && controlPlaneGroupIDStr != "" {
-			controlPlaneGroup, err = ac.getSecurityGroupByID(controlPlaneGroupIDStr)
+			controlPlaneGroup, err = ac.getSecurityGroupByID(ctx, controlPlaneGroupIDStr)
 			if err != nil {
 				return errors.Wrap(err, "unable to get Control Plane Security Group by ID")
 			}
@@ -292,21 +292,21 @@ func (ac *awsCloud) revokePortsInCluster(vpcID string) error {
 	} else {
 		controlPlaneGroupName := withInfraIDPrefix(ac.controlPlaneSGSuffix)
 
-		controlPlaneGroup, err = ac.getSecurityGroup(vpcID, controlPlaneGroupName)
+		controlPlaneGroup, err = ac.getSecurityGroup(ctx, vpcID, controlPlaneGroupName)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = ac.revokePortsFromGroup(&workerGroup)
+	err = ac.revokePortsFromGroup(ctx, &workerGroup)
 	if err != nil {
 		return err
 	}
 
-	return ac.revokePortsFromGroup(&controlPlaneGroup)
+	return ac.revokePortsFromGroup(ctx, &controlPlaneGroup)
 }
 
-func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
+func (ac *awsCloud) revokePortsFromGroup(ctx context.Context, group *types.SecurityGroup) error {
 	var permissionsToRevoke []types.IpPermission
 
 	for perm := range group.IpPermissions {
@@ -328,7 +328,7 @@ func (ac *awsCloud) revokePortsFromGroup(group *types.SecurityGroup) error {
 		IpPermissions: permissionsToRevoke,
 	}
 
-	_, err := ac.client.RevokeSecurityGroupIngress(context.TODO(), input)
+	_, err := ac.client.RevokeSecurityGroupIngress(ctx, input)
 
 	return errors.Wrap(err, "error revoking AWS security group ingress")
 }

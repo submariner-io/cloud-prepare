@@ -22,7 +22,6 @@ import (
 	"context"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v6"
@@ -73,11 +72,10 @@ func (c *CloudInfo) getResourceSKUClient() (*armcompute.ResourceSKUsClient, erro
 	return armcompute.NewResourceSKUsClient(c.SubscriptionID, c.TokenCredential, nil)
 }
 
-func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec, nsgClient *armnetwork.SecurityGroupsClient) error {
+func (c *CloudInfo) openInternalPorts(ctx context.Context, infraID string, ports []api.PortSpec,
+	nsgClient *armnetwork.SecurityGroupsClient,
+) error {
 	groupName := infraID + internalSecurityGroupSuffix
-
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
 
 	nwSecurityGroup, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, nil)
 	if err != nil {
@@ -113,11 +111,8 @@ func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec, nsgC
 	return errors.Wrapf(err, "error updating  security group %q with submariner rules", groupName)
 }
 
-func (c *CloudInfo) removeInternalFirewallRules(infraID string, nsgClient *armnetwork.SecurityGroupsClient) error {
+func (c *CloudInfo) removeInternalFirewallRules(ctx context.Context, infraID string, nsgClient *armnetwork.SecurityGroupsClient) error {
 	groupName := infraID + internalSecurityGroupSuffix
-
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
 
 	nwSecurityGroup, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, nil)
 	if err != nil {
@@ -178,10 +173,9 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix string, protocol armnet
 	}
 }
 
-func (c *CloudInfo) createGWSecurityGroup(groupName string, ports []api.PortSpec, nsgClient *armnetwork.SecurityGroupsClient) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
-
+func (c *CloudInfo) createGWSecurityGroup(ctx context.Context, groupName string, ports []api.PortSpec,
+	nsgClient *armnetwork.SecurityGroupsClient,
+) error {
 	isFound := c.checkIfSecurityGroupPresent(ctx, groupName, nsgClient)
 	if isFound {
 		return nil
@@ -216,12 +210,9 @@ func (c *CloudInfo) createGWSecurityGroup(groupName string, ports []api.PortSpec
 	return errors.Wrapf(err, "Error creating  security group %v ", groupName)
 }
 
-func (c *CloudInfo) prepareGWInterface(nodeName, groupName string, nsgClient *armnetwork.SecurityGroupsClient,
+func (c *CloudInfo) prepareGWInterface(ctx context.Context, nodeName, groupName string, nsgClient *armnetwork.SecurityGroupsClient,
 	nwClient *armnetwork.InterfacesClient, pubIPClient *armnetwork.PublicIPAddressesClient,
 ) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
-
 	nwSecurityGroup, err := nsgClient.Get(ctx, c.BaseGroupName, groupName, nil)
 	if err != nil {
 		return errors.Wrapf(err, "error getting the submariner gateway security group %q", groupName)
@@ -269,13 +260,10 @@ func (c *CloudInfo) prepareGWInterface(nodeName, groupName string, nsgClient *ar
 	return errors.Wrapf(err, "updating interface %q failed", *nwInterface.Name)
 }
 
-func (c *CloudInfo) cleanupGWInterface(infraID string, nsgClient *armnetwork.SecurityGroupsClient,
+func (c *CloudInfo) cleanupGWInterface(ctx context.Context, infraID string, nsgClient *armnetwork.SecurityGroupsClient,
 	nwClient *armnetwork.InterfacesClient,
 ) error {
 	groupName := infraID + externalSecurityGroupSuffix
-
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
 
 	isFound := c.checkIfSecurityGroupPresent(ctx, groupName, nsgClient)
 

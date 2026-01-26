@@ -126,8 +126,8 @@ func (ac *awsClient) DescribeInstanceTypeOfferings(ctx context.Context, input *e
 	return ac.ec2Client.DescribeInstanceTypeOfferings(ctx, input, optFns...)
 }
 
-func New(accessKeyID, secretAccessKey, region string) (Interface, error) {
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+func New(ctx context.Context, accessKeyID, secretAccessKey, region string) (Interface, error) {
+	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
 		//nolint:staticcheck // WithEndpointResolverWithOptions is deprecated - needs to be migrated to EndpointResolverV2.
