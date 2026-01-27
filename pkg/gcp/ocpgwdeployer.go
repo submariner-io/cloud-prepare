@@ -356,11 +356,9 @@ func (d *ocpGatewayDeployer) isInstanceGatewayNode(instance *compute.Instance) b
 }
 
 func (d *ocpGatewayDeployer) resetExistingGWNode(ctx context.Context, zone string, instance *compute.Instance) error {
-	for i := range instance.Tags.Items {
-		if instance.Tags.Items[i] == submarinerGatewayNodeTag {
-			instance.Tags.Items = append(instance.Tags.Items[:i], instance.Tags.Items[i+1:]...)
-		}
-	}
+	instance.Tags.Items = slices.DeleteFunc(instance.Tags.Items, func(tag string) bool {
+		return tag == submarinerGatewayNodeTag
+	})
 
 	tags := &compute.Tags{
 		Items:       instance.Tags.Items,
