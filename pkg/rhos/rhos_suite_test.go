@@ -21,15 +21,16 @@ package rhos_test
 import (
 	"context"
 	"errors"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/rules"
-	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/secgroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/security/rules"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/resource"
@@ -111,14 +112,16 @@ func newTestDriver() *testDriver {
 			return sgPage.secGroups, nil
 		}
 
-		rhos.CreateSecurityGroup = func(_ *gophercloud.ServiceClient, o secgroups.CreateOptsBuilder) (*secgroups.SecurityGroup, error) {
+		rhos.CreateSecurityGroup = func(_ context.Context, _ *gophercloud.ServiceClient, o secgroups.CreateOptsBuilder) (
+			*secgroups.SecurityGroup, error,
+		) {
 			name := o.(secgroups.CreateOpts).Name
 			t.securityGroupsCreated = append(t.securityGroupsCreated, name)
 
 			return &secgroups.SecurityGroup{Name: name, ID: name}, nil
 		}
 
-		rhos.DeleteSecurityGroup = func(_ *gophercloud.ServiceClient, id string) secgroups.DeleteResult {
+		rhos.DeleteSecurityGroup = func(_ context.Context, _ *gophercloud.ServiceClient, id string) secgroups.DeleteResult {
 			t.existingSecurityGroups = slices.DeleteFunc(t.existingSecurityGroups, func(g secgroups.SecurityGroup) bool {
 				return g.ID == id
 			})
@@ -139,7 +142,7 @@ func newTestDriver() *testDriver {
 			return serverPage.servers, nil
 		}
 
-		rhos.AddServer = func(_ *gophercloud.ServiceClient, serverID, groupName string) error {
+		rhos.AddServer = func(_ context.Context, _ *gophercloud.ServiceClient, serverID, groupName string) error {
 			server := t.findServer(serverID)
 			if server != nil && !slices.ContainsFunc(server.SecurityGroups, func(m map[string]any) bool {
 				return m["name"] == groupName
@@ -150,7 +153,7 @@ func newTestDriver() *testDriver {
 			return nil
 		}
 
-		rhos.RemoveServer = func(_ *gophercloud.ServiceClient, serverID, groupName string) error {
+		rhos.RemoveServer = func(_ context.Context, _ *gophercloud.ServiceClient, serverID, groupName string) error {
 			secGroupFn := func(m map[string]any) bool {
 				return m["name"] == groupName
 			}
@@ -161,10 +164,10 @@ func newTestDriver() *testDriver {
 				return nil
 			}
 
-			return gophercloud.ErrDefault404{}
+			return gophercloud.ErrUnexpectedResponseCode{Actual: http.StatusNotFound}
 		}
 
-		rhos.EachPage = func(pager pagination.Pager, handler func(pagination.Page) (bool, error)) error {
+		rhos.EachPage = func(ctx context.Context, pager pagination.Pager, handler func(context.Context, pagination.Page) (bool, error)) error {
 			var page pagination.Page
 			if pager.Headers[pagerNameKey] == secGroupPager {
 				page = &SecGroupPage{secGroups: t.existingSecurityGroups}
@@ -185,7 +188,7 @@ func newTestDriver() *testDriver {
 
 			Expect(page).NotTo(BeNil(), "No Pager for "+pager.Headers[pagerNameKey])
 
-			_, err := handler(page)
+			_, err := handler(ctx, page)
 			if err != nil {
 				return err
 			}
@@ -193,7 +196,9 @@ func newTestDriver() *testDriver {
 			return nil
 		}
 
-		rhos.CreateRule = func(_ *gophercloud.ServiceClient, o rules.CreateOptsBuilder) (*rules.SecGroupRule, error) {
+		rhos.CreateRule = func(_ context.Context, _ *gophercloud.ServiceClient, o rules.CreateOptsBuilder) (
+			*rules.SecGroupRule, error,
+		) {
 			opts := o.(rules.CreateOpts)
 
 			rule := &rules.SecGroupRule{
@@ -286,7 +291,9 @@ func newNetworkV2ErrEntry() TableEntry {
 
 func createSecurityGroupErrEntry() TableEntry {
 	return Entry("", "CreateSecurityGroup", func() {
-		rhos.CreateSecurityGroup = func(_ *gophercloud.ServiceClient, _ secgroups.CreateOptsBuilder) (*secgroups.SecurityGroup, error) {
+		rhos.CreateSecurityGroup = func(_ context.Context, _ *gophercloud.ServiceClient, _ secgroups.CreateOptsBuilder) (
+			*secgroups.SecurityGroup, error,
+		) {
 			return nil, errors.New("create security group error")
 		}
 	})
@@ -310,7 +317,7 @@ func extractServersErrEntry() TableEntry {
 
 func addServerErrEntry() TableEntry {
 	return Entry("", "AddServer", func() {
-		rhos.AddServer = func(_ *gophercloud.ServiceClient, _, _ string) error {
+		rhos.AddServer = func(_ context.Context, _ *gophercloud.ServiceClient, _, _ string) error {
 			return errors.New("add server error")
 		}
 	})
@@ -318,7 +325,7 @@ func addServerErrEntry() TableEntry {
 
 func deleteSecurityGroupErrEntry() TableEntry {
 	return Entry("", "DeleteSecurityGroup", func() {
-		rhos.DeleteSecurityGroup = func(_ *gophercloud.ServiceClient, _ string) secgroups.DeleteResult {
+		rhos.DeleteSecurityGroup = func(_ context.Context, _ *gophercloud.ServiceClient, _ string) secgroups.DeleteResult {
 			result := secgroups.DeleteResult{}
 			result.Err = errors.New("delete security group error")
 
@@ -329,7 +336,7 @@ func deleteSecurityGroupErrEntry() TableEntry {
 
 func removeServerErrEntry() TableEntry {
 	return Entry("", "RemoveServer", func() {
-		rhos.RemoveServer = func(_ *gophercloud.ServiceClient, _, _ string) error {
+		rhos.RemoveServer = func(_ context.Context, _ *gophercloud.ServiceClient, _, _ string) error {
 			return errors.New("remove server error")
 		}
 	})

@@ -21,8 +21,8 @@ package rhos
 import (
 	"context"
 
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 )
@@ -48,7 +48,7 @@ func NewCloud(info CloudInfo) api.Cloud { //nolint:gocritic // Ignore 'hugeParam
 	return &rhosCloud{CloudInfo: info}
 }
 
-func (rc *rhosCloud) OpenPorts(_ context.Context, ports []api.PortSpec, status reporter.Interface) error {
+func (rc *rhosCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, status reporter.Interface) error {
 	status.Start("Opening internal ports for intra-cluster communications on RHOS")
 	defer status.End()
 
@@ -62,7 +62,7 @@ func (rc *rhosCloud) OpenPorts(_ context.Context, ports []api.PortSpec, status r
 		return status.Error(err, "error creating the network client")
 	}
 
-	if err := rc.openInternalPorts(rc.InfraID, ports, computeClient, networkClient); err != nil {
+	if err := rc.openInternalPorts(ctx, rc.InfraID, ports, computeClient, networkClient); err != nil {
 		return status.Error(err, "unable to open ports")
 	}
 
@@ -71,7 +71,7 @@ func (rc *rhosCloud) OpenPorts(_ context.Context, ports []api.PortSpec, status r
 	return nil
 }
 
-func (rc *rhosCloud) ClosePorts(_ context.Context, status reporter.Interface) error {
+func (rc *rhosCloud) ClosePorts(ctx context.Context, status reporter.Interface) error {
 	status.Start("Revoking intra-cluster communication permissions")
 
 	computeClient, err := NewComputeV2(rc.Client, gophercloud.EndpointOpts{Region: rc.Region})
@@ -79,11 +79,11 @@ func (rc *rhosCloud) ClosePorts(_ context.Context, status reporter.Interface) er
 		return status.Error(err, "creating compute client failed for region %q", rc.Region)
 	}
 
-	if err := rc.removeInternalFirewallRules(rc.InfraID, computeClient); err != nil {
+	if err := rc.removeInternalFirewallRules(ctx, rc.InfraID, computeClient); err != nil {
 		return status.Error(err, "unable to remove firewall rules")
 	}
 
-	if err := rc.deleteSG(rc.InfraID+InternalSecurityGroupSuffix, computeClient); err != nil {
+	if err := rc.deleteSG(ctx, rc.InfraID+InternalSecurityGroupSuffix, computeClient); err != nil {
 		return err
 	}
 
