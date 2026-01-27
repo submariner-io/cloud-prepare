@@ -19,13 +19,15 @@ limitations under the License.
 package rhos
 
 import (
+	"context"
+	"net/http"
 	"slices"
 
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/rules"
-	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/secgroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/security/rules"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
@@ -34,21 +36,23 @@ import (
 var (
 	ListSecurityGroups    = secgroups.List
 	ExtractSecurityGroups = secgroups.ExtractSecurityGroups
-	CreateSecurityGroup   = func(c *gophercloud.ServiceClient, opts secgroups.CreateOptsBuilder) (*secgroups.SecurityGroup, error) {
-		return secgroups.Create(c, opts).Extract()
+	CreateSecurityGroup   = func(ctx context.Context, c *gophercloud.ServiceClient, opts secgroups.CreateOptsBuilder) (
+		*secgroups.SecurityGroup, error,
+	) {
+		return secgroups.Create(ctx, c, opts).Extract()
 	}
 	DeleteSecurityGroup = secgroups.Delete
-	AddServer           = func(c *gophercloud.ServiceClient, serverID string, groupName string) error {
-		return secgroups.AddServer(c, serverID, groupName).ExtractErr()
+	AddServer           = func(ctx context.Context, c *gophercloud.ServiceClient, serverID string, groupName string) error {
+		return secgroups.AddServer(ctx, c, serverID, groupName).ExtractErr()
 	}
-	RemoveServer = func(c *gophercloud.ServiceClient, serverID string, groupName string) error {
-		return secgroups.RemoveServer(c, serverID, groupName).ExtractErr()
+	RemoveServer = func(ctx context.Context, c *gophercloud.ServiceClient, serverID string, groupName string) error {
+		return secgroups.RemoveServer(ctx, c, serverID, groupName).ExtractErr()
 	}
-	EachPage = func(pager pagination.Pager, handler func(pagination.Page) (bool, error)) error {
-		return pager.EachPage(handler)
+	EachPage = func(ctx context.Context, pager pagination.Pager, handler func(context.Context, pagination.Page) (bool, error)) error {
+		return pager.EachPage(ctx, handler)
 	}
-	CreateRule = func(c *gophercloud.ServiceClient, opts rules.CreateOptsBuilder) (*rules.SecGroupRule, error) {
-		return rules.Create(c, opts).Extract()
+	CreateRule = func(ctx context.Context, c *gophercloud.ServiceClient, opts rules.CreateOptsBuilder) (*rules.SecGroupRule, error) {
+		return rules.Create(ctx, c, opts).Extract()
 	}
 	ListServers    = servers.List
 	ExtractServers = servers.ExtractServers
@@ -62,7 +66,7 @@ type CloudInfo struct {
 	K8sClient   k8s.Interface
 }
 
-func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec,
+func (c *CloudInfo) openInternalPorts(ctx context.Context, infraID string, ports []api.PortSpec,
 	computeClient, networkClient *gophercloud.ServiceClient,
 ) error {
 	var group *secgroups.SecurityGroup
@@ -72,31 +76,31 @@ func (c *CloudInfo) openInternalPorts(infraID string, ports []api.PortSpec,
 		Description: "Submariner Internal",
 	}
 
-	isFound, err := checkIfSecurityGroupPresent(groupName, computeClient)
+	isFound, err := checkIfSecurityGroupPresent(ctx, groupName, computeClient)
 	if err != nil {
 		return err
 	}
 
 	if !isFound {
-		group, err = CreateSecurityGroup(computeClient, opts)
+		group, err = CreateSecurityGroup(ctx, computeClient, opts)
 		if err != nil {
 			return errors.WithMessagef(err, "creating security group failed")
 		}
 
 		for _, port := range ports {
-			err = c.createSGRule(group.ID, group.ID, "", port.Port, port.Protocol, networkClient)
+			err = c.createSGRule(ctx, group.ID, group.ID, "", port.Port, port.Protocol, networkClient)
 			if err != nil {
 				return errors.WithMessage(err, "creating security group rule failed")
 			}
 		}
 	}
 
-	return addServerSecurityGroups(c.InfraID, groupName, computeClient)
+	return addServerSecurityGroups(ctx, c.InfraID, groupName, computeClient)
 }
 
-func addServerSecurityGroups(serverName, groupName string, computeClient *gophercloud.ServiceClient) error {
+func addServerSecurityGroups(ctx context.Context, serverName, groupName string, computeClient *gophercloud.ServiceClient) error {
 	pager := ListServers(computeClient, servers.ListOpts{Name: serverName})
-	err := EachPage(pager, func(page pagination.Page) (bool, error) {
+	err := EachPage(ctx, pager, func(ctx context.Context, page pagination.Page) (bool, error) {
 		serverList, err := ExtractServers(page)
 		if err != nil {
 			return false, errors.WithMessage(err, "getting the server List failed")
@@ -113,7 +117,7 @@ func addServerSecurityGroups(serverName, groupName string, computeClient *gopher
 			}
 
 			if !found {
-				err = AddServer(computeClient, serverList[i].ID, groupName)
+				err = AddServer(ctx, computeClient, serverList[i].ID, groupName)
 				if err != nil {
 					return false, errors.WithMessagef(err, "failed to add security group %q to server %s", groupName, serverList[i].ID)
 				}
@@ -126,24 +130,23 @@ func addServerSecurityGroups(serverName, groupName string, computeClient *gopher
 	return errors.WithMessage(err, "failed to add security group to servers")
 }
 
-func (c *CloudInfo) removeInternalFirewallRules(infraID string, computeClient *gophercloud.ServiceClient) error {
-	return removeServerSecurityGroups(c.InfraID, infraID+InternalSecurityGroupSuffix, computeClient)
+func (c *CloudInfo) removeInternalFirewallRules(ctx context.Context, infraID string, computeClient *gophercloud.ServiceClient) error {
+	return removeServerSecurityGroups(ctx, c.InfraID, infraID+InternalSecurityGroupSuffix, computeClient)
 }
 
-func removeServerSecurityGroups(serverName, groupName string, computeClient *gophercloud.ServiceClient) error {
+func removeServerSecurityGroups(ctx context.Context, serverName, groupName string, computeClient *gophercloud.ServiceClient) error {
 	pager := ListServers(computeClient, servers.ListOpts{Name: serverName})
 
-	err := EachPage(pager, func(page pagination.Page) (bool, error) {
+	err := EachPage(ctx, pager, func(ctx context.Context, page pagination.Page) (bool, error) {
 		serverList, err := ExtractServers(page)
 		if err != nil {
 			return false, errors.WithMessage(err, "getting the server List failed")
 		}
 
 		for i := range serverList {
-			err = RemoveServer(computeClient, serverList[i].ID, groupName)
+			err = RemoveServer(ctx, computeClient, serverList[i].ID, groupName)
 			if err != nil {
-				notFoundError := &gophercloud.ErrDefault404{}
-				if errors.As(err, notFoundError) {
+				if gophercloud.ResponseCodeIs(err, http.StatusNotFound) {
 					continue
 				}
 
@@ -157,10 +160,10 @@ func removeServerSecurityGroups(serverName, groupName string, computeClient *gop
 	return errors.WithMessage(err, "failed to remove security group from servers")
 }
 
-func (c *CloudInfo) createGWSecurityGroup(ports []api.PortSpec, groupName string, computeClient *gophercloud.ServiceClient,
-	networkClient *gophercloud.ServiceClient,
+func (c *CloudInfo) createGWSecurityGroup(ctx context.Context, ports []api.PortSpec, groupName string,
+	computeClient *gophercloud.ServiceClient, networkClient *gophercloud.ServiceClient,
 ) error {
-	isFound, err := checkIfSecurityGroupPresent(groupName, computeClient)
+	isFound, err := checkIfSecurityGroupPresent(ctx, groupName, computeClient)
 	if err != nil {
 		return err
 	}
@@ -174,13 +177,13 @@ func (c *CloudInfo) createGWSecurityGroup(ports []api.PortSpec, groupName string
 		Description: "Submariner Gateway",
 	}
 
-	group, err := CreateSecurityGroup(computeClient, opts)
+	group, err := CreateSecurityGroup(ctx, computeClient, opts)
 	if err != nil {
 		return errors.WithMessage(err, "failed to create g/w security group")
 	}
 
 	for _, port := range ports {
-		err = c.createSGRule(group.ID, "", allNetworkCIDR, port.Port, port.Protocol, networkClient)
+		err = c.createSGRule(ctx, group.ID, "", allNetworkCIDR, port.Port, port.Protocol, networkClient)
 		if err != nil {
 			return errors.WithMessagef(err, "creating security group rule failed")
 		}
@@ -189,11 +192,11 @@ func (c *CloudInfo) createGWSecurityGroup(ports []api.PortSpec, groupName string
 	return nil
 }
 
-func checkIfSecurityGroupPresent(groupName string, computeClient *gophercloud.ServiceClient) (bool, error) {
+func checkIfSecurityGroupPresent(ctx context.Context, groupName string, computeClient *gophercloud.ServiceClient) (bool, error) {
 	pager := ListSecurityGroups(computeClient)
 	var isFound bool
 
-	err := EachPage(pager, func(page pagination.Page) (bool, error) {
+	err := EachPage(ctx, pager, func(ctx context.Context, page pagination.Page) (bool, error) {
 		serverList, err := ExtractSecurityGroups(page)
 
 		isFound = slices.ContainsFunc(serverList, func(s secgroups.SecurityGroup) bool {
@@ -206,12 +209,12 @@ func checkIfSecurityGroupPresent(groupName string, computeClient *gophercloud.Se
 	return isFound, errors.WithMessagef(err, "error getting the security group : %q", groupName)
 }
 
-func (c *CloudInfo) deleteSG(groupName string, computeClient *gophercloud.ServiceClient) error {
+func (c *CloudInfo) deleteSG(ctx context.Context, groupName string, computeClient *gophercloud.ServiceClient) error {
 	pager := ListSecurityGroups(computeClient)
 	var isFound bool
 	var securityGroupID string
 
-	err := EachPage(pager, func(page pagination.Page) (bool, error) {
+	err := EachPage(ctx, pager, func(ctx context.Context, page pagination.Page) (bool, error) {
 		serverList, err := ExtractSecurityGroups(page)
 		if err != nil {
 			return false, errors.WithMessagef(err, "failed to list the security group %q", groupName)
@@ -230,13 +233,13 @@ func (c *CloudInfo) deleteSG(groupName string, computeClient *gophercloud.Servic
 	})
 
 	if err == nil && isFound {
-		err = DeleteSecurityGroup(computeClient, securityGroupID).ExtractErr()
+		err = DeleteSecurityGroup(ctx, computeClient, securityGroupID).ExtractErr()
 	}
 
 	return errors.WithMessagef(err, "error deleting the security group %q", groupName)
 }
 
-func (c *CloudInfo) createSGRule(group, remoteGroupID, remoteIPPrefix string, port uint16,
+func (c *CloudInfo) createSGRule(ctx context.Context, group, remoteGroupID, remoteIPPrefix string, port uint16,
 	protocol string, networkClient *gophercloud.ServiceClient,
 ) error {
 	opts := rules.CreateOpts{
@@ -250,7 +253,7 @@ func (c *CloudInfo) createSGRule(group, remoteGroupID, remoteIPPrefix string, po
 		RemoteIPPrefix: remoteIPPrefix,
 	}
 
-	_, err := CreateRule(networkClient, opts)
+	_, err := CreateRule(ctx, networkClient, opts)
 
 	return errors.WithMessagef(err, "failed creating security group rule with port %d , protocol %q,"+
 		"remotegroupID %q, remoteIPprefix %q , in security group %q", port, protocol, remoteGroupID, remoteIPPrefix, group)

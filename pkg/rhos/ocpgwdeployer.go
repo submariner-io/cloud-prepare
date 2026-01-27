@@ -26,7 +26,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/v2"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
@@ -151,7 +151,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	}
 
 	groupName := d.InfraID + GwSecurityGroupSuffix
-	if err := d.createGWSecurityGroup(input.PublicPorts, groupName, computeClient, networkClient); err != nil {
+	if err := d.createGWSecurityGroup(ctx, input.PublicPorts, groupName, computeClient, networkClient); err != nil {
 		return status.Error(err, "creating gateway security group failed")
 	}
 
@@ -166,7 +166,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	}
 
 	for i := range gwNodes.Items {
-		err := addServerSecurityGroups(gwNodes.Items[i].Name, groupName, computeClient)
+		err := addServerSecurityGroups(ctx, gwNodes.Items[i].Name, groupName, computeClient)
 		if err != nil {
 			return status.Error(err, "failed to open the gateway port in the existing g/w node")
 		}
@@ -199,7 +199,7 @@ func (d *ocpGatewayDeployer) deployGWNode(ctx context.Context, gatewayCount int,
 
 		groupName := d.InfraID + InternalSecurityGroupSuffix
 
-		isFound, errSG := checkIfSecurityGroupPresent(groupName, computeClient)
+		isFound, errSG := checkIfSecurityGroupPresent(ctx, groupName, computeClient)
 		if errSG != nil {
 			return errSG
 		}
@@ -247,7 +247,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 		status.Start("Removing the Submariner gateway security group rules from node %q",
 			machineSetList[i].GetName())
 
-		err = removeServerSecurityGroups(machineSetList[i].GetName(), groupName, computeClient)
+		err = removeServerSecurityGroups(ctx, machineSetList[i].GetName(), groupName, computeClient)
 		if err != nil {
 			return status.Error(err, "error deleting the security group rules")
 		}
@@ -276,7 +276,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 	for i := range gwNodes {
 		status.Start("Deleting the Submariner gateway security group rules from node %q", gwNodes[i].Name)
 
-		err = removeServerSecurityGroups(gwNodes[i].Name, groupName, computeClient)
+		err = removeServerSecurityGroups(ctx, gwNodes[i].Name, groupName, computeClient)
 		if err != nil {
 			return status.Error(err, "error deleting the security group rules")
 		}
@@ -296,7 +296,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 
 	status.Start("Deleting the Submariner gateway security group")
 
-	err = d.deleteSG(groupName, computeClient)
+	err = d.deleteSG(ctx, groupName, computeClient)
 	if err != nil {
 		return errors.Wrap(err, "error deleting the Submariner gateway security group")
 	}
