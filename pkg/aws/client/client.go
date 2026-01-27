@@ -16,7 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//nolint:wrapcheck // The functions are simple wrappers so let the caller wrap errors.
 package client
 
 import (
@@ -56,76 +55,6 @@ type Interface interface {
 		optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupIngressOutput, error)
 }
 
-type awsClient struct {
-	ec2Client ec2.Client
-}
-
-func (ac *awsClient) AuthorizeSecurityGroupIngress(ctx context.Context, input *ec2.AuthorizeSecurityGroupIngressInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.AuthorizeSecurityGroupIngressOutput, error) {
-	return ac.ec2Client.AuthorizeSecurityGroupIngress(ctx, input, optFns...)
-}
-
-func (ac *awsClient) CreateSecurityGroup(ctx context.Context, input *ec2.CreateSecurityGroupInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.CreateSecurityGroupOutput, error) {
-	return ac.ec2Client.CreateSecurityGroup(ctx, input, optFns...)
-}
-
-func (ac *awsClient) CreateTags(ctx context.Context, input *ec2.CreateTagsInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.CreateTagsOutput, error) {
-	return ac.ec2Client.CreateTags(ctx, input, optFns...)
-}
-
-func (ac *awsClient) DescribeInstances(ctx context.Context, input *ec2.DescribeInstancesInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.DescribeInstancesOutput, error) {
-	return ac.ec2Client.DescribeInstances(ctx, input, optFns...)
-}
-
-func (ac *awsClient) DescribeVpcs(ctx context.Context, input *ec2.DescribeVpcsInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.DescribeVpcsOutput, error) {
-	return ac.ec2Client.DescribeVpcs(ctx, input, optFns...)
-}
-
-func (ac *awsClient) DescribeSecurityGroups(ctx context.Context, input *ec2.DescribeSecurityGroupsInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.DescribeSecurityGroupsOutput, error) {
-	return ac.ec2Client.DescribeSecurityGroups(ctx, input, optFns...)
-}
-
-func (ac *awsClient) DescribeSubnets(ctx context.Context, input *ec2.DescribeSubnetsInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.DescribeSubnetsOutput, error) {
-	return ac.ec2Client.DescribeSubnets(ctx, input, optFns...)
-}
-
-func (ac *awsClient) DeleteSecurityGroup(ctx context.Context, input *ec2.DeleteSecurityGroupInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.DeleteSecurityGroupOutput, error) {
-	return ac.ec2Client.DeleteSecurityGroup(ctx, input, optFns...)
-}
-
-func (ac *awsClient) DeleteTags(ctx context.Context, input *ec2.DeleteTagsInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.DeleteTagsOutput, error) {
-	return ac.ec2Client.DeleteTags(ctx, input, optFns...)
-}
-
-func (ac *awsClient) RevokeSecurityGroupIngress(ctx context.Context, input *ec2.RevokeSecurityGroupIngressInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.RevokeSecurityGroupIngressOutput, error) {
-	return ac.ec2Client.RevokeSecurityGroupIngress(ctx, input, optFns...)
-}
-
-func (ac *awsClient) DescribeInstanceTypeOfferings(ctx context.Context, input *ec2.DescribeInstanceTypeOfferingsInput,
-	optFns ...func(*ec2.Options),
-) (*ec2.DescribeInstanceTypeOfferingsOutput, error) {
-	return ac.ec2Client.DescribeInstanceTypeOfferings(ctx, input, optFns...)
-}
-
 func New(ctx context.Context, accessKeyID, secretAccessKey, region string) (Interface, error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(region),
@@ -146,7 +75,5 @@ func New(ctx context.Context, accessKeyID, secretAccessKey, region string) (Inte
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
 
-	return &awsClient{
-		ec2Client: *ec2.NewFromConfig(cfg),
-	}, nil
+	return ec2.NewFromConfig(cfg), nil
 }
