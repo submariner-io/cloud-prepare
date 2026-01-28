@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -58,19 +57,7 @@ type Interface interface {
 func New(ctx context.Context, accessKeyID, secretAccessKey, region string) (Interface, error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")),
-		//nolint:staticcheck // WithEndpointResolverWithOptions is deprecated - needs to be migrated to EndpointResolverV2.
-		config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
-			func(service, region string, _ ...any) (aws.Endpoint, error) {
-				if service != "route53" || region != "cn-northwest-1" {
-					return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-				}
-
-				return aws.Endpoint{
-					URL:         "https://route53.amazonaws.com.cn",
-					PartitionID: "aws-cn",
-				}, nil
-			})))
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
