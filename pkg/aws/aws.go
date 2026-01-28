@@ -24,9 +24,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
@@ -97,49 +94,6 @@ func NewCloud(client awsClient.Interface, infraID, region string, opts ...CloudO
 	}
 
 	return cloud
-}
-
-// NewCloudFromConfig creates a new api.Cloud instance based on an AWS configuration
-// which can prepare AWS for Submariner to be deployed on it.
-func NewCloudFromConfig(cfg *aws.Config, infraID, region string, opts ...CloudOption) api.Cloud {
-	cloud := &awsCloud{
-		client:      ec2.NewFromConfig(*cfg),
-		infraID:     infraID,
-		region:      region,
-		cloudConfig: make(map[string]any),
-	}
-
-	for _, opt := range opts {
-		opt(cloud)
-	}
-
-	return cloud
-}
-
-// NewCloudFromSettings creates a new api.Cloud instance using the given credentials file and profile
-// which can prepare AWS for Submariner to be deployed on it.
-func NewCloudFromSettings(ctx context.Context, credentialsFile, profile, infraID, region string, opts ...CloudOption) (api.Cloud, error) {
-	options := []func(*config.LoadOptions) error{config.WithRegion(region), config.WithSharedConfigProfile(profile)}
-	if credentialsFile != DefaultCredentialsFile() {
-		options = append(options, config.WithSharedCredentialsFiles([]string{credentialsFile}))
-	}
-
-	cfg, err := config.LoadDefaultConfig(ctx, options...)
-	if err != nil {
-		return nil, errors.Wrap(err, "error loading default config")
-	}
-
-	return NewCloudFromConfig(&cfg, infraID, region, opts...), nil
-}
-
-// DefaultCredentialsFile returns the default credentials file name.
-func DefaultCredentialsFile() string {
-	return config.DefaultSharedCredentialsFilename()
-}
-
-// DefaultProfile returns the default profile name.
-func DefaultProfile() string {
-	return "default"
 }
 
 func (ac *awsCloud) setSuffixes(ctx context.Context, vpcID string) error {
