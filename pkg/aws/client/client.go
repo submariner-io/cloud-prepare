@@ -54,10 +54,39 @@ type Interface interface {
 		optFns ...func(*ec2.Options)) (*ec2.RevokeSecurityGroupIngressOutput, error)
 }
 
-func New(ctx context.Context, accessKeyID, secretAccessKey, region string) (Interface, error) {
-	cfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")))
+type Option = config.LoadOptionsFunc
+
+func WithCredentials(accessKeyID, secretAccessKey string) Option {
+	return config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
+}
+
+func WithCredentialsFile(file string) Option {
+	return config.WithSharedCredentialsFiles([]string{file})
+}
+
+func WithConfigProfile(p string) Option {
+	return config.WithSharedConfigProfile(p)
+}
+
+// DefaultCredentialsFile returns the default credentials file name.
+func DefaultCredentialsFile() string {
+	return config.DefaultSharedCredentialsFilename()
+}
+
+// DefaultProfile returns the default profile name.
+func DefaultProfile() string {
+	return "default"
+}
+
+func New(ctx context.Context, region string, opts ...Option) (Interface, error) {
+	options := make([]func(*config.LoadOptions) error, 0, 1+len(opts))
+	options = append(options, config.WithRegion(region))
+
+	for _, opt := range opts {
+		options = append(options, opt)
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx, options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)
 	}
