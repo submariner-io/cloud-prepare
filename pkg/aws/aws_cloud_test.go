@@ -22,11 +22,13 @@ import (
 	"context"
 	"errors"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Cloud", func() {
@@ -37,14 +39,15 @@ var _ = Describe("Cloud", func() {
 func testOpenPorts() {
 	t := newCloudTestDriver()
 
-	var retError error
-
 	JustBeforeEach(func() {
-		t.expectDescribeVpcs(t.vpcID)
-		t.expectDescribeVpcsSigs(t.vpcID)
-		t.expectDescribePublicSubnets(t.subnets...)
+		t.expectDescribeVpcs()
+		t.expectDescribeVpcsSigs()
+		t.expectDescribePublicSubnets(t.existingSubnets...)
+		t.expectDescribeSecurityGroups(t.workerSGName, t.workerGroupID)
+	})
 
-		retError = t.cloud.OpenPorts(context.TODO(), []api.PortSpec{
+	doOpenPorts := func() error {
+		return t.cloud.OpenPorts(context.TODO(), []api.PortSpec{
 			{
 				Port:     100,
 				Protocol: "TCP",
@@ -54,99 +57,185 @@ func testOpenPorts() {
 				Protocol: "UDP",
 			},
 		}, reporter.Stdout())
-	})
+	}
 
 	When("on success", func() {
-		BeforeEach(func() {
-			Expect(retError).To(Succeed())
-
+		JustBeforeEach(func() {
 			t.expectValidateAuthorizeSecurityGroupIngress(nil)
-			t.expectDescribeSecurityGroups(masterSGName, masterGroupID)
+			t.expectDescribeSecurityGroups(t.masterSGName, t.masterGroupID)
 
-			t.expectAuthorizeSecurityGroupIngress(workerGroupID, newClusterSGRule(workerGroupID, 100, "TCP"))
-			t.expectAuthorizeSecurityGroupIngress(workerGroupID, newClusterSGRule(masterGroupID, 100, "TCP"))
-			t.expectAuthorizeSecurityGroupIngress(masterGroupID, newClusterSGRule(workerGroupID, 100, "TCP"))
+			t.expectAuthorizeSecurityGroupIngress(t.workerGroupID, newClusterSGRule(t.workerGroupID, 100, "TCP"))
+			t.expectAuthorizeSecurityGroupIngress(t.workerGroupID, newClusterSGRule(t.masterGroupID, 100, "TCP"))
+			t.expectAuthorizeSecurityGroupIngress(t.masterGroupID, newClusterSGRule(t.workerGroupID, 100, "TCP"))
 
-			t.expectAuthorizeSecurityGroupIngress(workerGroupID, newClusterSGRule(workerGroupID, 200, "UDP"))
-			t.expectAuthorizeSecurityGroupIngress(workerGroupID, newClusterSGRule(masterGroupID, 200, "UDP"))
-			t.expectAuthorizeSecurityGroupIngress(masterGroupID, newClusterSGRule(workerGroupID, 200, "UDP"))
+			t.expectAuthorizeSecurityGroupIngress(t.workerGroupID, newClusterSGRule(t.workerGroupID, 200, "UDP"))
+			t.expectAuthorizeSecurityGroupIngress(t.workerGroupID, newClusterSGRule(t.masterGroupID, 200, "UDP"))
+			t.expectAuthorizeSecurityGroupIngress(t.masterGroupID, newClusterSGRule(t.workerGroupID, 200, "UDP"))
 		})
 
 		It("should authorize the appropriate security groups ingress", func() {
-			Expect(retError).To(Succeed())
+			Expect(doOpenPorts()).To(Succeed())
+		})
+
+		Context("WithWorkerSecurityGroup", func() {
+			BeforeEach(func() {
+				t.workerGroupID = customWorkerGroup
+				t.cloudOptions = append(t.cloudOptions, aws.WithWorkerSecurityGroup(t.workerGroupID))
+			})
+
+			It("should authorize the appropriate security groups ingress", func() {
+				Expect(doOpenPorts()).To(Succeed())
+			})
+		})
+
+		Context("WithControlPlaneSecurityGroup", func() {
+			BeforeEach(func() {
+				t.masterGroupID = "custom-master-group"
+				t.cloudOptions = append(t.cloudOptions, aws.WithControlPlaneSecurityGroup(t.masterGroupID))
+			})
+
+			It("should authorize the appropriate security groups ingress", func() {
+				Expect(doOpenPorts()).To(Succeed())
+			})
+		})
+
+		Context("WithPublicSubnetList", func() {
+			BeforeEach(func() {
+				t.workerSGName = infraID + "-node"
+				t.masterSGName = infraID + "-controlplane"
+				t.existingSubnets = []types.Subnet{}
+				t.cloudOptions = append(t.cloudOptions, aws.WithPublicSubnetList([]string{customSubnet}))
+
+				t.expectDescribePublicSubnetsByID(customSubnet, types.Subnet{
+					SubnetId: ptr.To(customSubnet),
+					Tags: []types.Tag{
+						{
+							Key:   ptr.To("Name"),
+							Value: ptr.To(infraID + "-x-subnet-public-" + region + "-end"),
+						},
+					},
+				})
+			})
+
+			It("should authorize the appropriate security groups ingress", func() {
+				Expect(doOpenPorts()).To(Succeed())
+			})
+		})
+
+		PContext("WithVPCName", func() {
+			BeforeEach(func() {
+				t.existingVpcs = []types.Vpc{}
+				t.vpcID = "custom-vpc"
+				t.workerSGName = infraID
+				t.masterSGName = infraID
+				t.cloudOptions = append(t.cloudOptions, aws.WithVPCName(t.vpcID))
+			})
+
+			It("should authorize the appropriate security groups ingress", func() {
+				Expect(doOpenPorts()).To(Succeed())
+			})
 		})
 	})
 
 	When("the infra ID VPC does not exist", func() {
 		BeforeEach(func() {
-			t.vpcID = ""
+			t.existingVpcs = []types.Vpc{}
 		})
 
 		It("should return an error", func() {
-			Expect(retError).To(HaveOccurred())
+			Expect(doOpenPorts()).To(HaveOccurred())
 		})
 	})
 
 	When("authorize security group ingress validation fails", func() {
 		BeforeEach(func() {
-			t.expectDescribeVpcs(vpcID)
-			t.expectDescribePublicSubnets(t.subnets...)
+			t.expectDescribePublicSubnets(t.existingSubnets...)
 			t.expectValidateAuthorizeSecurityGroupIngress(errors.New("mock error"))
 		})
 
 		It("should return an error", func() {
-			Expect(retError).To(HaveOccurred())
+			Expect(doOpenPorts()).To(HaveOccurred())
 		})
 	})
 
 	When("retrieval of security groups fails", func() {
 		BeforeEach(func() {
 			t.expectValidateAuthorizeSecurityGroupIngress(nil)
-			t.expectDescribeSecurityGroupsFailure(masterSGName, errors.New("mock error"))
+			t.expectDescribeSecurityGroupsFailure(t.masterSGName, errors.New("mock error"))
 		})
 
 		It("should return an error", func() {
-			Expect(retError).To(HaveOccurred())
+			Expect(doOpenPorts()).To(HaveOccurred())
 		})
 	})
 }
 
 func testClosePorts() {
+	ipPerm := newIPPermission(internalTraffic + " from X to Y")
+
 	t := newCloudTestDriver()
 
-	var retError error
-
 	JustBeforeEach(func() {
-		t.expectDescribeVpcs(t.vpcID)
-		t.expectDescribeVpcsSigs(t.vpcID)
-		t.expectDescribePublicSubnets(t.subnets...)
-		t.expectDescribePublicSubnetsSigs(t.subnets...)
-
-		retError = t.cloud.ClosePorts(context.TODO(), reporter.Stdout())
+		t.expectDescribeVpcs()
+		t.expectDescribeVpcsSigs()
+		t.expectDescribePublicSubnets(t.existingSubnets...)
+		t.expectDescribePublicSubnetsSigs(t.existingSubnets...)
+		t.expectDescribeSecurityGroups(t.workerSGName, t.workerGroupID, ipPerm)
 	})
 
+	doClosePorts := func() error {
+		return t.cloud.ClosePorts(context.TODO(), reporter.Stdout())
+	}
+
 	Context("on success", func() {
-		BeforeEach(func() {
+		JustBeforeEach(func() {
+			t.expectDescribeSecurityGroups(t.workerSGName, t.workerGroupID)
 			t.expectValidateRevokeSecurityGroupIngress(nil)
 
-			ipPerm := newIPPermission(internalTraffic + " from X to Y")
-			t.expectDescribeSecurityGroups(masterSGName, masterGroupID, ipPerm, newIPPermission("other"))
+			t.expectDescribeSecurityGroups(t.masterSGName, t.masterGroupID, ipPerm, newIPPermission("other"))
 
-			t.expectRevokeSecurityGroupIngress(masterGroupID, ipPerm)
+			t.expectRevokeSecurityGroupIngress(t.masterGroupID, ipPerm)
+			t.expectRevokeSecurityGroupIngress(t.workerGroupID, ipPerm)
 		})
 
 		It("should revoke the appropriate security groups ingress", func() {
-			Expect(retError).To(Succeed())
+			Expect(doClosePorts()).To(Succeed())
+		})
+
+		Context("WithWorkerSecurityGroup", func() {
+			BeforeEach(func() {
+				t.workerGroupID = customWorkerGroup
+				t.cloudOptions = append(t.cloudOptions, aws.WithWorkerSecurityGroup(t.workerGroupID))
+
+				t.expectDescribeSecurityGroupsByID(t.workerGroupID, ipPerm)
+			})
+
+			It("should revoke the appropriate security groups ingress", func() {
+				Expect(doClosePorts()).To(Succeed())
+			})
+		})
+
+		Context("WithControlPlaneSecurityGroup", func() {
+			BeforeEach(func() {
+				t.masterGroupID = "custom-master-group"
+				t.cloudOptions = append(t.cloudOptions, aws.WithControlPlaneSecurityGroup(t.masterGroupID))
+
+				t.expectDescribeSecurityGroupsByID(t.masterGroupID, ipPerm)
+			})
+
+			It("should revoke the appropriate security groups ingress", func() {
+				Expect(doClosePorts()).To(Succeed())
+			})
 		})
 	})
 
 	When("the infra ID VPC does not exist", func() {
 		BeforeEach(func() {
-			t.vpcID = ""
+			t.existingVpcs = []types.Vpc{}
 		})
 
 		It("should return an error", func() {
-			Expect(retError).To(HaveOccurred())
+			Expect(doClosePorts()).To(HaveOccurred())
 		})
 	})
 
@@ -156,18 +245,18 @@ func testClosePorts() {
 		})
 
 		It("should return an error", func() {
-			Expect(retError).To(HaveOccurred())
+			Expect(doClosePorts()).To(HaveOccurred())
 		})
 	})
 
 	When("retrieval of security groups fails", func() {
 		BeforeEach(func() {
 			t.expectValidateRevokeSecurityGroupIngress(nil)
-			t.expectDescribeSecurityGroupsFailure(masterSGName, errors.New("mock error"))
+			t.expectDescribeSecurityGroupsFailure(t.masterSGName, errors.New("mock error"))
 		})
 
 		It("should return an error", func() {
-			Expect(retError).To(HaveOccurred())
+			Expect(doClosePorts()).To(HaveOccurred())
 		})
 	})
 }
@@ -182,10 +271,10 @@ func newCloudTestDriver() *cloudTestDriver {
 
 	BeforeEach(func() {
 		t.beforeEach()
+	})
 
-		t.cloud = aws.NewCloud(t.awsClient, infraID, region)
-
-		t.expectDescribeSecurityGroups(workerSGName, workerGroupID)
+	JustBeforeEach(func() {
+		t.cloud = aws.NewCloud(t.awsClient, infraID, region, t.cloudOptions...)
 	})
 
 	AfterEach(t.afterEach)

@@ -29,6 +29,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
+	"github.com/submariner-io/cloud-prepare/pkg/aws"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
 	"k8s.io/utils/ptr"
 )
@@ -36,22 +37,19 @@ import (
 const (
 	infraID                  = "test-infra"
 	region                   = "test-region"
-	vpcID                    = "test-vpc"
-	workerGroupID            = "worker-group"
-	masterGroupID            = "master-group"
 	gatewayGroupID           = "gateway-group"
 	internalTraffic          = "Internal Submariner traffic"
 	availabilityZone1        = "availability-zone-1"
 	availabilityZone2        = "availability-zone-2"
 	subnetID1                = "subnet-1"
 	subnetID2                = "subnet-2"
+	customSubnet             = "custom-subnet"
 	instanceImageID          = "test-image"
-	masterSGName             = infraID + "-master-sg"
-	workerSGName             = infraID + "-worker-sg"
 	gatewaySGName            = infraID + "-submariner-gw-sg"
 	providerAWSTagPrefix     = "tag:sigs.k8s.io/cluster-api-provider-aws/cluster/"
 	clusterFilterTagName     = "tag:kubernetes.io/cluster/" + infraID
 	clusterFilterTagNameSigs = providerAWSTagPrefix + infraID
+	customWorkerGroup        = "custom-worker-group"
 )
 
 var internalTrafficDesc = fmt.Sprintf("Should contain %q", internalTraffic)
@@ -64,21 +62,33 @@ func TestAWS(t *testing.T) {
 type fakeAWSClientBase struct {
 	awsClient                        *fake.MockInterface
 	vpcID                            string
-	subnets                          []types.Subnet
+	existingVpcs                     []types.Vpc
+	existingSubnets                  []types.Subnet
 	describeSubnetsErr               error
 	authorizeSecurityGroupIngressErr error
 	createTagsErr                    error
 	describeInstanceTypeOfferingsErr error
+	workerGroupID                    string
+	masterGroupID                    string
+	masterSGName                     string
+	workerSGName                     string
+	cloudOptions                     []aws.CloudOption
 }
 
 func (f *fakeAWSClientBase) beforeEach() {
 	f.awsClient = fake.NewMockInterface(GinkgoT())
-	f.vpcID = vpcID
-	f.subnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
+	f.vpcID = "test-vpc"
+	f.existingVpcs = []types.Vpc{{VpcId: ptr.To(f.vpcID)}}
+	f.existingSubnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
 	f.describeSubnetsErr = nil
 	f.authorizeSecurityGroupIngressErr = nil
 	f.createTagsErr = nil
 	f.describeInstanceTypeOfferingsErr = nil
+	f.workerGroupID = "worker-group"
+	f.masterGroupID = "master-group"
+	f.masterSGName = infraID + "-master-sg"
+	f.workerSGName = infraID + "-worker-sg"
+	f.cloudOptions = []aws.CloudOption{}
 }
 
 func (f *fakeAWSClientBase) afterEach() {
@@ -90,54 +100,42 @@ func (f *fakeAWSClientBase) expectDescribeSecurityGroups(name, groupID string, i
 		Return(newDescribeSecurityGroupsOutput(groupID, ipPermissions...), nil).Maybe()
 }
 
+func (f *fakeAWSClientBase) expectDescribeSecurityGroupsByID(groupID string, ipPermissions ...types.IpPermission) {
+	f.awsClient.EXPECT().DescribeSecurityGroups(mock.Anything, &ec2.DescribeSecurityGroupsInput{
+		GroupIds: []string{groupID},
+	}).Return(newDescribeSecurityGroupsOutput(groupID, ipPermissions...), nil).Maybe()
+}
+
 func (f *fakeAWSClientBase) expectDescribeSecurityGroupsFailure(name string, err error) {
 	f.awsClient.EXPECT().DescribeSecurityGroups(mock.Anything, newDescribeSecurityGroupsInput(f.vpcID, name)).
 		Return(nil, err).Maybe()
 }
 
-func (f *fakeAWSClientBase) expectDescribeVpcs(vpcID string) {
-	var vpcs []types.Vpc
-	if vpcID != "" {
-		vpcs = []types.Vpc{
-			{
-				VpcId: ptr.To(vpcID),
-			},
-		}
-	}
-
+func (f *fakeAWSClientBase) expectDescribeVpcs() {
 	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, {
 		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
+	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
 
-func (f *fakeAWSClientBase) expectDescribeVpcsSigs(vpcID string) {
-	var vpcs []types.Vpc
-	if vpcID != "" {
-		vpcs = []types.Vpc{
-			{
-				VpcId: ptr.To(vpcID),
-			},
-		}
-	}
-
+func (f *fakeAWSClientBase) expectDescribeVpcsSigs() {
 	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   ptr.To("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, {
 		Name:   ptr.To(clusterFilterTagNameSigs),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: vpcs}, nil).Maybe()
+	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
 	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
 		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
 			DryRun:  ptr.To(true),
-			GroupId: ptr.To(workerGroupID),
+			GroupId: ptr.To(f.workerGroupID),
 		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr).Call
 }
 
@@ -160,7 +158,7 @@ func (f *fakeAWSClientBase) expectRevokeSecurityGroupIngress(groupID string, ipP
 func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr error) {
 	f.awsClient.EXPECT().RevokeSecurityGroupIngress(mock.Anything, &ec2.RevokeSecurityGroupIngressInput{
 		DryRun:  ptr.To(true),
-		GroupId: ptr.To(workerGroupID),
+		GroupId: ptr.To(f.workerGroupID),
 	}).Return(&ec2.RevokeSecurityGroupIngressOutput{}, retErr)
 }
 
@@ -175,6 +173,12 @@ func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subn
 		Name:   ptr.To(clusterFilterTagName),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
+}
+
+func (f *fakeAWSClientBase) expectDescribePublicSubnetsByID(subnetID string, retSubnets ...types.Subnet) {
+	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, &ec2.DescribeSubnetsInput{
+		SubnetIds: []string{subnetID},
+	}).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr)
 }
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnetsSigs(retSubnets ...types.Subnet) {
@@ -241,7 +245,7 @@ func (f *fakeAWSClientBase) expectDeleteSecurityGroup(groupID string) {
 func (f *fakeAWSClientBase) expectValidateDeleteSecurityGroup() *mock.Call {
 	return f.awsClient.EXPECT().DeleteSecurityGroup(mock.Anything, &ec2.DeleteSecurityGroupInput{
 		DryRun:  ptr.To(true),
-		GroupId: ptr.To(workerGroupID),
+		GroupId: ptr.To(f.workerGroupID),
 	}).Return(&ec2.DeleteSecurityGroupOutput{}, nil).Call
 }
 
@@ -377,6 +381,7 @@ func newDescribeSecurityGroupsOutput(groupID string, ipPermissions ...types.IpPe
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []types.SecurityGroup{
 		{
 			GroupId:       ptr.To(groupID),
+			GroupName:     ptr.To(groupID + "-name"),
 			IpPermissions: ipPermissions,
 		},
 	}}
