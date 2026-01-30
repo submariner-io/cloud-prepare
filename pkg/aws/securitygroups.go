@@ -111,7 +111,7 @@ func (ac *awsCloud) createClusterSGRule(ctx context.Context, srcGroup, destGroup
 }
 
 func (ac *awsCloud) allowPortInCluster(ctx context.Context, vpcID string, port uint16, protocol string) error {
-	var workerGroupID, controlPlaneGroupID *string
+	var workerGroupID *string
 	var err error
 
 	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
@@ -129,12 +129,10 @@ func (ac *awsCloud) allowPortInCluster(ctx context.Context, vpcID string, port u
 		}
 	}
 
-	if id, exists := ac.cloudConfig[ControlPlaneSecurityGroupIDKey]; exists {
-		if controlPlaneGroupIDStr, ok := id.(string); ok && controlPlaneGroupIDStr != "" {
-			controlPlaneGroupID = &controlPlaneGroupIDStr
-		} else {
-			return errors.New("Control Plane Security Group ID must be a valid non-empty string")
-		}
+	var controlPlaneGroupID *string
+
+	if ac.controlPlaneGroupID != "" {
+		controlPlaneGroupID = &ac.controlPlaneGroupID
 	} else {
 		controlPlaneGroupName := withInfraIDPrefix(ac.controlPlaneSGSuffix)
 
@@ -280,22 +278,14 @@ func (ac *awsCloud) revokePortsInCluster(ctx context.Context, vpcID string) erro
 		}
 	}
 
-	if id, exists := ac.cloudConfig[ControlPlaneSecurityGroupIDKey]; exists {
-		if controlPlaneGroupIDStr, ok := id.(string); ok && controlPlaneGroupIDStr != "" {
-			controlPlaneGroup, err = ac.getSecurityGroupByID(ctx, controlPlaneGroupIDStr)
-			if err != nil {
-				return errors.Wrap(err, "unable to get Control Plane Security Group by ID")
-			}
-		} else {
-			return errors.New("Control Plane Security Group ID must be a valid non-empty string")
-		}
+	if ac.controlPlaneGroupID != "" {
+		controlPlaneGroup, err = ac.getSecurityGroupByID(ctx, ac.controlPlaneGroupID)
 	} else {
-		controlPlaneGroupName := withInfraIDPrefix(ac.controlPlaneSGSuffix)
+		controlPlaneGroup, err = ac.getSecurityGroup(ctx, vpcID, withInfraIDPrefix(ac.controlPlaneSGSuffix))
+	}
 
-		controlPlaneGroup, err = ac.getSecurityGroup(ctx, vpcID, controlPlaneGroupName)
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return errors.Wrap(err, "unable to get Control Plane Security Group")
 	}
 
 	err = ac.revokePortsFromGroup(ctx, &workerGroup)
