@@ -24,7 +24,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
@@ -40,8 +39,6 @@ const (
 
 type CloudOption func(*awsCloud)
 
-const PublicSubnetListKey = "PublicSubnetList"
-
 func WithControlPlaneSecurityGroup(id string) CloudOption {
 	return func(cloud *awsCloud) {
 		cloud.controlPlaneGroupID = id
@@ -54,9 +51,9 @@ func WithWorkerSecurityGroup(id string) CloudOption {
 	}
 }
 
-func WithPublicSubnetList(id []string) CloudOption {
+func WithPublicSubnetList(s []string) CloudOption {
 	return func(cloud *awsCloud) {
-		cloud.cloudConfig[PublicSubnetListKey] = id
+		cloud.publicSubnetList = s
 	}
 }
 
@@ -74,17 +71,16 @@ type awsCloud struct {
 	controlPlaneSGSuffix string
 	controlPlaneGroupID  string
 	workerGroupID        string
+	publicSubnetList     []string
 	vpcID                string
-	cloudConfig          map[string]any
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare AWS for Submariner to be deployed on it.
 func NewCloud(client awsClient.Interface, infraID, region string, opts ...CloudOption) api.Cloud {
 	cloud := &awsCloud{
-		client:      client,
-		infraID:     infraID,
-		region:      region,
-		cloudConfig: make(map[string]any),
+		client:  client,
+		infraID: infraID,
+		region:  region,
 	}
 
 	for _, opt := range opts {
@@ -99,32 +95,13 @@ func (ac *awsCloud) setSuffixes(ctx context.Context, vpcID string) error {
 		return nil
 	}
 
-	var publicSubnets []types.Subnet
+	publicSubnets, err := ac.findPublicSubnets(ctx, vpcID, ac.publicFilter())
+	if err != nil {
+		return err
+	}
 
-	if subnets, exists := ac.cloudConfig[PublicSubnetListKey]; exists {
-		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
-			for _, id := range subnetIDs {
-				subnet, err := ac.getSubnetByID(ctx, id)
-				if err != nil {
-					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
-				}
-
-				publicSubnets = append(publicSubnets, *subnet)
-			}
-		} else {
-			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
-		}
-	} else {
-		var err error
-
-		publicSubnets, err = ac.findPublicSubnets(ctx, vpcID, ac.filterByName("{infraID}*-public-{region}*"))
-		if err != nil {
-			return errors.Wrapf(err, "unable to find the public subnet")
-		}
-
-		if len(publicSubnets) == 0 {
-			return errors.New("no public subnet found")
-		}
+	if len(publicSubnets) == 0 {
+		return errors.New("unable to determine security group suffixes - no public subnet found")
 	}
 
 	pattern := fmt.Sprintf(`%s.*-subnet-public-%s.*`, regexp.QuoteMeta(ac.infraID), regexp.QuoteMeta(ac.region))

@@ -76,26 +76,9 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 
 	status.Start(messageValidatePrerequisites)
 
-	var publicSubnets []types.Subnet
-
-	if subnets, exists := d.aws.cloudConfig[PublicSubnetListKey]; exists {
-		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
-			for _, id := range subnetIDs {
-				subnet, err := d.aws.getSubnetByID(ctx, id)
-				if err != nil {
-					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
-				}
-
-				publicSubnets = append(publicSubnets, *subnet)
-			}
-		} else {
-			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
-		}
-	} else {
-		publicSubnets, err = d.aws.findPublicSubnets(ctx, vpcID, d.aws.filterByName("{infraID}*-public-{region}*"))
-		if err != nil {
-			return status.Error(err, "unable to find public subnets")
-		}
+	publicSubnets, err := d.aws.findPublicSubnets(ctx, vpcID, d.aws.publicFilter())
+	if err != nil {
+		return status.Error(err, "")
 	}
 
 	err = d.validateDeployPrerequisites(ctx, vpcID, input, publicSubnets)
@@ -368,26 +351,9 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 
 	status.Success(messageValidatedPrerequisites)
 
-	var publicSubnets []types.Subnet
-
-	if subnets, exists := d.aws.cloudConfig[PublicSubnetListKey]; exists {
-		if subnetIDs, ok := subnets.([]string); ok && len(subnetIDs) > 0 {
-			for _, id := range subnetIDs {
-				subnet, err := d.aws.getSubnetByID(ctx, id)
-				if err != nil {
-					return errors.Wrapf(err, "unable to find subnet with ID %s", id)
-				}
-
-				publicSubnets = append(publicSubnets, *subnet)
-			}
-		} else {
-			return errors.New("Subnet IDs must be a valid non-empty slice of strings")
-		}
-	} else {
-		publicSubnets, err = d.aws.getTaggedPublicSubnets(ctx, vpcID)
-		if err != nil {
-			return err
-		}
+	publicSubnets, err := d.aws.findPublicSubnets(ctx, vpcID, submarinerGatewayFilter())
+	if err != nil {
+		return status.Error(err, "")
 	}
 
 	for i := range publicSubnets {
@@ -430,7 +396,7 @@ func (d *ocpGatewayDeployer) validateCleanupPrerequisites(ctx context.Context, v
 
 	errs = appendIfError(errs, d.aws.validateDeleteSecGroup(ctx, vpcID))
 
-	subnets, err := d.aws.getTaggedPublicSubnets(ctx, vpcID)
+	subnets, err := d.aws.findPublicSubnets(ctx, vpcID, submarinerGatewayFilter())
 	if err != nil {
 		return err
 	}
