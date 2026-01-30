@@ -54,7 +54,7 @@ func subnetTagged(subnet *types.Subnet) bool {
 	return hasTag(subnet.Tags, tagSubmarinerGateway)
 }
 
-func (ac *awsCloud) findPublicSubnets(ctx context.Context, vpcID string, filter types.Filter) ([]types.Subnet, error) {
+func (ac *awsCloud) findSubnetsByFilter(ctx context.Context, vpcID string, filter types.Filter) ([]types.Subnet, error) {
 	ownedFilters := ac.filterByCurrentCluster()
 	var err error
 	var result *ec2.DescribeSubnetsOutput
@@ -79,6 +79,26 @@ func (ac *awsCloud) findPublicSubnets(ctx context.Context, vpcID string, filter 
 	return result.Subnets, nil
 }
 
+func (ac *awsCloud) findPublicSubnets(ctx context.Context, vpcID string, filter types.Filter) ([]types.Subnet, error) {
+	if len(ac.publicSubnetList) == 0 {
+		publicSubnets, err := ac.findSubnetsByFilter(ctx, vpcID, filter)
+		return publicSubnets, errors.Wrap(err, "unable to find public subnets")
+	}
+
+	var publicSubnets []types.Subnet
+
+	for _, id := range ac.publicSubnetList {
+		subnet, err := ac.getSubnetByID(ctx, id)
+		if err != nil {
+			return nil, errors.Wrapf(err, "unable to find subnet with ID %q", id)
+		}
+
+		publicSubnets = append(publicSubnets, *subnet)
+	}
+
+	return publicSubnets, nil
+}
+
 func (ac *awsCloud) getSubnetsSupportingInstanceType(ctx context.Context, subnets []types.Subnet,
 	instanceType string,
 ) ([]types.Subnet, error) {
@@ -96,10 +116,6 @@ func (ac *awsCloud) getSubnetsSupportingInstanceType(ctx context.Context, subnet
 
 		return len(output.InstanceTypeOfferings) > 0, nil
 	})
-}
-
-func (ac *awsCloud) getTaggedPublicSubnets(ctx context.Context, vpcID string) ([]types.Subnet, error) {
-	return ac.findPublicSubnets(ctx, vpcID, ec2FilterByTag(tagSubmarinerGateway))
 }
 
 func (ac *awsCloud) tagPublicSubnet(ctx context.Context, subnetID *string) error {
@@ -139,4 +155,12 @@ func (ac *awsCloud) getSubnetByID(ctx context.Context, subnetID string) (*types.
 	}
 
 	return &output.Subnets[0], nil
+}
+
+func (ac *awsCloud) publicFilter() types.Filter {
+	return ac.filterByName("{infraID}*-public-{region}*")
+}
+
+func submarinerGatewayFilter() types.Filter {
+	return ec2FilterByTag(tagSubmarinerGateway)
 }
