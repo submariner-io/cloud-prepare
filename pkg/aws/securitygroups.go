@@ -34,13 +34,23 @@ import (
 
 const internalTraffic = "Internal Submariner traffic"
 
-func (ac *awsCloud) getSecurityGroupName(ctx context.Context, vpcID, name string) (*string, error) {
+func (ac *awsCloud) getSecurityGroupID(ctx context.Context, vpcID, name string) (*string, error) {
 	group, err := ac.getSecurityGroup(ctx, vpcID, name)
 	if err != nil {
 		return nil, err
 	}
 
 	return group.GroupId, nil
+}
+
+func (ac *awsCloud) getWorkerSecurityGroupID(ctx context.Context, vpcID string) (*string, error) {
+	if ac.workerGroupID != "" {
+		return &ac.workerGroupID, nil
+	}
+
+	groupID, err := ac.getSecurityGroupID(ctx, vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
+
+	return groupID, errors.Wrap(err, "unable to get Worker Security Group")
 }
 
 func (ac *awsCloud) getSecurityGroupByID(ctx context.Context, groupID string) (types.SecurityGroup, error) {
@@ -111,22 +121,9 @@ func (ac *awsCloud) createClusterSGRule(ctx context.Context, srcGroup, destGroup
 }
 
 func (ac *awsCloud) allowPortInCluster(ctx context.Context, vpcID string, port uint16, protocol string) error {
-	var workerGroupID *string
-	var err error
-
-	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
-		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
-			workerGroupID = &workerGroupIDStr
-		} else {
-			return errors.New("Worker Security Group ID must be a valid non-empty string")
-		}
-	} else {
-		workerGroupName := withInfraIDPrefix(ac.nodeSGSuffix)
-
-		workerGroupID, err = ac.getSecurityGroupName(ctx, vpcID, workerGroupName)
-		if err != nil {
-			return err
-		}
+	workerGroupID, err := ac.getWorkerSecurityGroupID(ctx, vpcID)
+	if err != nil {
+		return err
 	}
 
 	var controlPlaneGroupID *string
@@ -136,7 +133,7 @@ func (ac *awsCloud) allowPortInCluster(ctx context.Context, vpcID string, port u
 	} else {
 		controlPlaneGroupName := withInfraIDPrefix(ac.controlPlaneSGSuffix)
 
-		controlPlaneGroupID, err = ac.getSecurityGroupName(ctx, vpcID, controlPlaneGroupName)
+		controlPlaneGroupID, err = ac.getSecurityGroupID(ctx, vpcID, controlPlaneGroupName)
 		if err != nil {
 			return err
 		}
@@ -178,7 +175,7 @@ func (ac *awsCloud) createPublicSGRule(ctx context.Context, groupID *string, por
 func (ac *awsCloud) createGatewaySG(ctx context.Context, vpcID string, ports []api.PortSpec) (string, error) {
 	groupName := ac.withAWSInfo(withInfraIDPrefix("-submariner-gw-sg"))
 
-	gatewayGroupID, err := ac.getSecurityGroupName(ctx, vpcID, groupName)
+	gatewayGroupID, err := ac.getSecurityGroupID(ctx, vpcID, groupName)
 	if err != nil {
 		if !isNotFoundError(err) {
 			return "", err
@@ -225,7 +222,7 @@ func gatewayDeletionRetriable(err error) bool {
 func (ac *awsCloud) deleteGatewaySG(ctx context.Context, vpcID string) error {
 	groupName := ac.withAWSInfo(withInfraIDPrefix("-submariner-gw-sg"))
 
-	gatewayGroupID, err := ac.getSecurityGroupName(ctx, vpcID, groupName)
+	gatewayGroupID, err := ac.getSecurityGroupID(ctx, vpcID, groupName)
 	if err != nil {
 		if isNotFoundError(err) {
 			return nil
@@ -260,22 +257,14 @@ func (ac *awsCloud) revokePortsInCluster(ctx context.Context, vpcID string) erro
 	var workerGroup, controlPlaneGroup types.SecurityGroup
 	var err error
 
-	if id, exists := ac.cloudConfig[WorkerSecurityGroupIDKey]; exists {
-		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
-			workerGroup, err = ac.getSecurityGroupByID(ctx, workerGroupIDStr)
-			if err != nil {
-				return errors.Wrap(err, "unable to get Worker Security Group by ID")
-			}
-		} else {
-			return errors.New("Worker Security Group ID must be a valid non-empty string")
-		}
+	if ac.workerGroupID != "" {
+		workerGroup, err = ac.getSecurityGroupByID(ctx, ac.workerGroupID)
 	} else {
-		workerGroupName := withInfraIDPrefix(ac.nodeSGSuffix)
+		workerGroup, err = ac.getSecurityGroup(ctx, vpcID, withInfraIDPrefix(ac.nodeSGSuffix))
+	}
 
-		workerGroup, err = ac.getSecurityGroup(ctx, vpcID, workerGroupName)
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return errors.Wrap(err, "unable to get Worker Security Group")
 	}
 
 	if ac.controlPlaneGroupID != "" {
