@@ -30,13 +30,8 @@ func (ac *awsCloud) getVpcID(ctx context.Context) (string, error) {
 	var err error
 	var result *ec2.DescribeVpcsOutput
 
-	if vpcID, exists := ac.cloudConfig[VPCIDKey]; exists {
-		vpcIDStr, ok := vpcID.(string)
-		if !ok || vpcIDStr == "" {
-			return "", errors.New("VPC ID needs to be a valid non-empty string")
-		}
-
-		return vpcIDStr, nil
+	if ac.vpcID != "" {
+		return ac.vpcID, nil
 	}
 
 	ownedFilters := ac.filterByCurrentCluster()

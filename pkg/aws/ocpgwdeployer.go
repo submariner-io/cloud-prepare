@@ -69,11 +69,9 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 
 	status.Success(messageRetrievedVPCID, vpcID)
 
-	if _, found := d.aws.cloudConfig[VPCIDKey]; !found {
-		err = d.aws.setSuffixes(ctx, vpcID)
-		if err != nil {
-			return status.Error(err, "unable to retrieve the security group names")
-		}
+	err = d.aws.setSuffixes(ctx, vpcID)
+	if err != nil {
+		return status.Error(err, "")
 	}
 
 	status.Start(messageValidatePrerequisites)
@@ -360,11 +358,9 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 
 	status.Success(messageRetrievedVPCID, vpcID)
 
-	if _, found := d.aws.cloudConfig[VPCIDKey]; !found {
-		err = d.aws.setSuffixes(ctx, vpcID)
-		if err != nil {
-			return status.Error(err, "unable to retrieve the security group names")
-		}
+	err = d.aws.setSuffixes(ctx, vpcID)
+	if err != nil {
+		return status.Error(err, "")
 	}
 
 	status.Start(messageValidatePrerequisites)
