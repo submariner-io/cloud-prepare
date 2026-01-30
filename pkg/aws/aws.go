@@ -43,7 +43,6 @@ type CloudOption func(*awsCloud)
 const (
 	WorkerSecurityGroupIDKey = "workerSecurityGroupID"
 	PublicSubnetListKey      = "PublicSubnetList"
-	VPCIDKey                 = "VPCID"
 )
 
 func WithControlPlaneSecurityGroup(id string) CloudOption {
@@ -66,7 +65,7 @@ func WithPublicSubnetList(id []string) CloudOption {
 
 func WithVPCName(name string) CloudOption {
 	return func(cloud *awsCloud) {
-		cloud.cloudConfig[VPCIDKey] = name
+		cloud.vpcID = name
 	}
 }
 
@@ -77,6 +76,7 @@ type awsCloud struct {
 	nodeSGSuffix         string
 	controlPlaneSGSuffix string
 	controlPlaneGroupID  string
+	vpcID                string
 	cloudConfig          map[string]any
 }
 
@@ -97,7 +97,7 @@ func NewCloud(client awsClient.Interface, infraID, region string, opts ...CloudO
 }
 
 func (ac *awsCloud) setSuffixes(ctx context.Context, vpcID string) error {
-	if ac.nodeSGSuffix != "" {
+	if ac.nodeSGSuffix != "" || ac.vpcID != "" {
 		return nil
 	}
 
@@ -159,11 +159,9 @@ func (ac *awsCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, status 
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
 
-	if _, found := ac.cloudConfig[VPCIDKey]; !found {
-		err = ac.setSuffixes(ctx, vpcID)
-		if err != nil {
-			return status.Error(err, "unable to retrieve the security group names")
-		}
+	err = ac.setSuffixes(ctx, vpcID)
+	if err != nil {
+		return status.Error(err, "")
 	}
 
 	status.Success(messageRetrievedVPCID, vpcID)
@@ -204,11 +202,9 @@ func (ac *awsCloud) ClosePorts(ctx context.Context, status reporter.Interface) e
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
 
-	if _, found := ac.cloudConfig[VPCIDKey]; !found {
-		err = ac.setSuffixes(ctx, vpcID)
-		if err != nil {
-			return status.Error(err, "unable to retrieve the security group names")
-		}
+	err = ac.setSuffixes(ctx, vpcID)
+	if err != nil {
+		return status.Error(err, "")
 	}
 
 	status.Success(messageRetrievedVPCID, vpcID)
