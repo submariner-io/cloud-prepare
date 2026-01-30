@@ -286,21 +286,17 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(ctx context.Context, gatewaySecurit
 		PublicSubnet:  extractName(publicSubnet.Tags),
 	}
 
-	if id, exists := d.aws.cloudConfig[WorkerSecurityGroupIDKey]; exists {
-		if workerGroupIDStr, ok := id.(string); ok && workerGroupIDStr != "" {
-			workerSecurityGroup, err := d.aws.getSecurityGroupByID(ctx, workerGroupIDStr)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error finding the worker security group with ID %s", workerGroupIDStr)
-			}
-
-			if workerSecurityGroup.GroupName == nil {
-				return nil, errors.Errorf("security group with ID %s has no group name", workerGroupIDStr)
-			}
-
-			tplVars.NodeSG = *workerSecurityGroup.GroupName
-		} else {
-			return nil, errors.New("worker Security Group ID must be a valid non-empty string")
+	if d.aws.workerGroupID != "" {
+		workerSecurityGroup, err := d.aws.getSecurityGroupByID(ctx, d.aws.workerGroupID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error finding the worker security group with ID %s", d.aws.workerGroupID)
 		}
+
+		if workerSecurityGroup.GroupName == nil {
+			return nil, errors.Errorf("security group with ID %s has no group name", d.aws.workerGroupID)
+		}
+
+		tplVars.NodeSG = *workerSecurityGroup.GroupName
 	} else {
 		tplVars.NodeSG = d.aws.infraID + d.aws.nodeSGSuffix
 	}

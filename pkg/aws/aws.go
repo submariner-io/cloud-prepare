@@ -40,10 +40,7 @@ const (
 
 type CloudOption func(*awsCloud)
 
-const (
-	WorkerSecurityGroupIDKey = "workerSecurityGroupID"
-	PublicSubnetListKey      = "PublicSubnetList"
-)
+const PublicSubnetListKey = "PublicSubnetList"
 
 func WithControlPlaneSecurityGroup(id string) CloudOption {
 	return func(cloud *awsCloud) {
@@ -53,7 +50,7 @@ func WithControlPlaneSecurityGroup(id string) CloudOption {
 
 func WithWorkerSecurityGroup(id string) CloudOption {
 	return func(cloud *awsCloud) {
-		cloud.cloudConfig[WorkerSecurityGroupIDKey] = id
+		cloud.workerGroupID = id
 	}
 }
 
@@ -76,6 +73,7 @@ type awsCloud struct {
 	nodeSGSuffix         string
 	controlPlaneSGSuffix string
 	controlPlaneGroupID  string
+	workerGroupID        string
 	vpcID                string
 	cloudConfig          map[string]any
 }
