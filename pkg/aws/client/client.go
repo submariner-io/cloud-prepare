@@ -78,13 +78,10 @@ func DefaultProfile() string {
 	return "default"
 }
 
-func New(ctx context.Context, region string, opts ...Option) (Interface, error) {
+func New(ctx context.Context, region string, opts ...func(*config.LoadOptions) error) (Interface, error) {
 	options := make([]func(*config.LoadOptions) error, 0, 1+len(opts))
 	options = append(options, config.WithRegion(region))
-
-	for _, opt := range opts {
-		options = append(options, opt)
-	}
+	options = append(options, opts...)
 
 	cfg, err := config.LoadDefaultConfig(ctx, options...)
 	if err != nil {
