@@ -71,8 +71,8 @@ func testDeploy() {
 			})
 	})
 
-	JustBeforeEach(func() {
-		retError = t.doDeploy()
+	JustBeforeEach(func(ctx SpecContext) {
+		retError = t.doDeploy(ctx)
 	})
 
 	It("should insert the firewall rule", func() {
@@ -92,9 +92,9 @@ func testDeploy() {
 			t.numGateways = 1
 		})
 
-		It("should do nothing", func() {
+		It("should do nothing", func(ctx SpecContext) {
 			Expect(retError).To(Succeed())
-			t.assertLabeledNodes("node-1", "node-2")
+			t.assertLabeledNodes(ctx, "node-1", "node-2")
 		})
 	})
 
@@ -178,9 +178,9 @@ func testCleanup() {
 		deleteFirewallRule = nil
 	})
 
-	JustBeforeEach(func() {
+	JustBeforeEach(func(ctx SpecContext) {
 		t.gcpClient.EXPECT().DeleteFirewallRule(mock.Anything, projectID, publicPortsRuleName).Return(deleteFirewallRule)
-		retError = t.gwDeployer.Cleanup(context.TODO(), reporter.Stdout())
+		retError = t.gwDeployer.Cleanup(ctx, reporter.Stdout())
 	})
 
 	It("should delete the firewall rule", func() {
@@ -201,9 +201,9 @@ func testCleanup() {
 			t.expInstanceUntagged(zone2, t.instances[zone2][0])
 		})
 
-		It("should unlabel them", func() {
+		It("should unlabel them", func(ctx SpecContext) {
 			Expect(retError).To(Succeed())
-			t.assertLabeledNodes()
+			t.assertLabeledNodes(ctx)
 		})
 	})
 
@@ -308,7 +308,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 		t.kubeClient = kubeFake.NewClientset()
 	})
 
-	JustBeforeEach(func() {
+	JustBeforeEach(func(ctx SpecContext) {
 		t.gcpClient.EXPECT().ListZones(mock.Anything).Return(&compute.ZoneList{Items: t.zones}, nil).Maybe()
 		t.gcpClient.EXPECT().ListInstances(mock.Anything, mock.Anything).RunAndReturn(
 			func(_ context.Context, zone string) (*compute.InstanceList, error) {
@@ -333,7 +333,7 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 			}).Maybe()
 
 		for _, node := range t.nodes {
-			_, err := t.kubeClient.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+			_, err := t.kubeClient.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 			Expect(err).To(Succeed())
 		}
 
@@ -350,8 +350,8 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 	return t
 }
 
-func (t *gatewayDeployerTestDriver) doDeploy() error {
-	return t.gwDeployer.Deploy(context.TODO(), api.GatewayDeployInput{
+func (t *gatewayDeployerTestDriver) doDeploy(ctx context.Context) error {
+	return t.gwDeployer.Deploy(ctx, api.GatewayDeployInput{
 		Gateways: t.numGateways,
 		PublicPorts: []api.PortSpec{
 			{
@@ -366,11 +366,11 @@ func (t *gatewayDeployerTestDriver) doDeploy() error {
 	}, reporter.Stdout())
 }
 
-func (t *gatewayDeployerTestDriver) getLabeledNodes() []string {
+func (t *gatewayDeployerTestDriver) getLabeledNodes(ctx context.Context) []string {
 	found := []string{}
 
 	for _, expected := range t.nodes {
-		actual, err := t.kubeClient.CoreV1().Nodes().Get(context.TODO(), expected.Name, metav1.GetOptions{})
+		actual, err := t.kubeClient.CoreV1().Nodes().Get(ctx, expected.Name, metav1.GetOptions{})
 		Expect(err).To(Succeed())
 
 		if actual.Labels["submariner.io/gateway"] == "true" {
@@ -381,8 +381,8 @@ func (t *gatewayDeployerTestDriver) getLabeledNodes() []string {
 	return found
 }
 
-func (t *gatewayDeployerTestDriver) assertLabeledNodes(expNodes ...string) {
-	actual := t.getLabeledNodes()
+func (t *gatewayDeployerTestDriver) assertLabeledNodes(ctx context.Context, expNodes ...string) {
+	actual := t.getLabeledNodes(ctx)
 	Expect(actual).To(HaveLen(len(expNodes)))
 
 	for _, n := range expNodes {

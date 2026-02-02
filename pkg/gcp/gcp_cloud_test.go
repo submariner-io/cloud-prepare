@@ -45,8 +45,8 @@ func testOpenPorts() {
 
 	var retError error
 
-	JustBeforeEach(func() {
-		retError = t.cloud.OpenPorts(context.TODO(), []api.PortSpec{
+	JustBeforeEach(func(ctx SpecContext) {
+		retError = t.cloud.OpenPorts(ctx, []api.PortSpec{
 			{
 				Port:     100,
 				Protocol: "TCP",
@@ -150,8 +150,8 @@ func testClosePorts() {
 
 	var retError error
 
-	JustBeforeEach(func() {
-		retError = t.cloud.ClosePorts(context.TODO(), reporter.Stdout())
+	JustBeforeEach(func(ctx SpecContext) {
+		retError = t.cloud.ClosePorts(ctx, reporter.Stdout())
 	})
 
 	Context("on success", func() {

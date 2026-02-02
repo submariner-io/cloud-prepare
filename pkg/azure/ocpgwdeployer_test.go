@@ -129,7 +129,7 @@ func testDeploy() {
 			}
 		})
 
-		It("should deploy gateway machine sets and external port security group rules", func() {
+		It("should deploy gateway machine sets and external port security group rules", func(ctx SpecContext) {
 			input := api.GatewayDeployInput{
 				Gateways: 2,
 				PublicPorts: []api.PortSpec{
@@ -143,7 +143,7 @@ func testDeploy() {
 					},
 				},
 			}
-			Expect(t.deployer.Deploy(context.TODO(), input, reporter.Stdout())).To(Succeed())
+			Expect(t.deployer.Deploy(ctx, input, reporter.Stdout())).To(Succeed())
 
 			t.assertMachineSets(false, 2, "zone1", "zone2", "zone3")
 
@@ -162,8 +162,8 @@ func testDeploy() {
 				}
 			})
 
-			It("should not try to recreate it", func() {
-				Expect(t.deployer.Deploy(context.TODO(), api.GatewayDeployInput{
+			It("should not try to recreate it", func(ctx SpecContext) {
+				Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
 					Gateways: 1,
 				}, reporter.Stdout())).To(Succeed())
 
@@ -172,8 +172,8 @@ func testDeploy() {
 		})
 
 		Context("with AirGapped specified", func() {
-			It("should deploy gateway machine sets without a public IP", func() {
-				Expect(t.deployer.Deploy(context.TODO(), api.GatewayDeployInput{
+			It("should deploy gateway machine sets without a public IP", func(ctx SpecContext) {
+				Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
 					Gateways:  1,
 					AirGapped: true,
 				}, reporter.Stdout())).To(Succeed())
@@ -188,8 +188,8 @@ func testDeploy() {
 			t.existingMachineSets = []unstructured.Unstructured{*t.createMachineSet("existing-gw", "zone1")}
 		})
 
-		It("should not deploy new gateways", func() {
-			Expect(t.deployer.Deploy(context.TODO(), api.GatewayDeployInput{
+		It("should not deploy new gateways", func(ctx SpecContext) {
+			Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
 				Gateways: 1,
 			}, reporter.Stdout())).To(Succeed())
 
@@ -217,8 +217,8 @@ func testDeploy() {
 			}
 		})
 
-		It("should deploy new gateways to match the requested count", func() {
-			Expect(t.deployer.Deploy(context.TODO(), api.GatewayDeployInput{
+		It("should deploy new gateways to match the requested count", func(ctx SpecContext) {
+			Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
 				Gateways: 2,
 			}, reporter.Stdout())).To(Succeed())
 
@@ -227,9 +227,9 @@ func testDeploy() {
 	})
 
 	When("manually labeled gateway nodes exist", func() {
-		BeforeEach(func() {
+		BeforeEach(func(ctx SpecContext) {
 			for _, name := range []string{nodeName1, nodeName2} {
-				t.createGatewayNode(name)
+				t.createGatewayNode(ctx, name)
 
 				nicName := name + "-nic"
 				t.httpGetResponses[networkInterfacesPath(nicName)] = &armnetwork.Interface{
@@ -247,8 +247,8 @@ func testDeploy() {
 			}
 		})
 
-		It("should prepare the network interface with a public IP for each node", func() {
-			Expect(t.deployer.Deploy(context.TODO(), api.GatewayDeployInput{
+		It("should prepare the network interface with a public IP for each node", func(ctx SpecContext) {
+			Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
 				Gateways: 2,
 				PublicPorts: []api.PortSpec{
 					{
@@ -277,12 +277,12 @@ func testDeploy() {
 	})
 
 	When("no gateways are requested", func() {
-		It("should succeed", func() {
+		It("should succeed", func(ctx SpecContext) {
 			input := api.GatewayDeployInput{
 				Gateways: 0,
 			}
 
-			err := t.deployer.Deploy(context.TODO(), input, reporter.Stdout())
+			err := t.deployer.Deploy(ctx, input, reporter.Stdout())
 			Expect(err).NotTo(HaveOccurred())
 		})
 	})
@@ -292,8 +292,8 @@ func testDeploy() {
 			t.httpGetResponses[SKUsPath] = &armcompute.ResourceSKUsResult{}
 		})
 
-		It("should return an error", func() {
-			Expect(t.deployer.Deploy(context.TODO(), api.GatewayDeployInput{
+		It("should return an error", func(ctx SpecContext) {
+			Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
 				Gateways: 1,
 			}, reporter.Stdout())).NotTo(Succeed())
 		})
@@ -304,8 +304,8 @@ func testDeploy() {
 			t.httpPutRespCodes[securityGroupPath(extSecurityGroupName)] = ptr.To(http.StatusUnauthorized)
 		})
 
-		It("should return an error", func() {
-			Expect(t.deployer.Deploy(context.TODO(), api.GatewayDeployInput{
+		It("should return an error", func(ctx SpecContext) {
+			Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
 				Gateways: 1,
 			}, reporter.Stdout())).NotTo(Succeed())
 		})
@@ -315,10 +315,10 @@ func testDeploy() {
 func testCleanup() {
 	t := newGatewayDeployerTestDriver()
 
-	BeforeEach(func() {
+	BeforeEach(func(ctx SpecContext) {
 		t.existingMachineSets = []unstructured.Unstructured{*t.createMachineSet("existing-ms", "zone1")}
 
-		t.createGatewayNode(nodeName1)
+		t.createGatewayNode(ctx, nodeName1)
 
 		publicIPAddress := &armnetwork.PublicIPAddress{
 			Name: ptr.To(nodeName1 + "-pub"),
@@ -362,14 +362,14 @@ func testCleanup() {
 		}
 	})
 
-	It("should delete the gateway machine sets and perform related cleanup", func() {
-		Expect(t.deployer.Cleanup(context.TODO(), reporter.Stdout())).To(Succeed())
+	It("should delete the gateway machine sets and perform related cleanup", func(ctx SpecContext) {
+		Expect(t.deployer.Cleanup(ctx, reporter.Stdout())).To(Succeed())
 
 		Expect(t.existingMachineSets).To(BeEmpty())
 		Expect(t.httpGetResponses).NotTo(HaveKey(publicAddressesPath(nodeName1 + "-pub")))
 		Expect(t.httpGetResponses).NotTo(HaveKey(securityGroupPath(extSecurityGroupName)))
 
-		node, err := t.kubeClient.CoreV1().Nodes().Get(context.TODO(), nodeName1, metav1.GetOptions{})
+		node, err := t.kubeClient.CoreV1().Nodes().Get(ctx, nodeName1, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(node.Labels).NotTo(HaveKey(k8s.SubmarinerGatewayLabel))
 	})
@@ -445,8 +445,8 @@ func (t *gatewayDeployerTestDriver) assertMachineSets(airGapped bool, count int,
 	Expect(t.machineSetsDeployed).To(HaveLen(count))
 }
 
-func (t *gatewayDeployerTestDriver) createGatewayNode(name string) {
-	_, err := t.kubeClient.CoreV1().Nodes().Create(context.TODO(), &corev1.Node{
+func (t *gatewayDeployerTestDriver) createGatewayNode(ctx context.Context, name string) {
+	_, err := t.kubeClient.CoreV1().Nodes().Create(ctx, &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
 			Labels: map[string]string{k8s.SubmarinerGatewayLabel: "true"},

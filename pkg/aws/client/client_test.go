@@ -37,17 +37,17 @@ const (
 )
 
 var _ = Describe("New", func() {
-	It("should return a valid client", func() {
-		c, err := client.New(context.TODO(), testRegion)
+	It("should return a valid client", func(ctx SpecContext) {
+		c, err := client.New(ctx, testRegion)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(assertEC2Client(c).Options().Region).To(Equal(testRegion))
 	})
 
 	Context("WithCredentials", func() {
-		It("should obtain the credentials directly from the values provided", func() {
-			c, err := client.New(context.TODO(), testRegion, client.WithCredentials(testAccessKeyID, testSecretAccessKey))
+		It("should obtain the credentials directly from the values provided", func(ctx SpecContext) {
+			c, err := client.New(ctx, testRegion, client.WithCredentials(testAccessKeyID, testSecretAccessKey))
 			Expect(err).NotTo(HaveOccurred())
-			assertCredentials(assertEC2Client(c))
+			assertCredentials(ctx, assertEC2Client(c))
 		})
 	})
 
@@ -66,11 +66,12 @@ var _ = Describe("New", func() {
 				_ = os.Setenv("AWS_SHARED_CREDENTIALS_FILE", createCredentialsFile(testProfileName))
 			})
 
-			It("should obtain the credentials defined for the provided profile defined from the default credentials file", func() {
-				c, err := client.New(context.TODO(), testRegion, client.WithConfigProfile(testProfileName))
-				Expect(err).NotTo(HaveOccurred())
-				assertCredentials(assertEC2Client(c))
-			})
+			It("should obtain the credentials defined for the provided profile defined from the default credentials file",
+				func(ctx SpecContext) {
+					c, err := client.New(ctx, testRegion, client.WithConfigProfile(testProfileName))
+					Expect(err).NotTo(HaveOccurred())
+					assertCredentials(ctx, assertEC2Client(c))
+				})
 		})
 
 		Context("and WithCredentialsFile", func() {
@@ -80,12 +81,13 @@ var _ = Describe("New", func() {
 				credentialsFile = createCredentialsFile(testProfileName)
 			})
 
-			It("should obtain the credentials defined for the provided profile from the provided credentials file", func() {
-				c, err := client.New(context.TODO(), testRegion, client.WithConfigProfile(testProfileName),
-					client.WithCredentialsFile(credentialsFile))
-				Expect(err).NotTo(HaveOccurred())
-				assertCredentials(assertEC2Client(c))
-			})
+			It("should obtain the credentials defined for the provided profile from the provided credentials file",
+				func(ctx SpecContext) {
+					c, err := client.New(ctx, testRegion, client.WithConfigProfile(testProfileName),
+						client.WithCredentialsFile(credentialsFile))
+					Expect(err).NotTo(HaveOccurred())
+					assertCredentials(ctx, assertEC2Client(c))
+				})
 		})
 	})
 
@@ -96,16 +98,17 @@ var _ = Describe("New", func() {
 			credentialsFile = createCredentialsFile(client.DefaultProfile())
 		})
 
-		It("should obtain the credentials defined for the default profile from the provided credentials file", func() {
-			c, err := client.New(context.TODO(), testRegion, client.WithCredentialsFile(credentialsFile))
-			Expect(err).NotTo(HaveOccurred())
-			assertCredentials(assertEC2Client(c))
-		})
+		It("should obtain the credentials defined for the default profile from the provided credentials file",
+			func(ctx SpecContext) {
+				c, err := client.New(ctx, testRegion, client.WithCredentialsFile(credentialsFile))
+				Expect(err).NotTo(HaveOccurred())
+				assertCredentials(ctx, assertEC2Client(c))
+			})
 	})
 
 	Context("with a non-existent profile", func() {
-		It("should return an error", func() {
-			_, err := client.New(context.TODO(), testRegion, client.WithConfigProfile("non-existent"))
+		It("should return an error", func(ctx SpecContext) {
+			_, err := client.New(ctx, testRegion, client.WithConfigProfile("non-existent"))
 			Expect(err).To(HaveOccurred())
 		})
 	})
@@ -118,10 +121,10 @@ func assertEC2Client(c client.Interface) *ec2.Client {
 	return c.(*ec2.Client)
 }
 
-func assertCredentials(c *ec2.Client) {
+func assertCredentials(ctx context.Context, c *ec2.Client) {
 	provider := c.Options().Credentials
 	Expect(provider).NotTo(BeNil())
-	creds, err := provider.Retrieve(context.TODO())
+	creds, err := provider.Retrieve(ctx)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(creds.AccessKeyID).To(Equal(testAccessKeyID))
 	Expect(creds.SecretAccessKey).To(Equal(testSecretAccessKey))

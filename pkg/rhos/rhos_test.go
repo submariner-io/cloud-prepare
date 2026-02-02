@@ -19,6 +19,8 @@ limitations under the License.
 package rhos_test
 
 import (
+	"context"
+
 	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/secgroups"
 	. "github.com/onsi/ginkgo/v2"
@@ -54,7 +56,7 @@ func testOpenPorts() {
 	})
 
 	When("the internal security group does not exist", func() {
-		It("should create the security group and open internal ports", func() {
+		It("should create the security group and open internal ports", func(ctx SpecContext) {
 			Expect(t.cloud.OpenPorts(ctx, ports, reporter.Stdout())).To(Succeed())
 
 			Expect(t.securityGroupsCreated).To(ContainElement(internalSecurityGroup))
@@ -77,7 +79,7 @@ func testOpenPorts() {
 			}
 		})
 
-		It("should not recreate it but should add servers to it", func() {
+		It("should not recreate it but should add servers to it", func(ctx SpecContext) {
 			Expect(t.cloud.OpenPorts(ctx, ports, reporter.Stdout())).To(Succeed())
 
 			Expect(t.securityGroupsCreated).To(BeEmpty())
@@ -85,7 +87,7 @@ func testOpenPorts() {
 		})
 	})
 
-	t.testErrors(func() error { return t.cloud.OpenPorts(ctx, ports, reporter.Stdout()) },
+	t.testErrors(func(ctx context.Context) error { return t.cloud.OpenPorts(ctx, ports, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		newNetworkV2ErrEntry(),
 		createSecurityGroupErrEntry(),
@@ -113,13 +115,13 @@ func testClosePorts() {
 		}
 	})
 
-	It("should remove the security group from servers and delete it", func() {
+	It("should remove the security group from servers and delete it", func(ctx SpecContext) {
 		Expect(t.cloud.ClosePorts(ctx, reporter.Stdout())).To(Succeed())
 
 		t.assertNoServerSecGroup(internalSecurityGroup)
 	})
 
-	t.testErrors(func() error { return t.cloud.ClosePorts(ctx, reporter.Stdout()) },
+	t.testErrors(func(ctx context.Context) error { return t.cloud.ClosePorts(ctx, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		deleteSecurityGroupErrEntry(),
 		extractSecurityGroupsErrEntry(),

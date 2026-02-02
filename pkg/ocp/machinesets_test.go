@@ -19,7 +19,6 @@ limitations under the License.
 package ocp_test
 
 import (
-	"context"
 	"errors"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -36,8 +35,6 @@ import (
 	fakeClient "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 )
-
-var ctx = context.TODO()
 
 var _ = Describe("K8s MachineSetDeployer", func() {
 	const (
@@ -65,7 +62,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 	Context("on GetWorkerNodeImage", func() {
 		When("no worker node exists", func() {
-			It("should return an error", func() {
+			It("should return an error", func(ctx SpecContext) {
 				_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 				Expect(err).ToNot(Succeed())
 			})
@@ -76,7 +73,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				machineSet.SetName(infraID + "-worker-c")
 			})
 
-			JustBeforeEach(func() {
+			JustBeforeEach(func(ctx SpecContext) {
 				_, err := msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
 			})
@@ -92,7 +89,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 					_ = unstructured.SetNestedSlice(machineSet.Object, disks, "spec", "template", "spec", "providerSpec", "value", "disks")
 				})
 
-				It("should return its disk image", func() {
+				It("should return its disk image", func(ctx SpecContext) {
 					image, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).To(Succeed())
 					Expect(image).To(Equal("some-image"))
@@ -100,7 +97,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 			})
 
 			Context("and has no disks", func() {
-				It("should return an error", func() {
+				It("should return an error", func(ctx SpecContext) {
 					_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).ToNot(Succeed())
 				})
@@ -114,7 +111,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 					fake.NewFailingReactor(&dynClient.Fake).SetFailOnList(expectedErr)
 				})
 
-				It("should return an error", func() {
+				It("should return an error", func(ctx SpecContext) {
 					_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).To(ContainErrorSubstring(expectedErr))
 				})
@@ -127,7 +124,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 			machineSet.SetName(machineSetName)
 		})
 
-		It("should successfully create the machine set", func() {
+		It("should successfully create the machine set", func(ctx SpecContext) {
 			Expect(deployer.Deploy(ctx, machineSet)).To(Succeed())
 
 			_, err := msClient.Get(ctx, machineSetName, metav1.GetOptions{})
@@ -141,12 +138,12 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 		})
 
 		When("the machine set exists", func() {
-			BeforeEach(func() {
+			BeforeEach(func(ctx SpecContext) {
 				_, err := msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
 			})
 
-			It("should successfully delete the machine set", func() {
+			It("should successfully delete the machine set", func(ctx SpecContext) {
 				Expect(deployer.Delete(ctx, machineSet)).To(Succeed())
 
 				_, err := msClient.Get(ctx, machineSetName, metav1.GetOptions{})
@@ -158,14 +155,14 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 					fake.NewFailingReactor(&dynClient.Fake).SetFailOnDelete(errors.New("fake Delete error"))
 				})
 
-				It("should return an error", func() {
+				It("should return an error", func(ctx SpecContext) {
 					Expect(deployer.Delete(ctx, machineSet)).ToNot(Succeed())
 				})
 			})
 		})
 
 		When("the machine set does not exist", func() {
-			It("should not return an error", func() {
+			It("should not return an error", func(ctx SpecContext) {
 				Expect(deployer.Delete(ctx, machineSet)).To(Succeed())
 			})
 		})
@@ -173,7 +170,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 
 	Context("on List", func() {
 		When("matching and non-matching machine sets exist", func() {
-			BeforeEach(func() {
+			BeforeEach(func(ctx SpecContext) {
 				machineSet.SetName(machineSetName)
 				_, err := msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
@@ -182,7 +179,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				Expect(err).To(Succeed())
 			})
 
-			It("should return only the matching machine set", func() {
+			It("should return only the matching machine set", func(ctx SpecContext) {
 				machineSetList, err := deployer.List(ctx)
 				Expect(err).To(Succeed())
 
@@ -192,7 +189,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 		})
 
 		When("a matching machine set does not exist", func() {
-			It("should not return an error", func() {
+			It("should not return an error", func(ctx SpecContext) {
 				machineSetList, err := deployer.List(ctx)
 				Expect(err).To(Succeed())
 				Expect(machineSetList).To(BeEmpty())

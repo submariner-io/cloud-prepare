@@ -19,7 +19,6 @@ limitations under the License.
 package azure_test
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8"
@@ -44,7 +43,7 @@ var _ = Describe("Cloud", func() {
 		}
 	})
 
-	Specify("should open and close ports correctly", func() {
+	Specify("should open and close ports correctly", func(ctx SpecContext) {
 		cloud := azure.NewCloud(&t.cloudInfo)
 
 		port := api.PortSpec{
@@ -52,7 +51,7 @@ var _ = Describe("Cloud", func() {
 			Protocol: string(armnetwork.SecurityRuleProtocolTCP),
 		}
 
-		Expect(cloud.OpenPorts(context.TODO(), []api.PortSpec{port}, reporter.Stdout())).To(Succeed())
+		Expect(cloud.OpenPorts(ctx, []api.PortSpec{port}, reporter.Stdout())).To(Succeed())
 
 		var securityGroup armnetwork.SecurityGroup
 		t.assertPutRequest(internalSecurityGroupPath, &securityGroup)
@@ -65,7 +64,7 @@ var _ = Describe("Cloud", func() {
 
 		t.httpGetResponses[internalSecurityGroupPath] = &securityGroup
 
-		Expect(cloud.OpenPorts(context.TODO(), []api.PortSpec{port}, reporter.Stdout())).To(Succeed())
+		Expect(cloud.OpenPorts(ctx, []api.PortSpec{port}, reporter.Stdout())).To(Succeed())
 		t.assertNoPutRequest(internalSecurityGroupPath)
 
 		By("Close ports")
@@ -75,7 +74,7 @@ var _ = Describe("Cloud", func() {
 		}
 		securityGroup.Properties.SecurityRules = append(securityGroup.Properties.SecurityRules, otherRule)
 
-		Expect(cloud.ClosePorts(context.TODO(), reporter.Stdout())).To(Succeed())
+		Expect(cloud.ClosePorts(ctx, reporter.Stdout())).To(Succeed())
 		t.assertPutRequest(internalSecurityGroupPath, &securityGroup)
 		Expect(securityGroup.Properties.SecurityRules).To(ConsistOf(Satisfy(func(r *armnetwork.SecurityRule) bool {
 			return ptr.Deref(r.Name, "") == *otherRule.Name
@@ -83,21 +82,21 @@ var _ = Describe("Cloud", func() {
 	})
 
 	When("security group retrieval fails", func() {
-		Specify("OpenPorts should return an error", func() {
+		Specify("OpenPorts should return an error", func(ctx SpecContext) {
 			t.httpGetResponses[internalSecurityGroupPath] = http.StatusUnauthorized
 
 			cloud := azure.NewCloud(&t.cloudInfo)
-			Expect(cloud.OpenPorts(context.TODO(), []api.PortSpec{{Port: 80, Protocol: string(armnetwork.SecurityRuleProtocolTCP)}},
+			Expect(cloud.OpenPorts(ctx, []api.PortSpec{{Port: 80, Protocol: string(armnetwork.SecurityRuleProtocolTCP)}},
 				reporter.Stdout())).NotTo(Succeed())
 		})
 	})
 
 	When("security group creation fails", func() {
-		Specify("OpenPorts should return an error", func() {
+		Specify("OpenPorts should return an error", func(ctx SpecContext) {
 			t.httpPutRespCodes[internalSecurityGroupPath] = ptr.To(http.StatusUnauthorized)
 
 			cloud := azure.NewCloud(&t.cloudInfo)
-			Expect(cloud.OpenPorts(context.TODO(), []api.PortSpec{{Port: 80, Protocol: string(armnetwork.SecurityRuleProtocolTCP)}},
+			Expect(cloud.OpenPorts(ctx, []api.PortSpec{{Port: 80, Protocol: string(armnetwork.SecurityRuleProtocolTCP)}},
 				reporter.Stdout())).NotTo(Succeed())
 		})
 	})
