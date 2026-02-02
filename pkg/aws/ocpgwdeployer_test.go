@@ -165,8 +165,8 @@ func testDeploy() {
 				t.existingVpcs = []types.Vpc{}
 			})
 
-			It("should return an error", func() {
-				Expect(t.doDeploy()).To(HaveOccurred())
+			It("should return an error", func(ctx SpecContext) {
+				Expect(t.doDeploy(ctx)).To(HaveOccurred())
 			})
 		})
 
@@ -175,8 +175,8 @@ func testDeploy() {
 				t.describeSubnetsErr = errors.New("mock error")
 			})
 
-			It("should return an error", func() {
-				Expect(t.doDeploy()).To(HaveOccurred())
+			It("should return an error", func(ctx SpecContext) {
+				Expect(t.doDeploy(ctx)).To(HaveOccurred())
 			})
 		})
 
@@ -191,8 +191,8 @@ func testDeploy() {
 				t.expectCreateGatewayTags(*t.expectedSubnetsTagged[0].SubnetId)
 			})
 
-			It("should return an error", func() {
-				Expect(t.doDeploy()).To(HaveOccurred())
+			It("should return an error", func(ctx SpecContext) {
+				Expect(t.doDeploy(ctx)).To(HaveOccurred())
 			})
 		})
 
@@ -202,8 +202,8 @@ func testDeploy() {
 				t.expectAuthorizeSecurityGroupIngress(gatewayGroupID, newPublicSGRule(100, "TCP"))
 			})
 
-			It("should return an error", func() {
-				Expect(t.doDeploy()).To(HaveOccurred())
+			It("should return an error", func(ctx SpecContext) {
+				Expect(t.doDeploy(ctx)).To(HaveOccurred())
 			})
 		})
 
@@ -212,8 +212,8 @@ func testDeploy() {
 				t.existingSubnets = []types.Subnet{}
 			})
 
-			It("should return an error", func() {
-				Expect(t.doDeploy()).To(HaveOccurred())
+			It("should return an error", func(ctx SpecContext) {
+				Expect(t.doDeploy(ctx)).To(HaveOccurred())
 			})
 		})
 	})
@@ -262,8 +262,8 @@ func testCleanup() {
 				t.existingVpcs = []types.Vpc{}
 			})
 
-			It("should return an error", func() {
-				Expect(t.doCleanup()).To(HaveOccurred())
+			It("should return an error", func(ctx SpecContext) {
+				Expect(t.doCleanup(ctx)).To(HaveOccurred())
 			})
 		})
 
@@ -272,8 +272,8 @@ func testCleanup() {
 				t.describeSubnetsErr = errors.New("mock error")
 			})
 
-			It("should return an error", func() {
-				Expect(t.doCleanup()).To(HaveOccurred())
+			It("should return an error", func(ctx SpecContext) {
+				Expect(t.doCleanup(ctx)).To(HaveOccurred())
 			})
 		})
 	})
@@ -351,8 +351,8 @@ func (t *gatewayDeployerTestDriver) expectedInstanceType() string {
 	return aws.PreferredInstances[0]
 }
 
-func (t *gatewayDeployerTestDriver) doDeploy() error {
-	return t.gwDeployer.Deploy(context.TODO(), api.GatewayDeployInput{
+func (t *gatewayDeployerTestDriver) doDeploy(ctx context.Context) error {
+	return t.gwDeployer.Deploy(ctx, api.GatewayDeployInput{
 		Gateways: t.numGateways,
 		PublicPorts: []api.PortSpec{
 			{
@@ -367,8 +367,8 @@ func (t *gatewayDeployerTestDriver) doDeploy() error {
 	}, reporter.Stdout())
 }
 
-func (t *gatewayDeployerTestDriver) doCleanup() error {
-	return t.gwDeployer.Cleanup(context.TODO(), reporter.Stdout())
+func (t *gatewayDeployerTestDriver) doCleanup(ctx context.Context) error {
+	return t.gwDeployer.Cleanup(ctx, reporter.Stdout())
 }
 
 func (t *gatewayDeployerTestDriver) expectDeployValidations(enforce bool) {
@@ -407,8 +407,8 @@ func (t *gatewayDeployerTestDriver) testDeploySuccess(msgPrefix, msgSuffix strin
 		msg = "should"
 	}
 
-	It(msg+" deploy the correct gateway node machine sets"+msgSuffix, func() {
-		Expect(t.doDeploy()).To(Succeed())
+	It(msg+" deploy the correct gateway node machine sets"+msgSuffix, func(ctx SpecContext) {
+		Expect(t.doDeploy(ctx)).To(Succeed())
 
 		for i := range t.expectedSubnetsDeployed {
 			t.assertMachineSet(t.machineSets[*t.expectedSubnetsDeployed[i].AvailabilityZone], *t.expectedSubnetsDeployed[i].SubnetId,
@@ -484,8 +484,8 @@ func (t *gatewayDeployerTestDriver) setupExpectedSubnetInstanceTypeOfferings(sub
 }
 
 func (t *gatewayDeployerTestDriver) testCleanupSuccess() {
-	It("should delete the correct gateway node machine sets", func() {
-		Expect(t.doCleanup()).To(Succeed())
+	It("should delete the correct gateway node machine sets", func(ctx SpecContext) {
+		Expect(t.doCleanup(ctx)).To(Succeed())
 
 		for i := range t.existingSubnets {
 			subnet := &t.existingSubnets[i]

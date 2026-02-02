@@ -32,8 +32,6 @@ import (
 	kubeFake "k8s.io/client-go/kubernetes/fake"
 )
 
-var ctx = context.TODO()
-
 var _ = Describe("Interface", func() {
 	Describe("ListNodesWithLabel", testListNodesWithLabel)
 	Describe("ListGatewayNodes", testListGatewayNodes)
@@ -52,12 +50,12 @@ func testRemoveGWLabelFromWorkerNodes() {
 		}
 	})
 
-	It("should remove the label from all nodes", func() {
+	It("should remove the label from all nodes", func(ctx SpecContext) {
 		Expect(t.client.RemoveGWLabelFromWorkerNodes(ctx)).To(Succeed())
-		t.assertNoLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel)
-		t.assertNoLabel(t.nodes[1].Name, k8s.SubmarinerGatewayLabel)
-		t.assertNoLabel(t.nodes[2].Name, k8s.SubmarinerGatewayLabel)
-		t.assertLabel(t.nodes[2].Name, "foo", "bar")
+		t.assertNoLabel(ctx, t.nodes[0].Name, k8s.SubmarinerGatewayLabel)
+		t.assertNoLabel(ctx, t.nodes[1].Name, k8s.SubmarinerGatewayLabel)
+		t.assertNoLabel(ctx, t.nodes[2].Name, k8s.SubmarinerGatewayLabel)
+		t.assertLabel(ctx, t.nodes[2].Name, "foo", "bar")
 	})
 
 	Context("on failure", func() {
@@ -65,7 +63,7 @@ func testRemoveGWLabelFromWorkerNodes() {
 			fake.NewFailingReactorForResource(&t.kubeClient.Fake, "nodes").SetFailOnUpdate(errors.New("fake error"))
 		})
 
-		It("should return an error", func() {
+		It("should return an error", func(ctx SpecContext) {
 			Expect(t.client.RemoveGWLabelFromWorkerNodes(ctx)).ToNot(Succeed())
 		})
 	})
@@ -79,10 +77,10 @@ func testAddGWLabelOnNode() {
 	})
 
 	When("the gateway label isn't present", func() {
-		It("should add it", func() {
+		It("should add it", func(ctx SpecContext) {
 			Expect(t.client.AddGWLabelOnNode(ctx, "node")).To(Succeed())
-			t.assertLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
-			t.assertLabel(t.nodes[0].Name, "foo", "bar")
+			t.assertLabel(ctx, t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
+			t.assertLabel(ctx, t.nodes[0].Name, "foo", "bar")
 		})
 	})
 
@@ -91,9 +89,9 @@ func testAddGWLabelOnNode() {
 			t.nodes[0].Labels[k8s.SubmarinerGatewayLabel] = "false"
 		})
 
-		It("should set it to true", func() {
+		It("should set it to true", func(ctx SpecContext) {
 			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).To(Succeed())
-			t.assertLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
+			t.assertLabel(ctx, t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
 		})
 	})
 
@@ -102,7 +100,7 @@ func testAddGWLabelOnNode() {
 			t.nodes[0].Labels[k8s.SubmarinerGatewayLabel] = "true"
 		})
 
-		It("should not try to update it", func() {
+		It("should not try to update it", func(ctx SpecContext) {
 			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).To(Succeed())
 
 			actualActions := t.kubeClient.Fake.Actions()
@@ -119,9 +117,9 @@ func testAddGWLabelOnNode() {
 			t.nodes[0].Labels = nil
 		})
 
-		It("should add the gateway label", func() {
+		It("should add the gateway label", func(ctx SpecContext) {
 			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).To(Succeed())
-			t.assertLabel(t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
+			t.assertLabel(ctx, t.nodes[0].Name, k8s.SubmarinerGatewayLabel, "true")
 		})
 	})
 
@@ -130,7 +128,7 @@ func testAddGWLabelOnNode() {
 			t.nodes = nil
 		})
 
-		It("should not return an error", func() {
+		It("should not return an error", func(ctx SpecContext) {
 			Expect(t.client.AddGWLabelOnNode(ctx, "node")).To(Succeed())
 		})
 	})
@@ -140,7 +138,7 @@ func testAddGWLabelOnNode() {
 			fake.NewFailingReactorForResource(&t.kubeClient.Fake, "nodes").SetFailOnUpdate(errors.New("fake error"))
 		})
 
-		It("should return an error", func() {
+		It("should return an error", func(ctx SpecContext) {
 			Expect(t.client.AddGWLabelOnNode(ctx, t.nodes[0].Name)).ToNot(Succeed())
 		})
 	})
@@ -158,7 +156,7 @@ func testListGatewayNodes() {
 		}
 	})
 
-	It("should return the correct nodes", func() {
+	It("should return the correct nodes", func(ctx SpecContext) {
 		list, err := t.client.ListGatewayNodes(ctx)
 		Expect(err).To(Succeed())
 
@@ -170,7 +168,7 @@ func testListGatewayNodes() {
 			fake.NewFailingReactorForResource(&t.kubeClient.Fake, "nodes").SetFailOnList(errors.New("fake error"))
 		})
 
-		It("should return an error", func() {
+		It("should return an error", func(ctx SpecContext) {
 			_, err := t.client.ListGatewayNodes(ctx)
 			Expect(err).ToNot(Succeed())
 		})
@@ -189,10 +187,10 @@ func testListNodesWithLabel() {
 		}
 	})
 
-	It("should return the correct nodes", func() {
-		t.testListNodesWithLabel("label1=false", "node-1", "node-4")
-		t.testListNodesWithLabel("label1=true", "node-2")
-		t.testListNodesWithLabel("label2=true")
+	It("should return the correct nodes", func(ctx SpecContext) {
+		t.testListNodesWithLabel(ctx, "label1=false", "node-1", "node-4")
+		t.testListNodesWithLabel(ctx, "label1=true", "node-2")
+		t.testListNodesWithLabel(ctx, "label2=true")
 	})
 
 	Context("on failure", func() {
@@ -200,7 +198,7 @@ func testListNodesWithLabel() {
 			fake.NewFailingReactorForResource(&t.kubeClient.Fake, "nodes").SetFailOnList(errors.New("fake error"))
 		})
 
-		It("should return an error", func() {
+		It("should return an error", func(ctx SpecContext) {
 			_, err := t.client.ListNodesWithLabel(ctx, "")
 			Expect(err).ToNot(Succeed())
 		})
@@ -220,9 +218,9 @@ func newInterfaceTestDriver() *interfaceTestDriver {
 		t.kubeClient = kubeFake.NewClientset()
 	})
 
-	JustBeforeEach(func() {
+	JustBeforeEach(func(ctx SpecContext) {
 		for _, node := range t.nodes {
-			_, err := t.kubeClient.CoreV1().Nodes().Create(context.TODO(), node, metav1.CreateOptions{})
+			_, err := t.kubeClient.CoreV1().Nodes().Create(ctx, node, metav1.CreateOptions{})
 			Expect(err).To(Succeed())
 		}
 
@@ -234,21 +232,21 @@ func newInterfaceTestDriver() *interfaceTestDriver {
 	return t
 }
 
-func (t *interfaceTestDriver) testListNodesWithLabel(labelSelector string, expNodes ...string) {
+func (t *interfaceTestDriver) testListNodesWithLabel(ctx context.Context, labelSelector string, expNodes ...string) {
 	list, err := t.client.ListNodesWithLabel(ctx, labelSelector)
 	Expect(err).To(Succeed())
 
 	assertNodeNames(list, expNodes...)
 }
 
-func (t *interfaceTestDriver) assertLabel(name, key, value string) {
-	node, err := t.kubeClient.CoreV1().Nodes().Get(context.TODO(), name, metav1.GetOptions{})
+func (t *interfaceTestDriver) assertLabel(ctx context.Context, name, key, value string) {
+	node, err := t.kubeClient.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 	Expect(err).To(Succeed())
 	Expect(node.Labels).To(HaveKeyWithValue(key, value))
 }
 
-func (t *interfaceTestDriver) assertNoLabel(name, key string) {
-	node, err := t.kubeClient.CoreV1().Nodes().Get(context.TODO(), name, metav1.GetOptions{})
+func (t *interfaceTestDriver) assertNoLabel(ctx context.Context, name, key string) {
+	node, err := t.kubeClient.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
 	Expect(err).To(Succeed())
 	Expect(node.Labels).ToNot(HaveKey(key))
 }

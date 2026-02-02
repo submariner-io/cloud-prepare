@@ -57,8 +57,6 @@ const (
 	internalSecurityGroup = testInfraID + rhos.InternalSecurityGroupSuffix
 )
 
-var ctx = context.TODO()
-
 func TestRHOS(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "RHOS Suite")
@@ -255,7 +253,7 @@ func (t *testDriver) assertNoServerSecGroup(groupName string) {
 	}
 }
 
-func (t *testDriver) testErrors(run func() error, entries ...any) {
+func (t *testDriver) testErrors(run func(ctx context.Context) error, entries ...any) {
 	params := []any{
 		func(message string, before func()) {
 			When(message+" fails", func() {
@@ -263,8 +261,8 @@ func (t *testDriver) testErrors(run func() error, entries ...any) {
 					before()
 				})
 
-				It("should return an error", func() {
-					Expect(run()).NotTo(Succeed())
+				It("should return an error", func(ctx SpecContext) {
+					Expect(run(ctx)).NotTo(Succeed())
 				})
 			})
 		},

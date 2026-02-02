@@ -52,7 +52,7 @@ func testDeploy() {
 		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, testInfraID).Return(testImage, nil).Maybe()
 	})
 
-	It("should deploy a gateway node machine set and security group rules", func() {
+	It("should deploy a gateway node machine set and security group rules", func(ctx SpecContext) {
 		Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 
 		t.assertMachineSet(false, SubnetParam{
@@ -78,7 +78,7 @@ func testDeploy() {
 			t.subnetNames = []string{subnetName1, subnetName2}
 		})
 
-		It("should deploy a gateway node machine with the subnets applied", func() {
+		It("should deploy a gateway node machine with the subnets applied", func(ctx SpecContext) {
 			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 
 			t.assertMachineSet(false, SubnetParam{
@@ -102,7 +102,7 @@ func testDeploy() {
 			}
 		})
 
-		It("should deploy a gateway node machine set with the internal security group", func() {
+		It("should deploy a gateway node machine set with the internal security group", func(ctx SpecContext) {
 			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 			t.assertMachineSet(true)
 		})
@@ -117,29 +117,29 @@ func testDeploy() {
 			}
 		})
 
-		It("should not try to recreate it", func() {
+		It("should not try to recreate it", func(ctx SpecContext) {
 			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 			Expect(t.securityGroupsCreated).To(BeEmpty())
 		})
 	})
 
 	When("a node is already labeled as a gateway", func() {
-		BeforeEach(func() {
+		BeforeEach(func(ctx SpecContext) {
 			for _, name := range []string{nodeName1, nodeName2} {
-				t.createGatewayNode(name)
+				t.createGatewayNode(ctx, name)
 			}
 		})
 
-		It("should open the gateway port and not deploy a machine set", func() {
+		It("should open the gateway port and not deploy a machine set", func(ctx SpecContext) {
 			Expect(t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout())).To(Succeed())
 			t.assertServerSecGroup(gwSecurityGroup)
 		})
 
-		t.testErrors(func() error { return t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout()) },
+		t.testErrors(func(ctx context.Context) error { return t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout()) },
 			extractServersErrEntry())
 	})
 
-	t.testErrors(func() error { return t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout()) },
+	t.testErrors(func(ctx context.Context) error { return t.gwDeployer.Deploy(ctx, t.gwDeployInput, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		newNetworkV2ErrEntry(),
 		createSecurityGroupErrEntry(),
@@ -149,7 +149,7 @@ func testDeploy() {
 func testCleanup() {
 	t := newGatewayDeployerTestDriver()
 
-	BeforeEach(func() {
+	BeforeEach(func(ctx SpecContext) {
 		t.existingMachineSets = []unstructured.Unstructured{
 			{
 				Object: map[string]any{
@@ -180,10 +180,10 @@ func testCleanup() {
 
 		t.servers[nodeName3] = &servers.Server{ID: serverID3}
 
-		t.createGatewayNode(nodeName3)
+		t.createGatewayNode(ctx, nodeName3)
 	})
 
-	It("should delete the gateway machine sets and security groups", func() {
+	It("should delete the gateway machine sets and security groups", func(ctx SpecContext) {
 		Expect(t.gwDeployer.Cleanup(ctx, reporter.Stdout())).To(Succeed())
 		Expect(t.existingMachineSets).To(BeEmpty())
 		Expect(t.existingSecurityGroups).To(BeEmpty())
@@ -194,7 +194,7 @@ func testCleanup() {
 		Expect(node.Labels).NotTo(HaveKey(k8s.SubmarinerGatewayLabel))
 	})
 
-	t.testErrors(func() error { return t.gwDeployer.Cleanup(ctx, reporter.Stdout()) },
+	t.testErrors(func(ctx context.Context) error { return t.gwDeployer.Cleanup(ctx, reporter.Stdout()) },
 		newComputeV2ErrEntry(),
 		deleteSecurityGroupErrEntry(),
 		extractSecurityGroupsErrEntry(),
@@ -319,7 +319,7 @@ func (t *gatewayDeployerTestDriver) assertMachineSet(useInternalSG bool, expSubn
 	})).To(Equal(useInternalSG))
 }
 
-func (t *gatewayDeployerTestDriver) createGatewayNode(name string) {
+func (t *gatewayDeployerTestDriver) createGatewayNode(ctx context.Context, name string) {
 	_, err := t.kubeClient.CoreV1().Nodes().Create(ctx, &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,

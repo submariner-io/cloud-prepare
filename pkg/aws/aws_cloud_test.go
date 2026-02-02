@@ -46,8 +46,8 @@ func testOpenPorts() {
 		t.expectDescribeSecurityGroups(t.workerSGName, t.workerGroupID)
 	})
 
-	doOpenPorts := func() error {
-		return t.cloud.OpenPorts(context.TODO(), []api.PortSpec{
+	doOpenPorts := func(ctx context.Context) error {
+		return t.cloud.OpenPorts(ctx, []api.PortSpec{
 			{
 				Port:     100,
 				Protocol: "TCP",
@@ -73,8 +73,8 @@ func testOpenPorts() {
 			t.expectAuthorizeSecurityGroupIngress(t.masterGroupID, newClusterSGRule(t.workerGroupID, 200, "UDP"))
 		})
 
-		It("should authorize the appropriate security groups ingress", func() {
-			Expect(doOpenPorts()).To(Succeed())
+		It("should authorize the appropriate security groups ingress", func(ctx SpecContext) {
+			Expect(doOpenPorts(ctx)).To(Succeed())
 		})
 
 		Context("WithWorkerSecurityGroup", func() {
@@ -83,8 +83,8 @@ func testOpenPorts() {
 				t.cloudOptions = append(t.cloudOptions, aws.WithWorkerSecurityGroup(t.workerGroupID))
 			})
 
-			It("should authorize the appropriate security groups ingress", func() {
-				Expect(doOpenPorts()).To(Succeed())
+			It("should authorize the appropriate security groups ingress", func(ctx SpecContext) {
+				Expect(doOpenPorts(ctx)).To(Succeed())
 			})
 		})
 
@@ -94,8 +94,8 @@ func testOpenPorts() {
 				t.cloudOptions = append(t.cloudOptions, aws.WithControlPlaneSecurityGroup(t.masterGroupID))
 			})
 
-			It("should authorize the appropriate security groups ingress", func() {
-				Expect(doOpenPorts()).To(Succeed())
+			It("should authorize the appropriate security groups ingress", func(ctx SpecContext) {
+				Expect(doOpenPorts(ctx)).To(Succeed())
 			})
 		})
 
@@ -117,8 +117,8 @@ func testOpenPorts() {
 				})
 			})
 
-			It("should authorize the appropriate security groups ingress", func() {
-				Expect(doOpenPorts()).To(Succeed())
+			It("should authorize the appropriate security groups ingress", func(ctx SpecContext) {
+				Expect(doOpenPorts(ctx)).To(Succeed())
 			})
 		})
 
@@ -131,8 +131,8 @@ func testOpenPorts() {
 				t.cloudOptions = append(t.cloudOptions, aws.WithVPCName(t.vpcID))
 			})
 
-			It("should authorize the appropriate security groups ingress", func() {
-				Expect(doOpenPorts()).To(Succeed())
+			It("should authorize the appropriate security groups ingress", func(ctx SpecContext) {
+				Expect(doOpenPorts(ctx)).To(Succeed())
 			})
 		})
 	})
@@ -142,8 +142,8 @@ func testOpenPorts() {
 			t.existingVpcs = []types.Vpc{}
 		})
 
-		It("should return an error", func() {
-			Expect(doOpenPorts()).To(HaveOccurred())
+		It("should return an error", func(ctx SpecContext) {
+			Expect(doOpenPorts(ctx)).To(HaveOccurred())
 		})
 	})
 
@@ -153,8 +153,8 @@ func testOpenPorts() {
 			t.expectValidateAuthorizeSecurityGroupIngress(errors.New("mock error"))
 		})
 
-		It("should return an error", func() {
-			Expect(doOpenPorts()).To(HaveOccurred())
+		It("should return an error", func(ctx SpecContext) {
+			Expect(doOpenPorts(ctx)).To(HaveOccurred())
 		})
 	})
 
@@ -164,8 +164,8 @@ func testOpenPorts() {
 			t.expectDescribeSecurityGroupsFailure(t.masterSGName, errors.New("mock error"))
 		})
 
-		It("should return an error", func() {
-			Expect(doOpenPorts()).To(HaveOccurred())
+		It("should return an error", func(ctx SpecContext) {
+			Expect(doOpenPorts(ctx)).To(HaveOccurred())
 		})
 	})
 }
@@ -183,8 +183,8 @@ func testClosePorts() {
 		t.expectDescribeSecurityGroups(t.workerSGName, t.workerGroupID, ipPerm)
 	})
 
-	doClosePorts := func() error {
-		return t.cloud.ClosePorts(context.TODO(), reporter.Stdout())
+	doClosePorts := func(ctx context.Context) error {
+		return t.cloud.ClosePorts(ctx, reporter.Stdout())
 	}
 
 	Context("on success", func() {
@@ -198,8 +198,8 @@ func testClosePorts() {
 			t.expectRevokeSecurityGroupIngress(t.workerGroupID, ipPerm)
 		})
 
-		It("should revoke the appropriate security groups ingress", func() {
-			Expect(doClosePorts()).To(Succeed())
+		It("should revoke the appropriate security groups ingress", func(ctx SpecContext) {
+			Expect(doClosePorts(ctx)).To(Succeed())
 		})
 
 		Context("WithWorkerSecurityGroup", func() {
@@ -210,8 +210,8 @@ func testClosePorts() {
 				t.expectDescribeSecurityGroupsByID(t.workerGroupID, ipPerm)
 			})
 
-			It("should revoke the appropriate security groups ingress", func() {
-				Expect(doClosePorts()).To(Succeed())
+			It("should revoke the appropriate security groups ingress", func(ctx SpecContext) {
+				Expect(doClosePorts(ctx)).To(Succeed())
 			})
 		})
 
@@ -223,8 +223,8 @@ func testClosePorts() {
 				t.expectDescribeSecurityGroupsByID(t.masterGroupID, ipPerm)
 			})
 
-			It("should revoke the appropriate security groups ingress", func() {
-				Expect(doClosePorts()).To(Succeed())
+			It("should revoke the appropriate security groups ingress", func(ctx SpecContext) {
+				Expect(doClosePorts(ctx)).To(Succeed())
 			})
 		})
 	})
@@ -234,8 +234,8 @@ func testClosePorts() {
 			t.existingVpcs = []types.Vpc{}
 		})
 
-		It("should return an error", func() {
-			Expect(doClosePorts()).To(HaveOccurred())
+		It("should return an error", func(ctx SpecContext) {
+			Expect(doClosePorts(ctx)).To(HaveOccurred())
 		})
 	})
 
@@ -244,8 +244,8 @@ func testClosePorts() {
 			t.expectValidateRevokeSecurityGroupIngress(errors.New("mock error"))
 		})
 
-		It("should return an error", func() {
-			Expect(doClosePorts()).To(HaveOccurred())
+		It("should return an error", func(ctx SpecContext) {
+			Expect(doClosePorts(ctx)).To(HaveOccurred())
 		})
 	})
 
@@ -255,8 +255,8 @@ func testClosePorts() {
 			t.expectDescribeSecurityGroupsFailure(t.masterSGName, errors.New("mock error"))
 		})
 
-		It("should return an error", func() {
-			Expect(doClosePorts()).To(HaveOccurred())
+		It("should return an error", func(ctx SpecContext) {
+			Expect(doClosePorts(ctx)).To(HaveOccurred())
 		})
 	})
 }
