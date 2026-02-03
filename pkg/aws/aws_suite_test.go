@@ -50,6 +50,8 @@ const (
 	clusterFilterTagName     = "tag:kubernetes.io/cluster/" + infraID
 	clusterFilterTagNameSigs = providerAWSTagPrefix + infraID
 	customWorkerGroup        = "custom-worker-group"
+	customMasterGroup        = "custom-master-group"
+	customVPC                = "custom-vpc"
 )
 
 var internalTrafficDesc = fmt.Sprintf("Should contain %q", internalTraffic)

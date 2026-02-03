@@ -90,7 +90,7 @@ func testOpenPorts() {
 
 		Context("WithControlPlaneSecurityGroup", func() {
 			BeforeEach(func() {
-				t.masterGroupID = "custom-master-group"
+				t.masterGroupID = customMasterGroup
 				t.cloudOptions = append(t.cloudOptions, aws.WithControlPlaneSecurityGroup(t.masterGroupID))
 			})
 
@@ -122,13 +122,14 @@ func testOpenPorts() {
 			})
 		})
 
-		PContext("WithVPCName", func() {
+		Context("WithVPCName and WithWorkerSecurityGroup and WithControlPlaneSecurityGroup", func() {
 			BeforeEach(func() {
 				t.existingVpcs = []types.Vpc{}
-				t.vpcID = "custom-vpc"
-				t.workerSGName = infraID
-				t.masterSGName = infraID
-				t.cloudOptions = append(t.cloudOptions, aws.WithVPCName(t.vpcID))
+				t.vpcID = customVPC
+				t.masterGroupID = customMasterGroup
+				t.workerGroupID = customWorkerGroup
+				t.cloudOptions = append(t.cloudOptions, aws.WithVPCName(t.vpcID), aws.WithControlPlaneSecurityGroup(t.masterGroupID),
+					aws.WithWorkerSecurityGroup(t.workerGroupID))
 			})
 
 			It("should authorize the appropriate security groups ingress", func(ctx SpecContext) {
@@ -143,7 +144,19 @@ func testOpenPorts() {
 		})
 
 		It("should return an error", func(ctx SpecContext) {
-			Expect(doOpenPorts(ctx)).To(HaveOccurred())
+			Expect(doOpenPorts(ctx)).NotTo(Succeed())
+		})
+	})
+
+	Context("WithVPCName without worker and control plane security groups specified", func() {
+		BeforeEach(func() {
+			t.existingVpcs = []types.Vpc{}
+			t.vpcID = customVPC
+			t.cloudOptions = append(t.cloudOptions, aws.WithVPCName(t.vpcID))
+		})
+
+		It("should return an error", func(ctx SpecContext) {
+			Expect(doOpenPorts(ctx)).NotTo(Succeed())
 		})
 	})
 
@@ -154,7 +167,7 @@ func testOpenPorts() {
 		})
 
 		It("should return an error", func(ctx SpecContext) {
-			Expect(doOpenPorts(ctx)).To(HaveOccurred())
+			Expect(doOpenPorts(ctx)).NotTo(Succeed())
 		})
 	})
 
@@ -165,7 +178,7 @@ func testOpenPorts() {
 		})
 
 		It("should return an error", func(ctx SpecContext) {
-			Expect(doOpenPorts(ctx)).To(HaveOccurred())
+			Expect(doOpenPorts(ctx)).NotTo(Succeed())
 		})
 	})
 }
@@ -217,7 +230,7 @@ func testClosePorts() {
 
 		Context("WithControlPlaneSecurityGroup", func() {
 			BeforeEach(func() {
-				t.masterGroupID = "custom-master-group"
+				t.masterGroupID = customMasterGroup
 				t.cloudOptions = append(t.cloudOptions, aws.WithControlPlaneSecurityGroup(t.masterGroupID))
 
 				t.expectDescribeSecurityGroupsByID(t.masterGroupID, ipPerm)
