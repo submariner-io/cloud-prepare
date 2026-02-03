@@ -60,7 +60,6 @@ func NewOcpGatewayDeployer(cloud api.Cloud, msDeployer ocp.MachineSetDeployer, i
 
 func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeployInput, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
-	defer status.End()
 
 	vpcID, err := d.aws.getVpcID(ctx)
 	if err != nil {
@@ -68,6 +67,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	}
 
 	status.Success(messageRetrievedVPCID, vpcID)
+	status.End()
 
 	err = d.aws.setSuffixes(ctx, vpcID)
 	if err != nil {
@@ -86,7 +86,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 		return status.Error(err, "unable to validate prerequisites")
 	}
 
-	status.Success(messageValidatedPrerequisites)
+	status.End()
 
 	status.Start("Creating Submariner gateway security group")
 
@@ -96,6 +96,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	}
 
 	status.Success("Created Submariner gateway security group %s", gatewaySG)
+	status.End()
 
 	return d.processSubnets(ctx, vpcID, gatewaySG, publicSubnets, input, status)
 }
@@ -336,6 +337,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 	}
 
 	status.Success(messageRetrievedVPCID, vpcID)
+	status.End()
 
 	err = d.aws.setSuffixes(ctx, vpcID)
 	if err != nil {
@@ -349,7 +351,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 		return status.Error(err, "unable to validate prerequisites")
 	}
 
-	status.Success(messageValidatedPrerequisites)
+	status.End()
 
 	publicSubnets, err := d.aws.findPublicSubnets(ctx, vpcID, submarinerGatewayFilter())
 	if err != nil {
@@ -367,7 +369,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 			return status.Error(err, "unable to remove gateway node")
 		}
 
-		status.Success("Removed gateway node for public subnet %s", subnetName)
+		status.End()
 
 		status.Start("Untagging public subnet %s from supporting Submariner", subnetName)
 
@@ -376,7 +378,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 			return status.Error(err, "unable to untag subnet")
 		}
 
-		status.Success("Untagged public subnet %s from supporting Submariner", subnetName)
+		status.End()
 	}
 
 	status.Start("Deleting Submariner gateway security group")
@@ -386,7 +388,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 		return status.Error(err, "unable to delete gateway")
 	}
 
-	status.Success("Deleted Submariner gateway security group")
+	status.End()
 
 	return nil
 }

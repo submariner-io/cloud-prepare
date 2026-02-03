@@ -31,10 +31,9 @@ import (
 )
 
 const (
-	messageRetrieveVPCID          = "Retrieving VPC ID"
-	messageRetrievedVPCID         = "Retrieved VPC ID %s"
-	messageValidatePrerequisites  = "Validating pre-requisites"
-	messageValidatedPrerequisites = "Validated pre-requisites"
+	messageRetrieveVPCID         = "Retrieving VPC ID"
+	messageRetrievedVPCID        = "Retrieved VPC ID %s"
+	messageValidatePrerequisites = "Validating pre-requisites"
 )
 
 type CloudOption func(*awsCloud)
@@ -131,19 +130,19 @@ func (ac *awsCloud) setSuffixes(ctx context.Context, vpcID string) error {
 
 func (ac *awsCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
-	defer status.End()
 
 	vpcID, err := ac.getVpcID(ctx)
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
 
+	status.Success(messageRetrievedVPCID, vpcID)
+	status.End()
+
 	err = ac.setSuffixes(ctx, vpcID)
 	if err != nil {
 		return status.Error(err, "")
 	}
-
-	status.Success(messageRetrievedVPCID, vpcID)
 
 	status.Start(messageValidatePrerequisites)
 
@@ -152,7 +151,7 @@ func (ac *awsCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, status 
 		return status.Error(err, "unable to validate prerequisites")
 	}
 
-	status.Success(messageValidatedPrerequisites)
+	status.End()
 
 	for _, port := range ports {
 		status.Start("Opening port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
@@ -162,7 +161,7 @@ func (ac *awsCloud) OpenPorts(ctx context.Context, ports []api.PortSpec, status 
 			return status.Error(err, "unable to open port")
 		}
 
-		status.Success("Opened port %v protocol %s for intra-cluster communications", port.Port, port.Protocol)
+		status.End()
 	}
 
 	return nil
@@ -174,19 +173,19 @@ func (ac *awsCloud) validatePreparePrerequisites(ctx context.Context, vpcID stri
 
 func (ac *awsCloud) ClosePorts(ctx context.Context, status reporter.Interface) error {
 	status.Start(messageRetrieveVPCID)
-	defer status.End()
 
 	vpcID, err := ac.getVpcID(ctx)
 	if err != nil {
 		return status.Error(err, "unable to retrieve the VPC ID")
 	}
 
+	status.Success(messageRetrievedVPCID, vpcID)
+	status.End()
+
 	err = ac.setSuffixes(ctx, vpcID)
 	if err != nil {
 		return status.Error(err, "")
 	}
-
-	status.Success(messageRetrievedVPCID, vpcID)
 
 	status.Start(messageValidatePrerequisites)
 
@@ -195,7 +194,7 @@ func (ac *awsCloud) ClosePorts(ctx context.Context, status reporter.Interface) e
 		return status.Error(err, "unable to validate prerequisites")
 	}
 
-	status.Success(messageValidatedPrerequisites)
+	status.End()
 
 	status.Start("Revoking intra-cluster communication permissions")
 
