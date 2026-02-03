@@ -123,10 +123,14 @@ func testDeploy() {
 		Context("WithVPCName", func() {
 			BeforeEach(func() {
 				t.existingVpcs = []types.Vpc{}
-				t.vpcID = "custom-vpc"
-				t.workerSGName = infraID
-				t.masterSGName = infraID
-				t.cloudOptions = append(t.cloudOptions, aws.WithVPCName(t.vpcID))
+				t.vpcID = customVPC
+				t.masterGroupID = customMasterGroup
+				t.workerGroupID = customWorkerGroup
+				t.cloudOptions = append(t.cloudOptions, aws.WithVPCName(t.vpcID), aws.WithControlPlaneSecurityGroup(t.masterGroupID),
+					aws.WithWorkerSecurityGroup(t.workerGroupID))
+				t.workerSGName = customWorkerGroup + "-name"
+
+				t.expectDescribeSecurityGroupsByID(t.workerGroupID)
 			})
 
 			t.testDeploySuccess("", "")

@@ -91,8 +91,12 @@ func NewCloud(client awsClient.Interface, infraID, region string, opts ...CloudO
 }
 
 func (ac *awsCloud) setSuffixes(ctx context.Context, vpcID string) error {
-	if ac.nodeSGSuffix != "" || ac.vpcID != "" {
+	if ac.nodeSGSuffix != "" || (ac.workerGroupID != "" && ac.controlPlaneGroupID != "") {
 		return nil
+	}
+
+	if ac.vpcID != "" {
+		return errors.New("when a custom VPC is specified, both worker and control plane security groups must also be specified")
 	}
 
 	publicSubnets, err := ac.findPublicSubnets(ctx, vpcID, ac.publicFilter())
