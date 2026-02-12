@@ -174,6 +174,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				machineSet.SetName(machineSetName)
 				_, err := msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
+
 				machineSet = newMachineSet("false")
 				_, err = msClient.Create(ctx, machineSet, metav1.CreateOptions{})
 				Expect(err).To(Succeed())
