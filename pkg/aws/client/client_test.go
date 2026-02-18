@@ -140,7 +140,7 @@ func createTempFile(name, data string) string {
 	Expect(err).NotTo(HaveOccurred())
 
 	DeferCleanup(func() {
-		_ = os.Remove(file.Name())
+		_ = os.Remove(file.Name()) //nolint:gosec // Test cleanup of temp file
 	})
 
 	return file.Name()
