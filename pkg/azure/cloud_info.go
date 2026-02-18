@@ -94,7 +94,7 @@ func (c *CloudInfo) openInternalPorts(ctx context.Context, infraID string, ports
 	}
 
 	for i, port := range ports {
-		p := int32(i) //nolint:gosec // Ignore integer overflow conversion
+		p := int32(i)
 
 		nwSecurityGroup.Properties.SecurityRules = append(nwSecurityGroup.Properties.SecurityRules,
 			c.createSecurityRule(InternalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
@@ -186,7 +186,7 @@ func (c *CloudInfo) createGWSecurityGroup(ctx context.Context, groupName string,
 	securityRules := []*armnetwork.SecurityRule{}
 
 	for i, port := range ports {
-		p := int32(i) //nolint:gosec // Ignore integer overflow conversion
+		p := int32(i)
 		securityRules = append(securityRules,
 			c.createSecurityRule(ExternalSecurityRulePrefix, armnetwork.SecurityRuleProtocol(port.Protocol), port.Port,
 				basePriorityExternal+p, armnetwork.SecurityRuleDirectionInbound),
