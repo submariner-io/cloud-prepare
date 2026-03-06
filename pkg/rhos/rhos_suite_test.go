@@ -254,7 +254,8 @@ func (t *testDriver) assertNoServerSecGroup(groupName string) {
 }
 
 func (t *testDriver) testErrors(run func(ctx context.Context) error, entries ...any) {
-	params := []any{
+	params := make([]any, 0, 1+len(entries))
+	params = append(params,
 		func(message string, before func()) {
 			When(message+" fails", func() {
 				BeforeEach(func() {
@@ -265,8 +266,7 @@ func (t *testDriver) testErrors(run func(ctx context.Context) error, entries ...
 					Expect(run(ctx)).NotTo(Succeed())
 				})
 			})
-		},
-	}
+		})
 
 	DescribeTableSubtree("", append(params, entries...)...)
 }
