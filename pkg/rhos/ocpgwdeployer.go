@@ -118,10 +118,12 @@ func (d *ocpGatewayDeployer) deployGateway(useInternalSG bool) error {
 	}
 
 	if d.image == "" {
-		d.image, err = d.msDeployer.GetWorkerNodeImage(machineSet, d.InfraID)
+		imageSpec, err := d.msDeployer.GetWorkerNodeImage(machineSet, d.InfraID)
 		if err != nil {
 			return errors.Wrap(err, "error getting the worker image")
 		}
+
+		d.image = imageSpec.Image
 
 		machineSet, err = d.initMachineSet(useInternalSG)
 		if err != nil {
