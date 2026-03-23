@@ -31,6 +31,7 @@ import (
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
+	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	ocpfake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"github.com/submariner-io/cloud-prepare/pkg/rhos"
 	corev1 "k8s.io/api/core/v1"
@@ -49,7 +50,7 @@ func testDeploy() {
 	t := newGatewayDeployerTestDriver()
 
 	BeforeEach(func() {
-		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, testInfraID).Return(testImage, nil).Maybe()
+		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, testInfraID).Return(ocp.ImageSpec{Image: testImage}, nil).Maybe()
 	})
 
 	It("should deploy a gateway node machine set and security group rules", func(ctx SpecContext) {

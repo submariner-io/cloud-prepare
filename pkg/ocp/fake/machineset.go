@@ -25,6 +25,7 @@ import (
 	"context"
 
 	mock "github.com/stretchr/testify/mock"
+	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -195,22 +196,22 @@ func (_c *MockMachineSetDeployer_Deploy_Call) RunAndReturn(run func(ctx context.
 }
 
 // GetWorkerNodeImage provides a mock function for the type MockMachineSetDeployer
-func (_mock *MockMachineSetDeployer) GetWorkerNodeImage(ctx context.Context, machineSet *unstructured.Unstructured, infraID string) (string, error) {
+func (_mock *MockMachineSetDeployer) GetWorkerNodeImage(ctx context.Context, machineSet *unstructured.Unstructured, infraID string) (ocp.ImageSpec, error) {
 	ret := _mock.Called(ctx, machineSet, infraID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetWorkerNodeImage")
 	}
 
-	var r0 string
+	var r0 ocp.ImageSpec
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured, string) (string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured, string) (ocp.ImageSpec, error)); ok {
 		return returnFunc(ctx, machineSet, infraID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured, string) string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *unstructured.Unstructured, string) ocp.ImageSpec); ok {
 		r0 = returnFunc(ctx, machineSet, infraID)
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(ocp.ImageSpec)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *unstructured.Unstructured, string) error); ok {
 		r1 = returnFunc(ctx, machineSet, infraID)
@@ -240,12 +241,12 @@ func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) Run(run func(ctx conte
 	return _c
 }
 
-func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) Return(s string, err error) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
-	_c.Call.Return(s, err)
+func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) Return(imageSpec ocp.ImageSpec, err error) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
+	_c.Call.Return(imageSpec, err)
 	return _c
 }
 
-func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) RunAndReturn(run func(ctx context.Context, machineSet *unstructured.Unstructured, infraID string) (string, error)) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
+func (_c *MockMachineSetDeployer_GetWorkerNodeImage_Call) RunAndReturn(run func(ctx context.Context, machineSet *unstructured.Unstructured, infraID string) (ocp.ImageSpec, error)) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
