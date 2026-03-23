@@ -78,7 +78,7 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				Expect(err).To(Succeed())
 			})
 
-			Context("", func() {
+			Context("with a disk image", func() {
 				BeforeEach(func() {
 					disks := []any{
 						map[string]any{
@@ -92,11 +92,68 @@ var _ = Describe("K8s MachineSetDeployer", func() {
 				It("should return its disk image", func(ctx SpecContext) {
 					image, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).To(Succeed())
-					Expect(image).To(Equal("some-image"))
+					Expect(image.Image).To(Equal("some-image"))
 				})
 			})
 
-			Context("and has no disks", func() {
+			Context("with an Azure resourceID image", func() {
+				BeforeEach(func() {
+					_ = unstructured.SetNestedField(machineSet.Object, "/subscriptions/abc/images/myimage",
+						"spec", "template", "spec", "providerSpec", "value", "image", "resourceID")
+				})
+
+				It("should return the ResourceID", func(ctx SpecContext) {
+					image, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
+					Expect(err).To(Succeed())
+					Expect(image.ResourceID).To(Equal("/subscriptions/abc/images/myimage"))
+				})
+			})
+
+			Context("with an Azure Marketplace image", func() {
+				BeforeEach(func() {
+					imageMap := map[string]any{
+						"offer":      "aro4",
+						"publisher":  "azureopenshift",
+						"resourceID": "",
+						"sku":        "420-v2",
+						"version":    "9.6.20251015",
+						"type":       "MarketplaceNoPlan",
+					}
+
+					_ = unstructured.SetNestedMap(machineSet.Object, imageMap,
+						"spec", "template", "spec", "providerSpec", "value", "image")
+				})
+
+				It("should return the Marketplace image fields", func(ctx SpecContext) {
+					image, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
+					Expect(err).To(Succeed())
+					Expect(image.Offer).To(Equal("aro4"))
+					Expect(image.Publisher).To(Equal("azureopenshift"))
+					Expect(image.SKU).To(Equal("420-v2"))
+					Expect(image.Version).To(Equal("9.6.20251015"))
+					Expect(image.Type).To(Equal("MarketplaceNoPlan"))
+				})
+			})
+
+			Context("with a partial Azure Marketplace image (missing fields)", func() {
+				BeforeEach(func() {
+					imageMap := map[string]any{
+						"offer":     "aro4",
+						"publisher": "azureopenshift",
+						// sku, version, and type are intentionally missing
+					}
+
+					_ = unstructured.SetNestedMap(machineSet.Object, imageMap,
+						"spec", "template", "spec", "providerSpec", "value", "image")
+				})
+
+				It("should return an error", func(ctx SpecContext) {
+					_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
+					Expect(err).ToNot(Succeed())
+				})
+			})
+
+			Context("and has no image", func() {
 				It("should return an error", func(ctx SpecContext) {
 					_, err := deployer.GetWorkerNodeImage(ctx, machineSet, infraID)
 					Expect(err).ToNot(Succeed())
