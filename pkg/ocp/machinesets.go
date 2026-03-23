@@ -42,13 +42,27 @@ const (
 	SubmarinerGatewayLabel = "submariner.io/gateway"
 )
 
+// ImageSpec describes the image used by a worker node MachineSet.
+// Different cloud providers populate different fields:
+//   - GCP and RHOS use Image (a plain image name or path).
+//   - Azure custom/managed images use ResourceID.
+//   - Azure Marketplace images use Offer, Publisher, SKU, Version, and Type.
+type ImageSpec struct {
+	// Image is the plain image name or path (used by GCP and RHOS).
+	Image string
+	// ResourceID is the Azure resource ID for a custom or managed image.
+	ResourceID string
+	// Offer, Publisher, SKU, Version, Type are the Azure Marketplace image fields.
+	Offer, Publisher, SKU, Version, Type string
+}
+
 // MachineSetDeployer can deploy and delete machinesets from OCP.
 type MachineSetDeployer interface {
 	// Deploy makes sure to deploy the given machine set (creating or updating it).
 	Deploy(machineSet *unstructured.Unstructured) error
 
-	// GetWorkerNodeImage returns the image used by OCP worker nodes.
-	GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (string, error)
+	// GetWorkerNodeImage returns the ImageSpec describing the image used by OCP worker nodes.
+	GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string) (ImageSpec, error)
 
 	// List will list all the machineSets that have the submariner.io/gateway set to "true".
 	List() ([]unstructured.Unstructured, error)
@@ -95,7 +109,7 @@ func (msd *k8sMachineSetDeployer) clientForMsd(nameSpace string) dynamic.Resourc
 }
 
 func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Unstructured, infraID string,
-) (string, error) {
+) (ImageSpec, error) {
 	machineSetClient := msd.clientForMsd("openshift-machine-api")
 
 	if machineSet != nil {
@@ -103,13 +117,13 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 
 		machineSetClient, err = msd.clientFor(machineSet)
 		if err != nil {
-			return "", err
+			return ImageSpec{}, err
 		}
 	}
 
 	nodeList, err := machineSetClient.List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		return "", errors.Wrapf(err, "error listing the machineSets")
+		return ImageSpec{}, errors.Wrapf(err, "error listing the machineSets")
 	}
 
 	for i := range nodeList.Items {
@@ -120,38 +134,59 @@ func (msd *k8sMachineSetDeployer) GetWorkerNodeImage(machineSet *unstructured.Un
 			}
 		}
 
-		if image := getImageFromMachineSet(&nodeList.Items[i]); image != "" {
+		if image, ok := getImageFromMachineSet(&nodeList.Items[i]); ok {
 			return image, nil
 		}
 	}
 
-	return "", fmt.Errorf("could not retrieve the image of one of the worker nodes from the infra %q", infraID)
+	return ImageSpec{}, fmt.Errorf("could not retrieve the image of one of the worker nodes from the infra %q", infraID)
 }
 
-func getImageFromMachineSet(existing *unstructured.Unstructured) string {
+func getImageFromMachineSet(existing *unstructured.Unstructured) (ImageSpec, bool) {
 	disks, _, _ := unstructured.NestedSlice(existing.Object, "spec", "template", "spec", "providerSpec", "value", "disks")
 	for _, o := range disks {
 		disk := o.(map[string]interface{})
 
 		image, _, _ := unstructured.NestedString(disk, "image")
 		if image != "" {
-			return image
+			return ImageSpec{Image: image}, true
 		}
 	}
 
 	image, _, _ := unstructured.NestedString(existing.Object, "spec", "template", "spec", "providerSpec", "value", "image")
 	if image != "" {
-		return image
+		return ImageSpec{Image: image}, true
 	}
 
-	// For MachineSets deployed in Azure.
-	image, _, _ = unstructured.NestedString(existing.Object, "spec", "template", "spec", "providerSpec",
-		"value", "image", "resourceID")
-	if image != "" {
-		return image
+	// For MachineSets deployed in Azure: prefer ResourceID, fall back to Marketplace fields.
+	imageMap, found, _ := unstructured.NestedMap(existing.Object, "spec", "template", "spec", "providerSpec", "value", "image")
+	if !found {
+		return ImageSpec{}, false
 	}
 
-	return ""
+	resourceID, _, _ := unstructured.NestedString(imageMap, "resourceID")
+	if resourceID != "" {
+		return ImageSpec{ResourceID: resourceID}, true
+	}
+
+	// Azure Marketplace image: all five fields must be present.
+	offer, _, _ := unstructured.NestedString(imageMap, "offer")
+	publisher, _, _ := unstructured.NestedString(imageMap, "publisher")
+	sku, _, _ := unstructured.NestedString(imageMap, "sku")
+	version, _, _ := unstructured.NestedString(imageMap, "version")
+	imageType, _, _ := unstructured.NestedString(imageMap, "type")
+
+	if offer != "" && publisher != "" && sku != "" && version != "" && imageType != "" {
+		return ImageSpec{
+			Offer:     offer,
+			Publisher: publisher,
+			SKU:       sku,
+			Version:   version,
+			Type:      imageType,
+		}, true
+	}
+
+	return ImageSpec{}, false
 }
 
 func (msd *k8sMachineSetDeployer) Deploy(machineSet *unstructured.Unstructured) error {
