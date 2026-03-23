@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	"github.com/submariner-io/admiral/pkg/util"
+	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -31,7 +32,6 @@ var _ = Describe("OCP Gateway Deployer", func() {
 	const (
 		infraID      = "test-infraID"
 		region       = "east"
-		image        = "test-image"
 		zone         = "east-zone"
 		instanceType = "large"
 	)
@@ -69,21 +69,23 @@ var _ = Describe("OCP Gateway Deployer", func() {
 		})
 
 		It("should deploy the correct MachineSet", func() {
-			Expect(gwDeployer.deployGateway(zone, image, false)).To(Succeed())
+			imgSpec := &ocp.ImageSpec{ResourceID: "test-image"}
+			Expect(gwDeployer.deployGateway(zone, imgSpec, false)).To(Succeed())
 
 			Expect(machineSet).ToNot(BeNil())
 			Expect(machineSet.GetLabels()).To(HaveKeyWithValue("machine.openshift.io/cluster-api-cluster", infraID))
 			Expect(util.GetNestedField(machineSet, "metadata", "name")).To(HavePrefix(submarinerGatewayGW + region))
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "metadata", "labels")).
 				To(HaveKeyWithValue("submariner.io/gateway", "true"))
-			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "image", "resourceID")).To(Equal(image))
+			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "image", "resourceID")).
+				To(Equal(imgSpec.ResourceID))
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "location")).To(Equal(region))
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "zone")).To(Equal(zone))
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "vmSize")).To(Equal(instanceType))
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "publicIP")).To(BeTrue())
 
 			machineSet = nil
-			Expect(gwDeployer.deployGateway(zone, image, true)).To(Succeed())
+			Expect(gwDeployer.deployGateway(zone, imgSpec, true)).To(Succeed())
 
 			Expect(machineSet).ToNot(BeNil())
 			Expect(util.GetNestedField(machineSet, "spec", "template", "spec", "providerSpec", "value", "publicIP")).To(BeFalse())

@@ -127,16 +127,11 @@ func (d *ocpGatewayDeployer) Deploy(input api.GatewayDeployInput, status reporte
 		return errors.Wrap(imageErr, "error retrieving worker node image")
 	}
 
-	err = d.deployDedicatedGWNode(machineSets, gatewayNodesToDeploy, input.AirGapped, image, status)
-	if err != nil {
-		status.Success("Deployed gateway node")
-	}
-
-	return err
+	return d.deployDedicatedGWNode(machineSets, gatewayNodesToDeploy, input.AirGapped, &image, status)
 }
 
-func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstructured, gatewayNodesToDeploy int,
-	airGapped bool, image string, status reporter.Interface,
+func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstructured,
+	gatewayNodesToDeploy int, airGapped bool, image *ocp.ImageSpec, status reporter.Interface,
 ) error {
 	az, err := d.getAvailabilityZones(gwNodes)
 	if err != nil || az.Len() == 0 {
@@ -166,16 +161,21 @@ func (d *ocpGatewayDeployer) deployDedicatedGWNode(gwNodes []unstructured.Unstru
 }
 
 type machineSetConfig struct {
-	Name         string
-	AZ           string
-	InfraID      string
-	InstanceType string
-	Region       string
-	Image        string
-	PublicIP     string
+	Name            string
+	AZ              string
+	InfraID         string
+	InstanceType    string
+	Region          string
+	ImageResourceID string
+	ImageOffer      string
+	ImagePublisher  string
+	ImageSKU        string
+	ImageVersion    string
+	ImageType       string
+	PublicIP        string
 }
 
-func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone, image string, airGapped bool) ([]byte, error) {
+func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone string, image *ocp.ImageSpec, airGapped bool) ([]byte, error) {
 	var buf bytes.Buffer
 
 	tpl, err := template.New("").Parse(machineSetYAML)
@@ -184,13 +184,18 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone, image string, airGapped
 	}
 
 	tplVars := machineSetConfig{
-		Name:         name,
-		InfraID:      d.azure.InfraID,
-		InstanceType: d.instanceType,
-		Region:       d.azure.Region,
-		AZ:           zone,
-		Image:        image,
-		PublicIP:     strconv.FormatBool(!airGapped),
+		Name:            name,
+		InfraID:         d.azure.InfraID,
+		InstanceType:    d.instanceType,
+		Region:          d.azure.Region,
+		AZ:              zone,
+		ImageResourceID: image.ResourceID,
+		ImageOffer:      image.Offer,
+		ImagePublisher:  image.Publisher,
+		ImageSKU:        image.SKU,
+		ImageVersion:    image.Version,
+		ImageType:       image.Type,
+		PublicIP:        strconv.FormatBool(!airGapped),
 	}
 
 	err = tpl.Execute(&buf, tplVars)
@@ -201,7 +206,7 @@ func (d *ocpGatewayDeployer) loadGatewayYAML(name, zone, image string, airGapped
 	return buf.Bytes(), nil
 }
 
-func (d *ocpGatewayDeployer) initMachineSet(name, zone, image string, airGapped bool) (*unstructured.Unstructured, error) {
+func (d *ocpGatewayDeployer) initMachineSet(name, zone string, image *ocp.ImageSpec, airGapped bool) (*unstructured.Unstructured, error) {
 	gatewayYAML, err := d.loadGatewayYAML(name, zone, image, airGapped)
 	if err != nil {
 		return nil, err
@@ -219,7 +224,7 @@ func (d *ocpGatewayDeployer) initMachineSet(name, zone, image string, airGapped 
 	return machineSet, nil
 }
 
-func (d *ocpGatewayDeployer) deployGateway(zone, image string, airGapped bool) error {
+func (d *ocpGatewayDeployer) deployGateway(zone string, image *ocp.ImageSpec, airGapped bool) error {
 	machineSet, err := d.initMachineSet(MachineName(d.azure.Region), zone, image, airGapped)
 	if err != nil {
 		return err
