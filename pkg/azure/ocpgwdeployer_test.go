@@ -33,6 +33,7 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/azure"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
+	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +47,17 @@ const (
 	nodeName1            = "node1"
 	nodeName2            = "node2"
 	extSecurityGroupName = testInfraID + azure.ExternalSecurityGroupSuffix
+)
+
+var (
+	resourceIDImageSpec  = ocp.ImageSpec{ResourceID: imageName}
+	marketplaceImageSpec = ocp.ImageSpec{
+		Offer:     "aro4",
+		Publisher: "azureopenshift",
+		SKU:       "420-v2",
+		Version:   "9.6.20251015",
+		Type:      "MarketplaceNoPlan",
+	}
 )
 
 var _ = Describe("OCP Gateway Deployer", func() {
@@ -68,7 +80,7 @@ var _ = Describe("OCP Gateway Deployer", func() {
 	})
 })
 
-func testDeploy() {
+func testDeploy() { //nolint:maintidx // Deploy test covers many scenarios; splitting would reduce readability.
 	t := newGatewayDeployerTestDriver()
 
 	When("gateways are requested", func() {
@@ -179,6 +191,20 @@ func testDeploy() {
 				}, reporter.Stdout())).To(Succeed())
 
 				t.assertMachineSets(true, 1, "zone1", "zone2", "zone3")
+			})
+		})
+
+		Context("with a Marketplace image (no resourceID)", func() {
+			BeforeEach(func() {
+				t.workerImage = marketplaceImageSpec
+			})
+
+			It("should deploy gateway machine sets using the Marketplace image fields", func(ctx SpecContext) {
+				Expect(t.deployer.Deploy(ctx, api.GatewayDeployInput{
+					Gateways: 1,
+				}, reporter.Stdout())).To(Succeed())
+
+				t.assertMachineSets(false, 1, "zone1", "zone2", "zone3")
 			})
 		})
 	})
@@ -381,6 +407,7 @@ type gatewayDeployerTestDriver struct {
 	deployer            api.GatewayDeployer
 	existingMachineSets []unstructured.Unstructured
 	machineSetsDeployed []*unstructured.Unstructured
+	workerImage         ocp.ImageSpec
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
@@ -389,13 +416,14 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 	BeforeEach(func() {
 		t.existingMachineSets = nil
 		t.machineSetsDeployed = nil
+		t.workerImage = resourceIDImageSpec
 		t.msDeployer = ocpFake.NewMockMachineSetDeployer(GinkgoT())
 	})
 
 	JustBeforeEach(func() {
 		t.deployer = azure.NewOcpGatewayDeployer(&t.cloudInfo, t.msDeployer, instanceType)
 
-		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, t.cloudInfo.InfraID).Return(imageName, nil).Maybe()
+		t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, mock.Anything, t.cloudInfo.InfraID).Return(t.workerImage, nil).Maybe()
 		t.msDeployer.EXPECT().List(mock.Anything).Return(slices.Clone(t.existingMachineSets), nil).Maybe()
 		t.msDeployer.EXPECT().Deploy(mock.Anything, mock.Anything).RunAndReturn(
 			func(_ context.Context, ms *unstructured.Unstructured) error {
@@ -418,6 +446,10 @@ func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
 }
 
 func (t *gatewayDeployerTestDriver) assertMachineSets(airGapped bool, count int, zones ...string) {
+	t.assertMachineSetsWithImage(airGapped, &t.workerImage, count, zones...)
+}
+
+func (t *gatewayDeployerTestDriver) assertMachineSetsWithImage(airGapped bool, image *ocp.ImageSpec, count int, zones ...string) {
 	zoneMatchers := make([]types.GomegaMatcher, len(zones))
 	for i := range zones {
 		zoneMatchers[i] = Equal(zones[i])
@@ -436,8 +468,21 @@ func (t *gatewayDeployerTestDriver) assertMachineSets(airGapped bool, count int,
 		Expect(values).To(HaveKeyWithValue("securityGroup", extSecurityGroupName))
 		Expect(values).To(HaveKeyWithValue("publicIP", !airGapped))
 
-		image, _, _ := unstructured.NestedString(values, "image", "resourceID")
-		Expect(image).To(Equal(imageName))
+		if image.ResourceID != "" {
+			actual, _, _ := unstructured.NestedString(values, "image", "resourceID")
+			Expect(actual).To(Equal(image.ResourceID))
+		} else {
+			actual, _, _ := unstructured.NestedString(values, "image", "offer")
+			Expect(actual).To(Equal(image.Offer))
+			actual, _, _ = unstructured.NestedString(values, "image", "publisher")
+			Expect(actual).To(Equal(image.Publisher))
+			actual, _, _ = unstructured.NestedString(values, "image", "sku")
+			Expect(actual).To(Equal(image.SKU))
+			actual, _, _ = unstructured.NestedString(values, "image", "version")
+			Expect(actual).To(Equal(image.Version))
+			actual, _, _ = unstructured.NestedString(values, "image", "type")
+			Expect(actual).To(Equal(image.Type))
+		}
 
 		Expect(values).To(HaveKeyWithValue("zone", Or(zoneMatchers...)))
 	}

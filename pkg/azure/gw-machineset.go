@@ -55,11 +55,12 @@ spec:
             name: azure-cloud-credentials
             namespace: openshift-machine-api
           image:
-            offer: ""
-            publisher: ""
-            resourceID: {{.Image}} 
-            sku: ""
-            version: ""
+            offer: "{{.ImageOffer}}"
+            publisher: "{{.ImagePublisher}}"
+            resourceID: "{{.ImageResourceID}}"
+            sku: "{{.ImageSKU}}"
+            version: "{{.ImageVersion}}"
+            type: "{{.ImageType}}"
           internalLoadBalancer: ""
           kind: AzureMachineProviderSpec
           location: {{.Region}}
