@@ -31,6 +31,7 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/gcp"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
+	"github.com/submariner-io/cloud-prepare/pkg/ocp"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -124,7 +125,7 @@ func testDeploy() {
 		var machineSets map[string]*unstructured.Unstructured
 
 		BeforeEach(func() {
-			t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, infraID).Return("test-image", nil).Maybe()
+			t.msDeployer.EXPECT().GetWorkerNodeImage(mock.Anything, infraID).Return(ocp.ImageSpec{Image: "test-image"}, nil).Maybe()
 			t.msDeployer.EXPECT().Deploy(mock.Anything).RunAndReturn(machineSetFn(&machineSets)).Times(2)
 
 			t.numGateways = 2
