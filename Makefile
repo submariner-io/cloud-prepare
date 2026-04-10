@@ -10,18 +10,15 @@ include $(SHIPYARD_DIR)/Makefile.inc
 # Generated files
 
 GO ?= go
-MOCKGEN := $(CURDIR)/bin/mockery
+MOCKGEN = $(shell $(GO) -C tools tool -n github.com/vektra/mockery/v3)
 
-$(MOCKGEN):
-	mkdir -p $(@D) && $(GO) -C tools build -o $@ github.com/vektra/mockery/v3
-
-pkg/aws/client/fake/client.go: pkg/aws/client/client.go pkg/aws/client/.mockery.yaml | $(MOCKGEN)
+pkg/aws/client/fake/client.go: pkg/aws/client/client.go pkg/aws/client/.mockery.yaml
 	PATH=$(dir $(MOCKGEN)):$$PATH $(GO) -C $(<D) generate
 
-pkg/gcp/client/fake/client.go: pkg/gcp/client/client.go pkg/gcp/client/.mockery.yaml | $(MOCKGEN)
+pkg/gcp/client/fake/client.go: pkg/gcp/client/client.go pkg/gcp/client/.mockery.yaml
 	PATH=$(dir $(MOCKGEN)):$$PATH $(GO) -C $(<D) generate
 
-pkg/ocp/fake/machineset.go: pkg/ocp/machinesets.go pkg/ocp/.mockery.yaml | $(MOCKGEN)
+pkg/ocp/fake/machineset.go: pkg/ocp/machinesets.go pkg/ocp/.mockery.yaml
 	PATH=$(dir $(MOCKGEN)):$$PATH $(GO) -C $(<D) generate
 
 unit: pkg/aws/client/fake/client.go pkg/gcp/client/fake/client.go pkg/ocp/fake/machineset.go
