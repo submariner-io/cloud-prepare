@@ -10,3 +10,5 @@ ignore:
   - vulnerability: CVE-2021-22570
     package:
       name: google.golang.org/protobuf
+  # Ignored due to Go 1.25 requirement
+  - vulnerability: GHSA-hfvc-g4fc-pqhx
