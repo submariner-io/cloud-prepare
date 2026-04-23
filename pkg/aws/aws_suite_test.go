@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
 	"github.com/submariner-io/cloud-prepare/pkg/aws/client/fake"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -80,7 +79,7 @@ type fakeAWSClientBase struct {
 func (f *fakeAWSClientBase) beforeEach() {
 	f.awsClient = fake.NewMockInterface(GinkgoT())
 	f.vpcID = "test-vpc"
-	f.existingVpcs = []types.Vpc{{VpcId: ptr.To(f.vpcID)}}
+	f.existingVpcs = []types.Vpc{{VpcId: new(f.vpcID)}}
 	f.existingSubnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
 	f.describeSubnetsErr = nil
 	f.authorizeSecurityGroupIngressErr = nil
@@ -115,20 +114,20 @@ func (f *fakeAWSClientBase) expectDescribeSecurityGroupsFailure(name string, err
 
 func (f *fakeAWSClientBase) expectDescribeVpcs() {
 	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
+		Name:   new("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, {
-		Name:   ptr.To(clusterFilterTagName),
+		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeVpcsSigs() {
 	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
+		Name:   new("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, {
-		Name:   ptr.To(clusterFilterTagNameSigs),
+		Name:   new(clusterFilterTagNameSigs),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
@@ -136,15 +135,15 @@ func (f *fakeAWSClientBase) expectDescribeVpcsSigs() {
 func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
 	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
 		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
-			DryRun:  ptr.To(true),
-			GroupId: ptr.To(f.workerGroupID),
+			DryRun:  new(true),
+			GroupId: new(f.workerGroupID),
 		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr).Call
 }
 
 func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string, ipPerm *types.IpPermission) {
 	f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
 		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId:       ptr.To(srcGroup),
+			GroupId:       new(srcGroup),
 			IpPermissions: []types.IpPermission{*ipPerm},
 		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{},
 		f.authorizeSecurityGroupIngressErr)
@@ -152,27 +151,27 @@ func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string,
 
 func (f *fakeAWSClientBase) expectRevokeSecurityGroupIngress(groupID string, ipPermissions ...types.IpPermission) {
 	f.awsClient.EXPECT().RevokeSecurityGroupIngress(mock.Anything, &ec2.RevokeSecurityGroupIngressInput{
-		GroupId:       ptr.To(groupID),
+		GroupId:       new(groupID),
 		IpPermissions: ipPermissions,
 	}).Return(&ec2.RevokeSecurityGroupIngressOutput{}, nil)
 }
 
 func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr error) {
 	f.awsClient.EXPECT().RevokeSecurityGroupIngress(mock.Anything, &ec2.RevokeSecurityGroupIngressInput{
-		DryRun:  ptr.To(true),
-		GroupId: ptr.To(f.workerGroupID),
+		DryRun:  new(true),
+		GroupId: new(f.workerGroupID),
 	}).Return(&ec2.RevokeSecurityGroupIngressOutput{}, retErr)
 }
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
+		Name:   new("tag:Name"),
 		Values: []string{infraID + "*-public-" + region + "*"},
 	}, {
-		Name:   ptr.To("vpc-id"),
+		Name:   new("vpc-id"),
 		Values: []string{f.vpcID},
 	}, {
-		Name:   ptr.To(clusterFilterTagName),
+		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
@@ -185,26 +184,26 @@ func (f *fakeAWSClientBase) expectDescribePublicSubnetsByID(subnetID string, ret
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnetsSigs(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
+		Name:   new("tag:Name"),
 		Values: []string{infraID + "*-public-" + region + "*"},
 	}, {
-		Name:   ptr.To("vpc-id"),
+		Name:   new("vpc-id"),
 		Values: []string{f.vpcID},
 	}, {
-		Name:   ptr.To(clusterFilterTagNameSigs),
+		Name:   new(clusterFilterTagNameSigs),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeGatewaySubnets(retSubnets ...types.Subnet) {
 	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:submariner.io/gateway"),
+		Name:   new("tag:submariner.io/gateway"),
 		Values: []string{""},
 	}, {
-		Name:   ptr.To("vpc-id"),
+		Name:   new("vpc-id"),
 		Values: []string{f.vpcID},
 	}, {
-		Name:   ptr.To(clusterFilterTagName),
+		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
@@ -217,37 +216,37 @@ func (f *fakeAWSClientBase) expectValidateCreateSecurityGroup() *mock.Call {
 
 func (f *fakeAWSClientBase) expectCreateSecurityGroup(name, retGroupID string) {
 	f.awsClient.EXPECT().CreateSecurityGroup(mock.Anything, &ec2.CreateSecurityGroupInput{
-		Description: ptr.To("Submariner Gateway"),
-		GroupName:   ptr.To(name),
-		VpcId:       ptr.To(f.vpcID),
+		Description: new("Submariner Gateway"),
+		GroupName:   new(name),
+		VpcId:       new(f.vpcID),
 		TagSpecifications: []types.TagSpecification{
 			{
 				ResourceType: types.ResourceTypeSecurityGroup,
 				Tags: []types.Tag{
 					{
-						Key:   ptr.To("Name"),
-						Value: ptr.To(name),
+						Key:   new("Name"),
+						Value: new(name),
 					},
 					{
-						Key:   ptr.To("kubernetes.io/cluster/" + infraID),
-						Value: ptr.To("owned"),
+						Key:   new("kubernetes.io/cluster/" + infraID),
+						Value: new("owned"),
 					},
 				},
 			},
 		},
-	}).Return(&ec2.CreateSecurityGroupOutput{GroupId: ptr.To(retGroupID)}, nil)
+	}).Return(&ec2.CreateSecurityGroupOutput{GroupId: new(retGroupID)}, nil)
 }
 
 func (f *fakeAWSClientBase) expectDeleteSecurityGroup(groupID string) {
 	f.awsClient.EXPECT().DeleteSecurityGroup(mock.Anything, &ec2.DeleteSecurityGroupInput{
-		GroupId: ptr.To(groupID),
+		GroupId: new(groupID),
 	}).Return(&ec2.DeleteSecurityGroupOutput{}, nil)
 }
 
 func (f *fakeAWSClientBase) expectValidateDeleteSecurityGroup() *mock.Call {
 	return f.awsClient.EXPECT().DeleteSecurityGroup(mock.Anything, &ec2.DeleteSecurityGroupInput{
-		DryRun:  ptr.To(true),
-		GroupId: ptr.To(f.workerGroupID),
+		DryRun:  new(true),
+		GroupId: new(f.workerGroupID),
 	}).Return(&ec2.DeleteSecurityGroupOutput{}, nil).Call
 }
 
@@ -262,10 +261,10 @@ func (f *fakeAWSClientBase) expectDescribeInstanceTypeOfferings(instanceType, av
 	retOfferings ...types.InstanceTypeOffering,
 ) {
 	f.awsClient.EXPECT().DescribeInstanceTypeOfferings(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("location"),
+		Name:   new("location"),
 		Values: []string{availabilityZone},
 	}, {
-		Name:   ptr.To("instance-type"),
+		Name:   new("instance-type"),
 		Values: []string{instanceType},
 	}}}).Matches))).Return(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: retOfferings},
 		f.describeInstanceTypeOfferingsErr).Maybe()
@@ -312,7 +311,7 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 			{
 				Instances: []types.Instance{
 					{
-						ImageId: ptr.To(retImageID),
+						ImageId: new(retImageID),
 					},
 				},
 			},
@@ -320,13 +319,13 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 	}
 
 	f.awsClient.EXPECT().DescribeInstances(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
+		Name:   new("tag:Name"),
 		Values: []string{infraID + "-worker*"},
 	}, {
-		Name:   ptr.To("vpc-id"),
+		Name:   new("vpc-id"),
 		Values: []string{f.vpcID},
 	}, {
-		Name:   ptr.To(clusterFilterTagName),
+		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeInstancesOutput{Reservations: reservations}, nil).Maybe()
 }
@@ -335,8 +334,8 @@ func makeTags(tagKeys []string) []types.Tag {
 	tags := make([]types.Tag, len(tagKeys))
 	for i := range tagKeys {
 		tags[i] = types.Tag{
-			Key:   ptr.To(tagKeys[i]),
-			Value: ptr.To(""),
+			Key:   new(tagKeys[i]),
+			Value: new(""),
 		}
 	}
 
@@ -345,12 +344,12 @@ func makeTags(tagKeys []string) []types.Tag {
 
 func newSubnet(availabilityZone, subnetID string) types.Subnet {
 	return types.Subnet{
-		SubnetId:         ptr.To(subnetID),
-		AvailabilityZone: ptr.To(availabilityZone),
+		SubnetId:         new(subnetID),
+		AvailabilityZone: new(availabilityZone),
 		Tags: []types.Tag{
 			{
-				Key:   ptr.To("Name"),
-				Value: ptr.To(subnetName(subnetID)),
+				Key:   new("Name"),
+				Value: new(subnetName(subnetID)),
 			},
 		},
 	}
@@ -364,11 +363,11 @@ func newDescribeSecurityGroupsInput(vpcID, name string) *ec2.DescribeSecurityGro
 	return &ec2.DescribeSecurityGroupsInput{
 		Filters: []types.Filter{
 			{
-				Name:   ptr.To("vpc-id"),
+				Name:   new("vpc-id"),
 				Values: []string{vpcID},
 			},
 			{
-				Name:   ptr.To("tag:Name"),
+				Name:   new("tag:Name"),
 				Values: []string{name},
 			},
 		},
@@ -382,8 +381,8 @@ func newDescribeSecurityGroupsOutput(groupID string, ipPermissions ...types.IpPe
 
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: []types.SecurityGroup{
 		{
-			GroupId:       ptr.To(groupID),
-			GroupName:     ptr.To(groupID + "-name"),
+			GroupId:       new(groupID),
+			GroupName:     new(groupID + "-name"),
 			IpPermissions: ipPermissions,
 		},
 	}}
@@ -393,7 +392,7 @@ func newIPPermission(desc string) types.IpPermission {
 	return types.IpPermission{
 		UserIdGroupPairs: []types.UserIdGroupPair{
 			{
-				Description: ptr.To(desc),
+				Description: new(desc),
 			},
 		},
 	}
@@ -401,13 +400,13 @@ func newIPPermission(desc string) types.IpPermission {
 
 func newClusterSGRule(groupID string, port int32, protocol string) *types.IpPermission {
 	return &types.IpPermission{
-		FromPort:   ptr.To(port),
-		ToPort:     ptr.To(port),
-		IpProtocol: ptr.To(protocol),
+		FromPort:   new(port),
+		ToPort:     new(port),
+		IpProtocol: new(protocol),
 		UserIdGroupPairs: []types.UserIdGroupPair{
 			{
-				GroupId:     ptr.To(groupID),
-				Description: ptr.To(internalTrafficDesc),
+				GroupId:     new(groupID),
+				Description: new(internalTrafficDesc),
 			},
 		},
 	}
@@ -415,12 +414,12 @@ func newClusterSGRule(groupID string, port int32, protocol string) *types.IpPerm
 
 func newPublicSGRule(port int32, protocol string) *types.IpPermission {
 	return &types.IpPermission{
-		FromPort:   ptr.To(port),
-		ToPort:     ptr.To(port),
-		IpProtocol: ptr.To(protocol),
+		FromPort:   new(port),
+		ToPort:     new(port),
+		IpProtocol: new(protocol),
 		IpRanges: []types.IpRange{
 			{
-				CidrIp: ptr.To("0.0.0.0/0"),
+				CidrIp: new("0.0.0.0/0"),
 			},
 		},
 	}
@@ -459,7 +458,7 @@ func (m *authorizeSecurityGroupIngressInputMatcher) Matches(i any) bool {
 
 			for i := range out.UserIdGroupPairs {
 				if out.UserIdGroupPairs[i].Description != nil && strings.Contains(*out.UserIdGroupPairs[i].Description, internalTraffic) {
-					out.UserIdGroupPairs[i].Description = ptr.To(internalTrafficDesc)
+					out.UserIdGroupPairs[i].Description = new(internalTrafficDesc)
 				}
 			}
 		}
