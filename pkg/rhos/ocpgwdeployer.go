@@ -257,7 +257,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 		status.Success("Successfully removed security group rules from node %q",
 			machineSetList[i].GetName())
 
-		status.Start(fmt.Sprintf("Deleting the gateway instance %q", machineSetList[i].GetName()))
+		status.Start("Deleting the gateway instance %q", machineSetList[i].GetName())
 
 		err = d.msDeployer.DeleteByName(ctx, machineSetList[i].GetName(), machineSetList[i].GetNamespace())
 		if err != nil {
@@ -286,7 +286,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 		status.Success("Successfully removed security group rules from node %q",
 			gwNodes[i].Name)
 
-		status.Start(fmt.Sprintf("Removing Submariner gateway label from instance %q", gwNodes[i].Name))
+		status.Start("Removing Submariner gateway label from instance %q", gwNodes[i].Name)
 
 		err = d.K8sClient.RemoveGWLabelFromWorkerNode(ctx, &gwNodes[i])
 		if err != nil {
