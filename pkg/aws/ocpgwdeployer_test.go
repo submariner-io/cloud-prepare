@@ -31,7 +31,6 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
 	ocpFake "github.com/submariner-io/cloud-prepare/pkg/ocp/fake"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 	"k8s.io/utils/set"
 )
 
@@ -92,8 +91,8 @@ func testDeploy() {
 			BeforeEach(func() {
 				t.expectedSubnetsTagged = []types.Subnet{}
 				t.existingSubnets[0].Tags = append(t.existingSubnets[0].Tags, types.Tag{
-					Key:   ptr.To("submariner.io/gateway"),
-					Value: ptr.To(""),
+					Key:   new("submariner.io/gateway"),
+					Value: new(""),
 				})
 			})
 
