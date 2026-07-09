@@ -12,3 +12,7 @@ ignore:
       name: google.golang.org/protobuf
   # Ignored due to Go 1.25 requirement
   - vulnerability: GHSA-hfvc-g4fc-pqhx
+  # Update requires Go 1.25. Low severity doesn't justify breaking changes.
+  - vulnerability: GO-2026-5024
+    package:
+      name: golang.org/x/sys
