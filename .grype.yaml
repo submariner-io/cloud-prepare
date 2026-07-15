@@ -12,3 +12,8 @@ ignore:
       name: google.golang.org/protobuf
   # Ignored due to Go 1.25 requirement
   - vulnerability: GHSA-hfvc-g4fc-pqhx
+  # Deprecation notice for unmaintained openpgp sub-package. No fix available.
+  # This project does not use x/crypto/openpgp.
+  - vulnerability: GO-2026-5932
+    package:
+      name: golang.org/x/crypto
