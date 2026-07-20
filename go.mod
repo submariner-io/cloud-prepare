@@ -4,8 +4,8 @@ go 1.25.8
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0
-	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v7 v7.3.0
-	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8 v8.0.0
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v8 v8.2.0
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v10 v10.0.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.26
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.25
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.310.0
