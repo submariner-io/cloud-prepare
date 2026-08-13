@@ -17,3 +17,8 @@ ignore:
   - vulnerability: GO-2026-5024
     package:
       name: golang.org/x/sys
+
+  # No fix available; no FIXED-IN version reported in vulnerability database. Unknown severity with no patch to apply.
+  - vulnerability: GO-2026-5932
+    package:
+      name: golang.org/x/crypto
