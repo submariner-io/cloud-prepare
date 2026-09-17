@@ -8,11 +8,6 @@ ignore:
     package:
       name: golang.org/x/crypto
   # MVS resolved to v1.67.3 but need >= v1.83.1
-  - vulnerability: GHSA-vp52-pcj8-j9qc
-    fix-state: not-fixed
-    package:
-      name: google.golang.org/grpc
-  # MVS resolved to v1.67.3 but need >= v1.83.1
   - vulnerability: GHSA-qc2q-p7wx-3px3
     fix-state: not-fixed
     package:
