@@ -7,8 +7,3 @@ ignore:
   - vulnerability: GO-2026-5932
     package:
       name: golang.org/x/crypto
-  # MVS resolved to v1.67.3 but need >= v1.83.1
-  - vulnerability: GHSA-qc2q-p7wx-3px3
-    fix-state: not-fixed
-    package:
-      name: google.golang.org/grpc
