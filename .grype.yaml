@@ -12,3 +12,9 @@ ignore:
       name: google.golang.org/protobuf
   # Ignored due to Go 1.25 requirement
   - vulnerability: GHSA-hfvc-g4fc-pqhx
+  # No fix available for golang.org/x/crypto.
+  - vulnerability: GO-2026-5932
+    fix-state: unknown
+    package:
+      name: golang.org/x/crypto
+      location: /go.mod
