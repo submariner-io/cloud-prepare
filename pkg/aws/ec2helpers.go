@@ -27,15 +27,15 @@ import (
 
 func ec2Filter(name, value string) types.Filter {
 	return types.Filter{
-		Name:   ptr.To(name),
+		Name:   new(name),
 		Values: []string{value},
 	}
 }
 
 func ec2Tag(key, value string) types.Tag {
 	return types.Tag{
-		Key:   ptr.To(key),
-		Value: ptr.To(value),
+		Key:   new(key),
+		Value: new(value),
 	}
 }
 

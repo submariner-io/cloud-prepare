@@ -30,7 +30,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -161,16 +160,16 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix string, protocol armnet
 	access := armnetwork.SecurityRuleAccessAllow
 
 	return &armnetwork.SecurityRule{
-		Name: ptr.To(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
+		Name: new(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
 		Properties: &armnetwork.SecurityRulePropertiesFormat{
 			Protocol:                 &protocol,
-			DestinationPortRange:     ptr.To(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
-			SourceAddressPrefix:      ptr.To(allNetworkCIDR),
-			DestinationAddressPrefix: ptr.To(allNetworkCIDR),
-			SourcePortRange:          ptr.To("*"),
+			DestinationPortRange:     new(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
+			SourceAddressPrefix:      new(allNetworkCIDR),
+			DestinationAddressPrefix: new(allNetworkCIDR),
+			SourcePortRange:          new("*"),
 			Access:                   &access,
 			Direction:                &ruleDirection,
-			Priority:                 ptr.To(priority),
+			Priority:                 new(priority),
 		},
 	}
 }
@@ -196,7 +195,7 @@ func (c *CloudInfo) createGWSecurityGroup(ctx context.Context, groupName string,
 
 	nwSecurityGroup := armnetwork.SecurityGroup{
 		Name:     &groupName,
-		Location: ptr.To(c.Region),
+		Location: new(c.Region),
 		Properties: &armnetwork.SecurityGroupPropertiesFormat{
 			SecurityRules: securityRules,
 		},
@@ -369,7 +368,7 @@ func (c *CloudInfo) createPublicIP(ctx context.Context, ipName string, ipClient 
 		c.BaseGroupName,
 		ipName,
 		armnetwork.PublicIPAddress{
-			Name: ptr.To(ipName),
+			Name: new(ipName),
 			Properties: &armnetwork.PublicIPAddressPropertiesFormat{
 				PublicIPAddressVersion:   &ipVersion,
 				PublicIPAllocationMethod: &ipAllocMethod,
