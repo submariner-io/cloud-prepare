@@ -38,6 +38,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/utils/ptr"
 )
 
 const (
@@ -79,7 +80,7 @@ var _ = Describe("OCP Gateway Deployer", func() {
 	})
 })
 
-func testDeploy() {
+func testDeploy() { //nolint:maintidx // Deploy test covers many scenarios; splitting would reduce readability.
 	t := newGatewayDeployerTestDriver()
 
 	When("gateways are requested", func() {
@@ -87,52 +88,52 @@ func testDeploy() {
 			t.httpGetResponses[SKUsPath] = &armcompute.ResourceSKUsResult{
 				Value: []*armcompute.ResourceSKU{
 					{
-						Name:         new(instanceType),
-						ResourceType: new(azure.AzureVirtualMachines),
+						Name:         ptr.To(instanceType),
+						ResourceType: ptr.To(azure.AzureVirtualMachines),
 						LocationInfo: []*armcompute.ResourceSKULocationInfo{
 							{
-								Zones:    []*string{new("zone1")},
-								Location: new(testRegion),
+								Zones:    []*string{ptr.To("zone1")},
+								Location: ptr.To(testRegion),
 							},
 						},
 					},
 					{
-						Name:         new("other-instance-type"),
-						ResourceType: new(azure.AzureVirtualMachines),
+						Name:         ptr.To("other-instance-type"),
+						ResourceType: ptr.To(azure.AzureVirtualMachines),
 						LocationInfo: []*armcompute.ResourceSKULocationInfo{
 							{
-								Zones:    []*string{new("other-zone1")},
-								Location: new(testRegion),
+								Zones:    []*string{ptr.To("other-zone1")},
+								Location: ptr.To(testRegion),
 							},
 						},
 					},
 					{
-						Name:         new(instanceType),
-						ResourceType: new(azure.AzureVirtualMachines),
+						Name:         ptr.To(instanceType),
+						ResourceType: ptr.To(azure.AzureVirtualMachines),
 						LocationInfo: []*armcompute.ResourceSKULocationInfo{
 							{
-								Zones:    []*string{new("zone2")},
-								Location: new(testRegion),
+								Zones:    []*string{ptr.To("zone2")},
+								Location: ptr.To(testRegion),
 							},
 						},
 					},
 					{
-						Name:         new(instanceType),
-						ResourceType: new(azure.AzureVirtualMachines),
+						Name:         ptr.To(instanceType),
+						ResourceType: ptr.To(azure.AzureVirtualMachines),
 						LocationInfo: []*armcompute.ResourceSKULocationInfo{
 							{
-								Zones:    []*string{new("zone3")},
-								Location: new(testRegion),
+								Zones:    []*string{ptr.To("zone3")},
+								Location: ptr.To(testRegion),
 							},
 						},
 					},
 					{
-						Name:         new(instanceType),
-						ResourceType: new(azure.AzureVirtualMachines),
+						Name:         ptr.To(instanceType),
+						ResourceType: ptr.To(azure.AzureVirtualMachines),
 						LocationInfo: []*armcompute.ResourceSKULocationInfo{
 							{
-								Zones:    []*string{new("other-zone2")},
-								Location: new("other-region"),
+								Zones:    []*string{ptr.To("other-zone2")},
+								Location: ptr.To("other-region"),
 							},
 						},
 					},
@@ -169,7 +170,7 @@ func testDeploy() {
 		Context("and the external security group already exists", func() {
 			BeforeEach(func() {
 				t.httpGetResponses[securityGroupPath(extSecurityGroupName)] = &armnetwork.SecurityGroup{
-					Name: new(extSecurityGroupName),
+					Name: ptr.To(extSecurityGroupName),
 				}
 			})
 
@@ -229,12 +230,12 @@ func testDeploy() {
 			t.httpGetResponses[SKUsPath] = &armcompute.ResourceSKUsResult{
 				Value: []*armcompute.ResourceSKU{
 					{
-						Name:         new(instanceType),
-						ResourceType: new(azure.AzureVirtualMachines),
+						Name:         ptr.To(instanceType),
+						ResourceType: ptr.To(azure.AzureVirtualMachines),
 						LocationInfo: []*armcompute.ResourceSKULocationInfo{
 							{
-								Zones:    []*string{new("zone1"), new("zone2")},
-								Location: new(testRegion),
+								Zones:    []*string{ptr.To("zone1"), ptr.To("zone2")},
+								Location: ptr.To(testRegion),
 							},
 						},
 					},
@@ -258,12 +259,12 @@ func testDeploy() {
 
 				nicName := name + "-nic"
 				t.httpGetResponses[networkInterfacesPath(nicName)] = &armnetwork.Interface{
-					Name: new(nicName),
+					Name: ptr.To(nicName),
 					Properties: &armnetwork.InterfacePropertiesFormat{
 						IPConfigurations: []*armnetwork.InterfaceIPConfiguration{
 							{
 								Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
-									Primary: new(true),
+									Primary: ptr.To(true),
 								},
 							},
 						},
@@ -286,7 +287,7 @@ func testDeploy() {
 			for _, name := range []string{nodeName1, nodeName2} {
 				var publicAddress armnetwork.PublicIPAddress
 				t.assertPutRequest(publicAddressesPath(name+"-pub"), &publicAddress)
-				Expect(publicAddress.Location).To(Equal(new(t.cloudInfo.Region)))
+				Expect(publicAddress.Location).To(Equal(ptr.To(t.cloudInfo.Region)))
 
 				var extSecurityGroup armnetwork.SecurityGroup
 				t.assertPutRequest(securityGroupPath(extSecurityGroupName), &extSecurityGroup)
@@ -295,7 +296,7 @@ func testDeploy() {
 				t.assertPutRequest(networkInterfacesPath(name+"-nic"), &netInterface)
 				Expect(netInterface.Properties.NetworkSecurityGroup).To(Equal(&extSecurityGroup))
 				Expect(netInterface.Properties.IPConfigurations).To(HaveLen(1))
-				Expect(netInterface.Properties.IPConfigurations[0].Properties.Primary).To(Equal(new(true)))
+				Expect(netInterface.Properties.IPConfigurations[0].Properties.Primary).To(Equal(ptr.To(true)))
 				Expect(netInterface.Properties.IPConfigurations[0].Properties.PublicIPAddress).ToNot(BeNil())
 			}
 		})
@@ -326,7 +327,7 @@ func testDeploy() {
 
 	When("security group creation fails", func() {
 		BeforeEach(func() {
-			t.httpPutRespCodes[securityGroupPath(extSecurityGroupName)] = new(http.StatusUnauthorized)
+			t.httpPutRespCodes[securityGroupPath(extSecurityGroupName)] = ptr.To(http.StatusUnauthorized)
 		})
 
 		It("should return an error", func(ctx SpecContext) {
@@ -346,7 +347,7 @@ func testCleanup() {
 		t.createGatewayNode(ctx, nodeName1)
 
 		publicIPAddress := &armnetwork.PublicIPAddress{
-			Name: new(nodeName1 + "-pub"),
+			Name: ptr.To(nodeName1 + "-pub"),
 		}
 
 		t.httpGetResponses[publicAddressesPath(nodeName1+"-pub")] = publicIPAddress
@@ -354,11 +355,11 @@ func testCleanup() {
 		netInterfaceID := "123"
 
 		extSecurityGroup := &armnetwork.SecurityGroup{
-			Name: new(extSecurityGroupName),
+			Name: ptr.To(extSecurityGroupName),
 			Properties: &armnetwork.SecurityGroupPropertiesFormat{
 				NetworkInterfaces: []*armnetwork.Interface{
 					{
-						ID: new(netInterfaceID),
+						ID: ptr.To(netInterfaceID),
 					},
 				},
 			},
@@ -369,14 +370,14 @@ func testCleanup() {
 		t.httpGetResponses[networkInterfacesPath("")] = &armnetwork.InterfaceListResult{
 			Value: []*armnetwork.Interface{
 				{
-					Name: new(nodeName1 + "-nic"),
-					ID:   new(netInterfaceID),
+					Name: ptr.To(nodeName1 + "-nic"),
+					ID:   ptr.To(netInterfaceID),
 					Properties: &armnetwork.InterfacePropertiesFormat{
 						NetworkSecurityGroup: extSecurityGroup,
 						IPConfigurations: []*armnetwork.InterfaceIPConfiguration{
 							{
 								Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
-									Primary:         new(true),
+									Primary:         ptr.To(true),
 									PublicIPAddress: publicIPAddress,
 								},
 							},
