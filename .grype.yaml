@@ -1,5 +1,6 @@
 ---
 ignore:
+  # No upstream fix is available; x/crypto/openpgp is deprecated and unsafe by design.
   - vulnerability: GO-2026-5932
     fix-state: unknown
     package:
