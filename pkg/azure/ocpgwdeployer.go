@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/utils/ptr"
 	"k8s.io/utils/set"
 )
 
@@ -274,7 +275,7 @@ func (d *ocpGatewayDeployer) getAvailabilityZones(ctx context.Context, gwNodes [
 	}
 
 	pager := resourceSKUClient.NewListPager(&armcompute.ResourceSKUsClientListOptions{
-		Filter: new(d.Region),
+		Filter: ptr.To(d.Region),
 	})
 
 	eligibleZonesForSubmarinerGW := set.New[string]()
