@@ -1,19 +1,5 @@
 ---
 ignore:
-  # Ignored due to Go 1.25 requirement
-  - vulnerability: GHSA-hfvc-g4fc-pqhx
-  # Deprecation notice for unmaintained openpgp sub-package. No fix available.
-  # This project does not use x/crypto/openpgp.
   - vulnerability: GO-2026-5932
     package:
       name: golang.org/x/crypto
-  # MVS resolved to v1.67.3 but need >= v1.83.1
-  - vulnerability: GHSA-vp52-pcj8-j9qc
-    fix-state: not-fixed
-    package:
-      name: google.golang.org/grpc
-  # MVS resolved to v1.67.3 but need >= v1.83.1
-  - vulnerability: GHSA-qc2q-p7wx-3px3
-    fix-state: not-fixed
-    package:
-      name: google.golang.org/grpc
