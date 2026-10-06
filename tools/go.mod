@@ -7,6 +7,7 @@ require github.com/vektra/mockery/v2 v2.43.2
 require (
 	github.com/chigopher/pathlib v0.19.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/iancoleman/strcase v0.2.0 // indirect
