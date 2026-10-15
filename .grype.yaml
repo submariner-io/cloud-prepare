@@ -16,3 +16,4 @@ ignore:
     fix-state: unknown
     package:
       name: golang.org/x/crypto
+      location: /go.mod
