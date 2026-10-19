@@ -51,8 +51,7 @@ func appendIfError(errs []error, err error) []error {
 }
 
 func isAWSError(err error, code string) bool {
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
 		// Has to be checked as string, see https://github.com/aws/aws-sdk-go/issues/3235
 		return apiErr.ErrorCode() == code
 	}
