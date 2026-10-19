@@ -85,8 +85,7 @@ func NewClient(ctx context.Context, projectID string, options []option.ClientOpt
 }
 
 func IsGCPNotFoundError(err error) bool {
-	var gerr *googleapi.Error
-	if errors.As(err, &gerr) {
+	if gerr, ok := errors.AsType[*googleapi.Error](err); ok {
 		return gerr.Code == http.StatusNotFound
 	}
 
