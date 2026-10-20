@@ -39,7 +39,7 @@ var _ = Describe("Cloud", func() {
 
 	BeforeEach(func() {
 		t.httpGetResponses[internalSecurityGroupPath] = &armnetwork.SecurityGroup{
-			Name: ptr.To(internalSecurityGroupName),
+			Name: new(internalSecurityGroupName),
 		}
 	})
 
@@ -70,7 +70,7 @@ var _ = Describe("Cloud", func() {
 		By("Close ports")
 
 		otherRule := &armnetwork.SecurityRule{
-			Name: ptr.To("should-not-be-removed"),
+			Name: new("should-not-be-removed"),
 		}
 		securityGroup.Properties.SecurityRules = append(securityGroup.Properties.SecurityRules, otherRule)
 
@@ -93,7 +93,7 @@ var _ = Describe("Cloud", func() {
 
 	When("security group creation fails", func() {
 		Specify("OpenPorts should return an error", func(ctx SpecContext) {
-			t.httpPutRespCodes[internalSecurityGroupPath] = ptr.To(http.StatusUnauthorized)
+			t.httpPutRespCodes[internalSecurityGroupPath] = new(http.StatusUnauthorized)
 
 			cloud := azure.NewCloud(&t.cloudInfo)
 			Expect(cloud.OpenPorts(ctx, []api.PortSpec{{Port: 80, Protocol: string(armnetwork.SecurityRuleProtocolTCP)}},
