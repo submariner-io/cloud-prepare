@@ -29,7 +29,6 @@ import (
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 )
 
 const internalTraffic = "Internal Submariner traffic"
@@ -105,12 +104,12 @@ func (ac *awsCloud) authorizeSecurityGroupIngress(ctx context.Context, groupID *
 func (ac *awsCloud) createClusterSGRule(ctx context.Context, srcGroup, destGroup *string, port uint16, protocol, description string) error {
 	ipPermissions := []types.IpPermission{
 		{
-			FromPort:   ptr.To(int32(port)),
-			ToPort:     ptr.To(int32(port)),
-			IpProtocol: ptr.To(protocol),
+			FromPort:   new(int32(port)),
+			ToPort:     new(int32(port)),
+			IpProtocol: new(protocol),
 			UserIdGroupPairs: []types.UserIdGroupPair{
 				{
-					Description: ptr.To(description),
+					Description: new(description),
 					GroupId:     srcGroup,
 				},
 			},
@@ -157,13 +156,13 @@ func (ac *awsCloud) allowPortInCluster(ctx context.Context, vpcID string, port u
 func (ac *awsCloud) createPublicSGRule(ctx context.Context, groupID *string, port uint16, protocol, description string) error {
 	ipPermissions := []types.IpPermission{
 		{
-			FromPort:   ptr.To(int32(port)),
-			ToPort:     ptr.To(int32(port)),
-			IpProtocol: ptr.To(protocol),
+			FromPort:   new(int32(port)),
+			ToPort:     new(int32(port)),
+			IpProtocol: new(protocol),
 			IpRanges: []types.IpRange{
 				{
-					CidrIp:      ptr.To("0.0.0.0/0"),
-					Description: ptr.To(description),
+					CidrIp:      new("0.0.0.0/0"),
+					Description: new(description),
 				},
 			},
 		},
@@ -183,7 +182,7 @@ func (ac *awsCloud) createGatewaySG(ctx context.Context, vpcID string, ports []a
 
 		input := &ec2.CreateSecurityGroupInput{
 			GroupName:   &groupName,
-			Description: ptr.To("Submariner Gateway"),
+			Description: new("Submariner Gateway"),
 			VpcId:       &vpcID,
 			TagSpecifications: []types.TagSpecification{
 				{
