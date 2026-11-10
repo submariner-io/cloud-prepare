@@ -28,12 +28,12 @@ import (
 )
 
 type CloudInfo struct {
+	Client           gcpclient.Interface
 	InfraID          string
 	Region           string
 	ProjectID        string
 	VpcName          string
 	PublicSubnetName string
-	Client           gcpclient.Interface
 }
 
 // Open expected ports by creating related firewall rule.

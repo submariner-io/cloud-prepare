@@ -38,11 +38,11 @@ import (
 
 type ocpGatewayDeployer struct {
 	CloudInfo
+	msDeployer   ocp.MachineSetDeployer
 	projectID    string
 	instanceType string
 	image        string
 	cloudName    string
-	msDeployer   ocp.MachineSetDeployer
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
@@ -67,9 +67,9 @@ type machineSetConfig struct {
 	InstanceType            string
 	Region                  string
 	Image                   string
-	SubnetNames             []string
 	SubmarinerGWNodeTag     string
 	CloudName               string
+	SubnetNames             []string
 	UseSubmarinerInternalSG bool
 }
 

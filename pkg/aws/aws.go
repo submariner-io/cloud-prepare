@@ -70,8 +70,8 @@ type awsCloud struct {
 	controlPlaneSGSuffix string
 	controlPlaneGroupID  string
 	workerGroupID        string
-	publicSubnetList     []string
 	vpcID                string
+	publicSubnetList     []string
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare AWS for Submariner to be deployed on it.

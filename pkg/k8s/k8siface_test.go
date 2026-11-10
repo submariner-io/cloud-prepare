@@ -206,9 +206,9 @@ func testListNodesWithLabel() {
 }
 
 type interfaceTestDriver struct {
+	client     k8s.Interface
 	kubeClient *kubeFake.Clientset
 	nodes      []*corev1.Node
-	client     k8s.Interface
 }
 
 func newInterfaceTestDriver() *interfaceTestDriver {
