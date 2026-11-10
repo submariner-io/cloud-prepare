@@ -113,23 +113,23 @@ func (f *fakeAWSClientBase) expectDescribeSecurityGroupsFailure(name string, err
 }
 
 func (f *fakeAWSClientBase) expectDescribeVpcs() {
-	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   new("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, {
 		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
+	}}}).Matches)).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeVpcsSigs() {
-	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   new("tag:Name"),
 		Values: []string{infraID + "-vpc"},
 	}, {
 		Name:   new(clusterFilterTagNameSigs),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
+	}}}).Matches)).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
@@ -164,7 +164,7 @@ func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr erro
 }
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subnet) {
-	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   new("tag:Name"),
 		Values: []string{infraID + "*-public-" + region + "*"},
 	}, {
@@ -173,7 +173,7 @@ func (f *fakeAWSClientBase) expectDescribePublicSubnets(retSubnets ...types.Subn
 	}, {
 		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
+	}}}).Matches)).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnetsByID(subnetID string, retSubnets ...types.Subnet) {
@@ -183,7 +183,7 @@ func (f *fakeAWSClientBase) expectDescribePublicSubnetsByID(subnetID string, ret
 }
 
 func (f *fakeAWSClientBase) expectDescribePublicSubnetsSigs(retSubnets ...types.Subnet) {
-	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   new("tag:Name"),
 		Values: []string{infraID + "*-public-" + region + "*"},
 	}, {
@@ -192,11 +192,11 @@ func (f *fakeAWSClientBase) expectDescribePublicSubnetsSigs(retSubnets ...types.
 	}, {
 		Name:   new(clusterFilterTagNameSigs),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
+	}}}).Matches)).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeGatewaySubnets(retSubnets ...types.Subnet) {
-	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+	f.awsClient.EXPECT().DescribeSubnets(mock.Anything, mock.MatchedBy((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   new("tag:submariner.io/gateway"),
 		Values: []string{""},
 	}, {
@@ -205,7 +205,7 @@ func (f *fakeAWSClientBase) expectDescribeGatewaySubnets(retSubnets ...types.Sub
 	}, {
 		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
+	}}}).Matches)).Return(&ec2.DescribeSubnetsOutput{Subnets: retSubnets}, f.describeSubnetsErr).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectValidateCreateSecurityGroup() *mock.Call {
@@ -260,13 +260,13 @@ func (f *fakeAWSClientBase) expectValidateDescribeInstanceTypeOfferings() *mock.
 func (f *fakeAWSClientBase) expectDescribeInstanceTypeOfferings(instanceType, availabilityZone string,
 	retOfferings ...types.InstanceTypeOffering,
 ) {
-	f.awsClient.EXPECT().DescribeInstanceTypeOfferings(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+	f.awsClient.EXPECT().DescribeInstanceTypeOfferings(mock.Anything, mock.MatchedBy((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   new("location"),
 		Values: []string{availabilityZone},
 	}, {
 		Name:   new("instance-type"),
 		Values: []string{instanceType},
-	}}}).Matches))).Return(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: retOfferings},
+	}}}).Matches)).Return(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: retOfferings},
 		f.describeInstanceTypeOfferingsErr).Maybe()
 }
 
@@ -318,7 +318,7 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 		}
 	}
 
-	f.awsClient.EXPECT().DescribeInstances(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
+	f.awsClient.EXPECT().DescribeInstances(mock.Anything, mock.MatchedBy((&filtersMatcher{expectedFilters: []types.Filter{{
 		Name:   new("tag:Name"),
 		Values: []string{infraID + "-worker*"},
 	}, {
@@ -327,7 +327,7 @@ func (f *fakeAWSClientBase) expectDescribeInstances(retImageID string) {
 	}, {
 		Name:   new(clusterFilterTagName),
 		Values: []string{"owned"},
-	}}}).Matches))).Return(&ec2.DescribeInstancesOutput{Reservations: reservations}, nil).Maybe()
+	}}}).Matches)).Return(&ec2.DescribeInstancesOutput{Reservations: reservations}, nil).Maybe()
 }
 
 func makeTags(tagKeys []string) []types.Tag {
