@@ -253,14 +253,14 @@ func testCleanup() {
 
 type gatewayDeployerTestDriver struct {
 	fakeGCPClientBase
-	numGateways int
-	image       string
+	gwDeployer  api.GatewayDeployer
 	kubeClient  *kubeFake.Clientset
 	msDeployer  *ocpFake.MockMachineSetDeployer
+	instances   map[string][]*compute.Instance
+	image       string
 	nodes       []*corev1.Node
 	zones       []*compute.Zone
-	instances   map[string][]*compute.Instance
-	gwDeployer  api.GatewayDeployer
+	numGateways int
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {

@@ -205,13 +205,13 @@ func testCleanup() {
 
 type gatewayDeployerTestDriver struct {
 	*testDriver
-	msDeployer          *ocpfake.MockMachineSetDeployer
 	gwDeployer          api.GatewayDeployer
+	msDeployer          *ocpfake.MockMachineSetDeployer
 	kubeClient          *k8sfake.Clientset
 	machineSetsDeployed []*unstructured.Unstructured
 	existingMachineSets []unstructured.Unstructured
-	gwDeployInput       api.GatewayDeployInput
 	subnetNames         []string
+	gwDeployInput       api.GatewayDeployInput
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
