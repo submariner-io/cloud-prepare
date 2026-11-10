@@ -55,17 +55,17 @@ func TestAzure(t *testing.T) {
 }
 
 type ResourcePath struct {
-	NoGroup bool
 	Type    string
 	Name    string
+	NoGroup bool
 }
 type testDriver struct {
 	kubeClient       *k8sfake.Clientset
-	cloudInfo        azure.CloudInfo
 	httpHandler      http.HandlerFunc
 	httpGetResponses map[ResourcePath]any
 	httpPutRespCodes map[ResourcePath]*int
 	httpPutRequests  map[string][]byte
+	cloudInfo        azure.CloudInfo
 }
 
 func newTestDriver() *testDriver {
