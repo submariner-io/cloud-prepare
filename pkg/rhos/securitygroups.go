@@ -59,8 +59,8 @@ var (
 )
 
 type CloudInfo struct {
-	SubnetNames []string
 	K8sClient   k8s.Interface
+	SubnetNames []string
 	Client      *gophercloud.ProviderClient
 	InfraID     string
 	Region      string

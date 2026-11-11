@@ -208,8 +208,8 @@ type gatewayDeployerTestDriver struct {
 	machineSetsDeployed []*unstructured.Unstructured
 	existingMachineSets []unstructured.Unstructured
 	subnetNames         []string
-	gwDeployer          api.GatewayDeployer
 	gwDeployInput       api.GatewayDeployInput
+	gwDeployer          api.GatewayDeployer
 	msDeployer          *ocpfake.MockMachineSetDeployer
 	kubeClient          *k8sfake.Clientset
 }

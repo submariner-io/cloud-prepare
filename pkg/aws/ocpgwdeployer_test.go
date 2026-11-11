@@ -288,12 +288,12 @@ type gatewayDeployerTestDriver struct {
 	expectedSubnets                []types.Subnet
 	expectedSubnetsDeployed        []types.Subnet
 	expectedSubnetsTagged          []types.Subnet
-	gwDeployer                     api.GatewayDeployer
 	zonesWithInstanceTypeOfferings set.Set[string]
-	machineSets                    map[string]*unstructured.Unstructured
-	msDeployer                     *ocpFake.MockMachineSetDeployer
+	gwDeployer                     api.GatewayDeployer
 	instanceType                   string
 	gatewayGroupID                 string
+	machineSets                    map[string]*unstructured.Unstructured
+	msDeployer                     *ocpFake.MockMachineSetDeployer
 	numGateways                    int
 }
 

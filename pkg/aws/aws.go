@@ -63,15 +63,15 @@ func WithVPCName(name string) CloudOption {
 }
 
 type awsCloud struct {
-	client               awsClient.Interface
 	publicSubnetList     []string
+	client               awsClient.Interface
 	infraID              string
 	region               string
+	vpcID                string
 	nodeSGSuffix         string
 	controlPlaneSGSuffix string
 	controlPlaneGroupID  string
 	workerGroupID        string
-	vpcID                string
 }
 
 // NewCloud creates a new api.Cloud instance which can prepare AWS for Submariner to be deployed on it.

@@ -159,15 +159,19 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix string, protocol armnet
 	ruleDirection armnetwork.SecurityRuleDirection,
 ) *armnetwork.SecurityRule {
 	access := armnetwork.SecurityRuleAccessAllow
+	ruleName := securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)
+	portRange := strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))
+	cidr := allNetworkCIDR
+	sourcePortRange := "*"
 
 	return &armnetwork.SecurityRule{
-		Name: ptr.To(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
+		Name: &ruleName,
 		Properties: &armnetwork.SecurityRulePropertiesFormat{
 			Protocol:                 &protocol,
-			DestinationPortRange:     ptr.To(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
-			SourceAddressPrefix:      ptr.To(allNetworkCIDR),
-			DestinationAddressPrefix: ptr.To(allNetworkCIDR),
-			SourcePortRange:          ptr.To("*"),
+			DestinationPortRange:     &portRange,
+			SourceAddressPrefix:      &cidr,
+			DestinationAddressPrefix: &cidr,
+			SourcePortRange:          &sourcePortRange,
 			Access:                   &access,
 			Direction:                &ruleDirection,
 			Priority:                 ptr.To(priority),

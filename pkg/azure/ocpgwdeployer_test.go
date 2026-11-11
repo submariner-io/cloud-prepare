@@ -403,9 +403,9 @@ func testCleanup() {
 
 type gatewayDeployerTestDriver struct {
 	*testDriver
-	workerImage         ocp.ImageSpec
 	existingMachineSets []unstructured.Unstructured
 	machineSetsDeployed []*unstructured.Unstructured
+	workerImage         ocp.ImageSpec
 	deployer            api.GatewayDeployer
 	msDeployer          *ocpFake.MockMachineSetDeployer
 }
