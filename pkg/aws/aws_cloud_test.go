@@ -28,7 +28,6 @@ import (
 	"github.com/submariner-io/admiral/pkg/reporter"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/aws"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("Cloud", func() {
@@ -106,12 +105,15 @@ func testOpenPorts() {
 				t.existingSubnets = []types.Subnet{}
 				t.cloudOptions = append(t.cloudOptions, aws.WithPublicSubnetList([]string{customSubnet}))
 
+				nameKey := "Name"
+				nameValue := infraID + "-x-subnet-public-" + region + "-end"
+				subnetID := customSubnet
 				t.expectDescribePublicSubnetsByID(customSubnet, types.Subnet{
-					SubnetId: ptr.To(customSubnet),
+					SubnetId: &subnetID,
 					Tags: []types.Tag{
 						{
-							Key:   ptr.To("Name"),
-							Value: ptr.To(infraID + "-x-subnet-public-" + region + "-end"),
+							Key:   &nameKey,
+							Value: &nameValue,
 						},
 					},
 				})

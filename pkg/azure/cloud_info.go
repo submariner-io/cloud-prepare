@@ -30,7 +30,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -174,7 +173,7 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix string, protocol armnet
 			SourcePortRange:          &sourcePortRange,
 			Access:                   &access,
 			Direction:                &ruleDirection,
-			Priority:                 ptr.To(priority),
+			Priority:                 &priority,
 		},
 	}
 }
@@ -200,7 +199,7 @@ func (c *CloudInfo) createGWSecurityGroup(ctx context.Context, groupName string,
 
 	nwSecurityGroup := armnetwork.SecurityGroup{
 		Name:     &groupName,
-		Location: ptr.To(c.Region),
+		Location: &c.Region,
 		Properties: &armnetwork.SecurityGroupPropertiesFormat{
 			SecurityRules: securityRules,
 		},
@@ -373,7 +372,7 @@ func (c *CloudInfo) createPublicIP(ctx context.Context, ipName string, ipClient 
 		c.BaseGroupName,
 		ipName,
 		armnetwork.PublicIPAddress{
-			Name: ptr.To(ipName),
+			Name: &ipName,
 			Properties: &armnetwork.PublicIPAddressPropertiesFormat{
 				PublicIPAddressVersion:   &ipVersion,
 				PublicIPAllocationMethod: &ipAllocMethod,
