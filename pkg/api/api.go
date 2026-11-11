@@ -26,8 +26,8 @@ import (
 
 // PortSpec is a specification of port+protocol to open.
 type PortSpec struct {
-	Port     uint16
 	Protocol string
+	Port     uint16
 }
 
 // Cloud is a potential cloud for installing Submariner on.

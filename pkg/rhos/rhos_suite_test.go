@@ -63,10 +63,10 @@ func TestRHOS(t *testing.T) {
 }
 
 type testDriver struct {
+	servers                map[string]*servers.Server
 	securityGroupsCreated  []string
 	rulesCreated           []rules.SecGroupRule
 	existingSecurityGroups []secgroups.SecurityGroup
-	servers                map[string]*servers.Server
 }
 
 func newTestDriver() *testDriver {

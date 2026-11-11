@@ -62,25 +62,25 @@ func TestAWS(t *testing.T) {
 }
 
 type fakeAWSClientBase struct {
-	awsClient                        *fake.MockInterface
-	vpcID                            string
 	existingVpcs                     []types.Vpc
 	existingSubnets                  []types.Subnet
+	cloudOptions                     []aws.CloudOption
 	describeSubnetsErr               error
 	authorizeSecurityGroupIngressErr error
 	createTagsErr                    error
 	describeInstanceTypeOfferingsErr error
+	vpcID                            string
 	workerGroupID                    string
 	masterGroupID                    string
 	masterSGName                     string
 	workerSGName                     string
-	cloudOptions                     []aws.CloudOption
+	awsClient                        *fake.MockInterface
 }
 
 func (f *fakeAWSClientBase) beforeEach() {
 	f.awsClient = fake.NewMockInterface(GinkgoT())
 	f.vpcID = "test-vpc"
-	f.existingVpcs = []types.Vpc{{VpcId: ptr.To(f.vpcID)}}
+	f.existingVpcs = []types.Vpc{{VpcId: &f.vpcID}}
 	f.existingSubnets = []types.Subnet{newSubnet(availabilityZone1, subnetID1), newSubnet(availabilityZone2, subnetID2)}
 	f.describeSubnetsErr = nil
 	f.authorizeSecurityGroupIngressErr = nil
@@ -114,37 +114,43 @@ func (f *fakeAWSClientBase) expectDescribeSecurityGroupsFailure(name string, err
 }
 
 func (f *fakeAWSClientBase) expectDescribeVpcs() {
+	tagName := "tag:Name"
+	filterTagName := clusterFilterTagName
 	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
+		Name:   &tagName,
 		Values: []string{infraID + "-vpc"},
 	}, {
-		Name:   ptr.To(clusterFilterTagName),
+		Name:   &filterTagName,
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectDescribeVpcsSigs() {
+	tagName := "tag:Name"
+	filterTagNameSigs := clusterFilterTagNameSigs
 	f.awsClient.EXPECT().DescribeVpcs(mock.Anything, mock.MatchedBy(((&filtersMatcher{expectedFilters: []types.Filter{{
-		Name:   ptr.To("tag:Name"),
+		Name:   &tagName,
 		Values: []string{infraID + "-vpc"},
 	}, {
-		Name:   ptr.To(clusterFilterTagNameSigs),
+		Name:   &filterTagNameSigs,
 		Values: []string{"owned"},
 	}}}).Matches))).Return(&ec2.DescribeVpcsOutput{Vpcs: f.existingVpcs}, nil).Maybe()
 }
 
 func (f *fakeAWSClientBase) expectValidateAuthorizeSecurityGroupIngress(authErr error) *mock.Call {
+	dryRun := true
+
 	return f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
 		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
-			DryRun:  ptr.To(true),
-			GroupId: ptr.To(f.workerGroupID),
+			DryRun:  &dryRun,
+			GroupId: &f.workerGroupID,
 		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{}, authErr).Call
 }
 
 func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string, ipPerm *types.IpPermission) {
 	f.awsClient.EXPECT().AuthorizeSecurityGroupIngress(mock.Anything,
 		mock.MatchedBy((&authorizeSecurityGroupIngressInputMatcher{ec2.AuthorizeSecurityGroupIngressInput{
-			GroupId:       ptr.To(srcGroup),
+			GroupId:       &srcGroup,
 			IpPermissions: []types.IpPermission{*ipPerm},
 		}}).Matches)).Return(&ec2.AuthorizeSecurityGroupIngressOutput{},
 		f.authorizeSecurityGroupIngressErr)
@@ -152,15 +158,16 @@ func (f *fakeAWSClientBase) expectAuthorizeSecurityGroupIngress(srcGroup string,
 
 func (f *fakeAWSClientBase) expectRevokeSecurityGroupIngress(groupID string, ipPermissions ...types.IpPermission) {
 	f.awsClient.EXPECT().RevokeSecurityGroupIngress(mock.Anything, &ec2.RevokeSecurityGroupIngressInput{
-		GroupId:       ptr.To(groupID),
+		GroupId:       &groupID,
 		IpPermissions: ipPermissions,
 	}).Return(&ec2.RevokeSecurityGroupIngressOutput{}, nil)
 }
 
 func (f *fakeAWSClientBase) expectValidateRevokeSecurityGroupIngress(retErr error) {
+	dryRun := true
 	f.awsClient.EXPECT().RevokeSecurityGroupIngress(mock.Anything, &ec2.RevokeSecurityGroupIngressInput{
-		DryRun:  ptr.To(true),
-		GroupId: ptr.To(f.workerGroupID),
+		DryRun:  &dryRun,
+		GroupId: &f.workerGroupID,
 	}).Return(&ec2.RevokeSecurityGroupIngressOutput{}, retErr)
 }
 

@@ -30,7 +30,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/submariner-io/cloud-prepare/pkg/api"
 	"github.com/submariner-io/cloud-prepare/pkg/k8s"
-	"k8s.io/utils/ptr"
 )
 
 const (
@@ -45,13 +44,13 @@ const (
 )
 
 type CloudInfo struct {
+	TokenCredential azcore.TokenCredential
+	K8sClient       k8s.Interface
+	ClientOptions   *arm.ClientOptions
 	SubscriptionID  string
 	InfraID         string
 	Region          string
 	BaseGroupName   string
-	TokenCredential azcore.TokenCredential
-	K8sClient       k8s.Interface
-	ClientOptions   *arm.ClientOptions
 }
 
 //nolint:wrapcheck // Let the caller wrap it.
@@ -159,18 +158,22 @@ func (c *CloudInfo) createSecurityRule(securityRulePrfix string, protocol armnet
 	ruleDirection armnetwork.SecurityRuleDirection,
 ) *armnetwork.SecurityRule {
 	access := armnetwork.SecurityRuleAccessAllow
+	ruleName := securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)
+	portRange := strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))
+	cidr := allNetworkCIDR
+	sourcePortRange := "*"
 
 	return &armnetwork.SecurityRule{
-		Name: ptr.To(securityRulePrfix + string(protocol) + "-" + strconv.Itoa(int(port)) + "-" + string(ruleDirection)),
+		Name: &ruleName,
 		Properties: &armnetwork.SecurityRulePropertiesFormat{
 			Protocol:                 &protocol,
-			DestinationPortRange:     ptr.To(strconv.Itoa(int(port)) + "-" + strconv.Itoa(int(port))),
-			SourceAddressPrefix:      ptr.To(allNetworkCIDR),
-			DestinationAddressPrefix: ptr.To(allNetworkCIDR),
-			SourcePortRange:          ptr.To("*"),
+			DestinationPortRange:     &portRange,
+			SourceAddressPrefix:      &cidr,
+			DestinationAddressPrefix: &cidr,
+			SourcePortRange:          &sourcePortRange,
 			Access:                   &access,
 			Direction:                &ruleDirection,
-			Priority:                 ptr.To(priority),
+			Priority:                 &priority,
 		},
 	}
 }
@@ -196,7 +199,7 @@ func (c *CloudInfo) createGWSecurityGroup(ctx context.Context, groupName string,
 
 	nwSecurityGroup := armnetwork.SecurityGroup{
 		Name:     &groupName,
-		Location: ptr.To(c.Region),
+		Location: &c.Region,
 		Properties: &armnetwork.SecurityGroupPropertiesFormat{
 			SecurityRules: securityRules,
 		},
@@ -369,7 +372,7 @@ func (c *CloudInfo) createPublicIP(ctx context.Context, ipName string, ipClient 
 		c.BaseGroupName,
 		ipName,
 		armnetwork.PublicIPAddress{
-			Name: ptr.To(ipName),
+			Name: &ipName,
 			Properties: &armnetwork.PublicIPAddressPropertiesFormat{
 				PublicIPAddressVersion:   &ipVersion,
 				PublicIPAllocationMethod: &ipAllocMethod,

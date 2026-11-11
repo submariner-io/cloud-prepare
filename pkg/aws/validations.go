@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/pkg/errors"
-	"k8s.io/utils/ptr"
 )
 
 const permissionsTest = "permissions-test"
@@ -41,11 +40,13 @@ func determinePermissionError(err error, operation string) error {
 }
 
 func (ac *awsCloud) validateCreateSecGroup(ctx context.Context, vpcID string) error {
+	dryRun := true
+	testName := permissionsTest
 	input := &ec2.CreateSecurityGroupInput{
-		DryRun:      ptr.To(true),
-		GroupName:   ptr.To(permissionsTest),
-		Description: ptr.To(permissionsTest),
-		VpcId:       ptr.To(vpcID),
+		DryRun:      &dryRun,
+		GroupName:   &testName,
+		Description: &testName,
+		VpcId:       &vpcID,
 	}
 
 	_, err := ac.client.CreateSecurityGroup(ctx, input)
@@ -59,8 +60,9 @@ func (ac *awsCloud) validateCreateSecGroupRule(ctx context.Context, vpcID string
 		return err
 	}
 
+	dryRun := true
 	input := &ec2.AuthorizeSecurityGroupIngressInput{
-		DryRun:  ptr.To(true),
+		DryRun:  &dryRun,
 		GroupId: workerGroupID,
 	}
 
@@ -70,8 +72,9 @@ func (ac *awsCloud) validateCreateSecGroupRule(ctx context.Context, vpcID string
 }
 
 func (ac *awsCloud) validateCreateTag(ctx context.Context, subnetID string) error {
+	dryRun := true
 	_, err := ac.client.CreateTags(ctx, &ec2.CreateTagsInput{
-		DryRun:    ptr.To(true),
+		DryRun:    &dryRun,
 		Resources: []string{subnetID},
 		Tags: []types.Tag{
 			tagSubmarinerGateway,
@@ -82,8 +85,9 @@ func (ac *awsCloud) validateCreateTag(ctx context.Context, subnetID string) erro
 }
 
 func (ac *awsCloud) validateDescribeInstanceTypeOfferings(ctx context.Context) error {
+	dryRun := true
 	_, err := ac.client.DescribeInstanceTypeOfferings(ctx, &ec2.DescribeInstanceTypeOfferingsInput{
-		DryRun: ptr.To(true),
+		DryRun: &dryRun,
 	})
 
 	return determinePermissionError(err, "describe instance type offerings")
@@ -95,8 +99,9 @@ func (ac *awsCloud) validateDeleteSecGroup(ctx context.Context, vpcID string) er
 		return err
 	}
 
+	dryRun := true
 	input := &ec2.DeleteSecurityGroupInput{
-		DryRun:  ptr.To(true),
+		DryRun:  &dryRun,
 		GroupId: workerGroupID,
 	}
 
@@ -111,8 +116,9 @@ func (ac *awsCloud) validateDeleteSecGroupRule(ctx context.Context, vpcID string
 		return err
 	}
 
+	dryRun := true
 	input := &ec2.RevokeSecurityGroupIngressInput{
-		DryRun:  ptr.To(true),
+		DryRun:  &dryRun,
 		GroupId: workerGroupID,
 	}
 
@@ -122,8 +128,9 @@ func (ac *awsCloud) validateDeleteSecGroupRule(ctx context.Context, vpcID string
 }
 
 func (ac *awsCloud) validateRemoveTag(ctx context.Context, subnetID *string) error {
+	dryRun := true
 	_, err := ac.client.DeleteTags(ctx, &ec2.DeleteTagsInput{
-		DryRun:    ptr.To(true),
+		DryRun:    &dryRun,
 		Resources: []string{*subnetID},
 		Tags: []types.Tag{
 			tagSubmarinerGateway,

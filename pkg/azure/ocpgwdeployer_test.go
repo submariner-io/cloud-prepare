@@ -403,11 +403,11 @@ func testCleanup() {
 
 type gatewayDeployerTestDriver struct {
 	*testDriver
-	msDeployer          *ocpFake.MockMachineSetDeployer
-	deployer            api.GatewayDeployer
 	existingMachineSets []unstructured.Unstructured
 	machineSetsDeployed []*unstructured.Unstructured
 	workerImage         ocp.ImageSpec
+	deployer            api.GatewayDeployer
+	msDeployer          *ocpFake.MockMachineSetDeployer
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {
