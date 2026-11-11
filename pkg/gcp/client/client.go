@@ -49,8 +49,8 @@ type Interface interface {
 }
 
 type gcpClient struct {
-	projectID     string
 	computeClient *compute.Service
+	projectID     string
 }
 
 func (g *gcpClient) InsertFirewallRule(ctx context.Context, projectID string, rule *compute.Firewall) error {

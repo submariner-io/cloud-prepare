@@ -63,18 +63,18 @@ func TestAWS(t *testing.T) {
 
 type fakeAWSClientBase struct {
 	awsClient                        *fake.MockInterface
-	vpcID                            string
 	existingVpcs                     []types.Vpc
 	existingSubnets                  []types.Subnet
+	cloudOptions                     []aws.CloudOption
 	describeSubnetsErr               error
 	authorizeSecurityGroupIngressErr error
 	createTagsErr                    error
 	describeInstanceTypeOfferingsErr error
+	vpcID                            string
 	workerGroupID                    string
 	masterGroupID                    string
 	masterSGName                     string
 	workerSGName                     string
-	cloudOptions                     []aws.CloudOption
 }
 
 func (f *fakeAWSClientBase) beforeEach() {

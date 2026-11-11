@@ -45,13 +45,13 @@ const (
 )
 
 type CloudInfo struct {
+	TokenCredential azcore.TokenCredential
+	K8sClient       k8s.Interface
+	ClientOptions   *arm.ClientOptions
 	SubscriptionID  string
 	InfraID         string
 	Region          string
 	BaseGroupName   string
-	TokenCredential azcore.TokenCredential
-	K8sClient       k8s.Interface
-	ClientOptions   *arm.ClientOptions
 }
 
 //nolint:wrapcheck // Let the caller wrap it.

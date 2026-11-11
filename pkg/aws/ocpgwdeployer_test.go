@@ -285,16 +285,16 @@ func testCleanup() {
 
 type gatewayDeployerTestDriver struct {
 	fakeAWSClientBase
-	numGateways                    int
-	instanceType                   string
 	expectedSubnets                []types.Subnet
 	expectedSubnetsDeployed        []types.Subnet
 	expectedSubnetsTagged          []types.Subnet
-	gatewayGroupID                 string
+	gwDeployer                     api.GatewayDeployer
 	zonesWithInstanceTypeOfferings set.Set[string]
 	machineSets                    map[string]*unstructured.Unstructured
 	msDeployer                     *ocpFake.MockMachineSetDeployer
-	gwDeployer                     api.GatewayDeployer
+	instanceType                   string
+	gatewayGroupID                 string
+	numGateways                    int
 }
 
 func newGatewayDeployerTestDriver() *gatewayDeployerTestDriver {

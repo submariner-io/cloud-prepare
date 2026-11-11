@@ -64,13 +64,13 @@ func WithVPCName(name string) CloudOption {
 
 type awsCloud struct {
 	client               awsClient.Interface
+	publicSubnetList     []string
 	infraID              string
 	region               string
 	nodeSGSuffix         string
 	controlPlaneSGSuffix string
 	controlPlaneGroupID  string
 	workerGroupID        string
-	publicSubnetList     []string
 	vpcID                string
 }
 

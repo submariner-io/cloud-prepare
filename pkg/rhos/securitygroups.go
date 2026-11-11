@@ -59,11 +59,11 @@ var (
 )
 
 type CloudInfo struct {
+	SubnetNames []string
+	K8sClient   k8s.Interface
 	Client      *gophercloud.ProviderClient
 	InfraID     string
 	Region      string
-	SubnetNames []string
-	K8sClient   k8s.Interface
 }
 
 func (c *CloudInfo) openInternalPorts(ctx context.Context, infraID string, ports []api.PortSpec,
