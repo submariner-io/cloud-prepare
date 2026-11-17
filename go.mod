@@ -15,11 +15,11 @@ require (
 	github.com/onsi/gomega v1.39.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.12.1
-	github.com/submariner-io/admiral v0.24.2
+	github.com/submariner-io/admiral v0.24.3
 	google.golang.org/api v0.273.1
-	k8s.io/api v0.35.8
-	k8s.io/apimachinery v0.35.8
-	k8s.io/client-go v0.35.8
+	k8s.io/api v0.35.10
+	k8s.io/apimachinery v0.35.10
+	k8s.io/client-go v0.35.10
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 )
 
