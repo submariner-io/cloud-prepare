@@ -119,7 +119,7 @@ func (d *ocpGatewayDeployer) Deploy(ctx context.Context, input api.GatewayDeploy
 	// is more than the number of Zones, its treated as an error.
 	err = fmt.Errorf("there are an insufficient number of zones (%d) to deploy the desired number of gateways (%d)",
 		eligibleZonesForGW.Len(), input.Gateways)
-	status.Failure(err.Error())
+	status.Failure("%s", err.Error())
 
 	return err
 }
@@ -291,7 +291,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 			// the gateway node was deployed using the OCPMachineSet API otherwise it's an existing worker node.
 			prefix := d.InfraID + "-submariner-gw-" + zone.Name
 			if strings.HasPrefix(instance.Name, prefix) {
-				status.Start(fmt.Sprintf("Deleting the gateway instance %q", instance.Name))
+				status.Start("Deleting the gateway instance %q", instance.Name)
 
 				err := d.deleteGateway(ctx, zone.Name)
 				if err != nil {
@@ -300,7 +300,7 @@ func (d *ocpGatewayDeployer) Cleanup(ctx context.Context, status reporter.Interf
 
 				status.Success("Successfully deleted the instance")
 			} else {
-				status.Start(fmt.Sprintf("Removing the gateway configuration from instance %q", instance.Name))
+				status.Start("Removing the gateway configuration from instance %q", instance.Name)
 
 				err = d.resetExistingGWNode(ctx, zone.Name, instance)
 				if err != nil {
