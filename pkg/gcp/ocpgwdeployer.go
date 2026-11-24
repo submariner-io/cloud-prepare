@@ -40,9 +40,9 @@ import (
 type ocpGatewayDeployer struct {
 	CloudInfo
 	msDeployer   ocp.MachineSetDeployer
+	k8sClient    k8s.Interface
 	instanceType string
 	image        string
-	k8sClient    k8s.Interface
 }
 
 // NewOcpGatewayDeployer returns a GatewayDeployer capable of deploying gateways using OCP.
