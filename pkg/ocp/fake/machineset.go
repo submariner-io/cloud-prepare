@@ -36,10 +36,19 @@ func NewMockMachineSetDeployer(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockMachineSetDeployer {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockMachineSetDeployer{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -82,7 +91,7 @@ type MockMachineSetDeployer_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - machineSet *unstructured.Unstructured
-func (_e *MockMachineSetDeployer_Expecter) Delete(ctx interface{}, machineSet interface{}) *MockMachineSetDeployer_Delete_Call {
+func (_e *MockMachineSetDeployer_Expecter) Delete(ctx any, machineSet any) *MockMachineSetDeployer_Delete_Call {
 	return &MockMachineSetDeployer_Delete_Call{Call: _e.mock.On("Delete", ctx, machineSet)}
 }
 
@@ -140,7 +149,7 @@ type MockMachineSetDeployer_DeleteByName_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - namespace string
-func (_e *MockMachineSetDeployer_Expecter) DeleteByName(ctx interface{}, name interface{}, namespace interface{}) *MockMachineSetDeployer_DeleteByName_Call {
+func (_e *MockMachineSetDeployer_Expecter) DeleteByName(ctx any, name any, namespace any) *MockMachineSetDeployer_DeleteByName_Call {
 	return &MockMachineSetDeployer_DeleteByName_Call{Call: _e.mock.On("DeleteByName", ctx, name, namespace)}
 }
 
@@ -202,7 +211,7 @@ type MockMachineSetDeployer_Deploy_Call struct {
 // Deploy is a helper method to define mock.On call
 //   - ctx context.Context
 //   - machineSet *unstructured.Unstructured
-func (_e *MockMachineSetDeployer_Expecter) Deploy(ctx interface{}, machineSet interface{}) *MockMachineSetDeployer_Deploy_Call {
+func (_e *MockMachineSetDeployer_Expecter) Deploy(ctx any, machineSet any) *MockMachineSetDeployer_Deploy_Call {
 	return &MockMachineSetDeployer_Deploy_Call{Call: _e.mock.On("Deploy", ctx, machineSet)}
 }
 
@@ -269,7 +278,7 @@ type MockMachineSetDeployer_GetWorkerNodeImage_Call struct {
 //   - ctx context.Context
 //   - machineSet *unstructured.Unstructured
 //   - infraID string
-func (_e *MockMachineSetDeployer_Expecter) GetWorkerNodeImage(ctx interface{}, machineSet interface{}, infraID interface{}) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
+func (_e *MockMachineSetDeployer_Expecter) GetWorkerNodeImage(ctx any, machineSet any, infraID any) *MockMachineSetDeployer_GetWorkerNodeImage_Call {
 	return &MockMachineSetDeployer_GetWorkerNodeImage_Call{Call: _e.mock.On("GetWorkerNodeImage", ctx, machineSet, infraID)}
 }
 
@@ -341,7 +350,7 @@ type MockMachineSetDeployer_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockMachineSetDeployer_Expecter) List(ctx interface{}) *MockMachineSetDeployer_List_Call {
+func (_e *MockMachineSetDeployer_Expecter) List(ctx any) *MockMachineSetDeployer_List_Call {
 	return &MockMachineSetDeployer_List_Call{Call: _e.mock.On("List", ctx)}
 }
 
