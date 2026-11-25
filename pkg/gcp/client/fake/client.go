@@ -35,10 +35,19 @@ func NewMockInterface(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockInterface {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockInterface{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -81,7 +90,7 @@ type MockInterface_ConfigurePublicIPOnInstance_Call struct {
 // ConfigurePublicIPOnInstance is a helper method to define mock.On call
 //   - ctx context.Context
 //   - instance *compute.Instance
-func (_e *MockInterface_Expecter) ConfigurePublicIPOnInstance(ctx interface{}, instance interface{}) *MockInterface_ConfigurePublicIPOnInstance_Call {
+func (_e *MockInterface_Expecter) ConfigurePublicIPOnInstance(ctx any, instance any) *MockInterface_ConfigurePublicIPOnInstance_Call {
 	return &MockInterface_ConfigurePublicIPOnInstance_Call{Call: _e.mock.On("ConfigurePublicIPOnInstance", ctx, instance)}
 }
 
@@ -139,7 +148,7 @@ type MockInterface_DeleteFirewallRule_Call struct {
 //   - ctx context.Context
 //   - projectID string
 //   - name string
-func (_e *MockInterface_Expecter) DeleteFirewallRule(ctx interface{}, projectID interface{}, name interface{}) *MockInterface_DeleteFirewallRule_Call {
+func (_e *MockInterface_Expecter) DeleteFirewallRule(ctx any, projectID any, name any) *MockInterface_DeleteFirewallRule_Call {
 	return &MockInterface_DeleteFirewallRule_Call{Call: _e.mock.On("DeleteFirewallRule", ctx, projectID, name)}
 }
 
@@ -201,7 +210,7 @@ type MockInterface_DeletePublicIPOnInstance_Call struct {
 // DeletePublicIPOnInstance is a helper method to define mock.On call
 //   - ctx context.Context
 //   - instance *compute.Instance
-func (_e *MockInterface_Expecter) DeletePublicIPOnInstance(ctx interface{}, instance interface{}) *MockInterface_DeletePublicIPOnInstance_Call {
+func (_e *MockInterface_Expecter) DeletePublicIPOnInstance(ctx any, instance any) *MockInterface_DeletePublicIPOnInstance_Call {
 	return &MockInterface_DeletePublicIPOnInstance_Call{Call: _e.mock.On("DeletePublicIPOnInstance", ctx, instance)}
 }
 
@@ -270,7 +279,7 @@ type MockInterface_GetFirewallRule_Call struct {
 //   - ctx context.Context
 //   - projectID string
 //   - name string
-func (_e *MockInterface_Expecter) GetFirewallRule(ctx interface{}, projectID interface{}, name interface{}) *MockInterface_GetFirewallRule_Call {
+func (_e *MockInterface_Expecter) GetFirewallRule(ctx any, projectID any, name any) *MockInterface_GetFirewallRule_Call {
 	return &MockInterface_GetFirewallRule_Call{Call: _e.mock.On("GetFirewallRule", ctx, projectID, name)}
 }
 
@@ -344,7 +353,7 @@ type MockInterface_GetInstance_Call struct {
 //   - ctx context.Context
 //   - zone string
 //   - instance string
-func (_e *MockInterface_Expecter) GetInstance(ctx interface{}, zone interface{}, instance interface{}) *MockInterface_GetInstance_Call {
+func (_e *MockInterface_Expecter) GetInstance(ctx any, zone any, instance any) *MockInterface_GetInstance_Call {
 	return &MockInterface_GetInstance_Call{Call: _e.mock.On("GetInstance", ctx, zone, instance)}
 }
 
@@ -407,7 +416,7 @@ type MockInterface_InsertFirewallRule_Call struct {
 //   - ctx context.Context
 //   - projectID string
 //   - rule *compute.Firewall
-func (_e *MockInterface_Expecter) InsertFirewallRule(ctx interface{}, projectID interface{}, rule interface{}) *MockInterface_InsertFirewallRule_Call {
+func (_e *MockInterface_Expecter) InsertFirewallRule(ctx any, projectID any, rule any) *MockInterface_InsertFirewallRule_Call {
 	return &MockInterface_InsertFirewallRule_Call{Call: _e.mock.On("InsertFirewallRule", ctx, projectID, rule)}
 }
 
@@ -478,7 +487,7 @@ type MockInterface_InstanceHasPublicIP_Call struct {
 // InstanceHasPublicIP is a helper method to define mock.On call
 //   - ctx context.Context
 //   - instance *compute.Instance
-func (_e *MockInterface_Expecter) InstanceHasPublicIP(ctx interface{}, instance interface{}) *MockInterface_InstanceHasPublicIP_Call {
+func (_e *MockInterface_Expecter) InstanceHasPublicIP(ctx any, instance any) *MockInterface_InstanceHasPublicIP_Call {
 	return &MockInterface_InstanceHasPublicIP_Call{Call: _e.mock.On("InstanceHasPublicIP", ctx, instance)}
 }
 
@@ -546,7 +555,7 @@ type MockInterface_ListInstances_Call struct {
 // ListInstances is a helper method to define mock.On call
 //   - ctx context.Context
 //   - zone string
-func (_e *MockInterface_Expecter) ListInstances(ctx interface{}, zone interface{}) *MockInterface_ListInstances_Call {
+func (_e *MockInterface_Expecter) ListInstances(ctx any, zone any) *MockInterface_ListInstances_Call {
 	return &MockInterface_ListInstances_Call{Call: _e.mock.On("ListInstances", ctx, zone)}
 }
 
@@ -613,7 +622,7 @@ type MockInterface_ListZones_Call struct {
 
 // ListZones is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockInterface_Expecter) ListZones(ctx interface{}) *MockInterface_ListZones_Call {
+func (_e *MockInterface_Expecter) ListZones(ctx any) *MockInterface_ListZones_Call {
 	return &MockInterface_ListZones_Call{Call: _e.mock.On("ListZones", ctx)}
 }
 
@@ -667,7 +676,7 @@ type MockInterface_UpdateFirewallRule_Call struct {
 //   - projectID string
 //   - name string
 //   - rule *compute.Firewall
-func (_e *MockInterface_Expecter) UpdateFirewallRule(ctx interface{}, projectID interface{}, name interface{}, rule interface{}) *MockInterface_UpdateFirewallRule_Call {
+func (_e *MockInterface_Expecter) UpdateFirewallRule(ctx any, projectID any, name any, rule any) *MockInterface_UpdateFirewallRule_Call {
 	return &MockInterface_UpdateFirewallRule_Call{Call: _e.mock.On("UpdateFirewallRule", ctx, projectID, name, rule)}
 }
 
@@ -737,7 +746,7 @@ type MockInterface_UpdateInstanceNetworkTags_Call struct {
 //   - zone string
 //   - instance string
 //   - tags *compute.Tags
-func (_e *MockInterface_Expecter) UpdateInstanceNetworkTags(ctx interface{}, project interface{}, zone interface{}, instance interface{}, tags interface{}) *MockInterface_UpdateInstanceNetworkTags_Call {
+func (_e *MockInterface_Expecter) UpdateInstanceNetworkTags(ctx any, project any, zone any, instance any, tags any) *MockInterface_UpdateInstanceNetworkTags_Call {
 	return &MockInterface_UpdateInstanceNetworkTags_Call{Call: _e.mock.On("UpdateInstanceNetworkTags", ctx, project, zone, instance, tags)}
 }
 
