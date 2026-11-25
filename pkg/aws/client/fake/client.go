@@ -35,10 +35,19 @@ func NewMockInterface(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockInterface {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockInterface{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -99,9 +108,9 @@ type MockInterface_AuthorizeSecurityGroupIngress_Call struct {
 //   - ctx context.Context
 //   - params *ec2.AuthorizeSecurityGroupIngressInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) AuthorizeSecurityGroupIngress(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_AuthorizeSecurityGroupIngress_Call {
+func (_e *MockInterface_Expecter) AuthorizeSecurityGroupIngress(ctx any, params any, optFns ...any) *MockInterface_AuthorizeSecurityGroupIngress_Call {
 	return &MockInterface_AuthorizeSecurityGroupIngress_Call{Call: _e.mock.On("AuthorizeSecurityGroupIngress",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_AuthorizeSecurityGroupIngress_Call) Run(run func(ctx context.Context, params *ec2.AuthorizeSecurityGroupIngressInput, optFns ...func(*ec2.Options))) *MockInterface_AuthorizeSecurityGroupIngress_Call {
@@ -182,9 +191,9 @@ type MockInterface_CreateSecurityGroup_Call struct {
 //   - ctx context.Context
 //   - params *ec2.CreateSecurityGroupInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) CreateSecurityGroup(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_CreateSecurityGroup_Call {
+func (_e *MockInterface_Expecter) CreateSecurityGroup(ctx any, params any, optFns ...any) *MockInterface_CreateSecurityGroup_Call {
 	return &MockInterface_CreateSecurityGroup_Call{Call: _e.mock.On("CreateSecurityGroup",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_CreateSecurityGroup_Call) Run(run func(ctx context.Context, params *ec2.CreateSecurityGroupInput, optFns ...func(*ec2.Options))) *MockInterface_CreateSecurityGroup_Call {
@@ -265,9 +274,9 @@ type MockInterface_CreateTags_Call struct {
 //   - ctx context.Context
 //   - params *ec2.CreateTagsInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) CreateTags(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_CreateTags_Call {
+func (_e *MockInterface_Expecter) CreateTags(ctx any, params any, optFns ...any) *MockInterface_CreateTags_Call {
 	return &MockInterface_CreateTags_Call{Call: _e.mock.On("CreateTags",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_CreateTags_Call) Run(run func(ctx context.Context, params *ec2.CreateTagsInput, optFns ...func(*ec2.Options))) *MockInterface_CreateTags_Call {
@@ -348,9 +357,9 @@ type MockInterface_DeleteSecurityGroup_Call struct {
 //   - ctx context.Context
 //   - params *ec2.DeleteSecurityGroupInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) DeleteSecurityGroup(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_DeleteSecurityGroup_Call {
+func (_e *MockInterface_Expecter) DeleteSecurityGroup(ctx any, params any, optFns ...any) *MockInterface_DeleteSecurityGroup_Call {
 	return &MockInterface_DeleteSecurityGroup_Call{Call: _e.mock.On("DeleteSecurityGroup",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_DeleteSecurityGroup_Call) Run(run func(ctx context.Context, params *ec2.DeleteSecurityGroupInput, optFns ...func(*ec2.Options))) *MockInterface_DeleteSecurityGroup_Call {
@@ -431,9 +440,9 @@ type MockInterface_DeleteTags_Call struct {
 //   - ctx context.Context
 //   - params *ec2.DeleteTagsInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) DeleteTags(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_DeleteTags_Call {
+func (_e *MockInterface_Expecter) DeleteTags(ctx any, params any, optFns ...any) *MockInterface_DeleteTags_Call {
 	return &MockInterface_DeleteTags_Call{Call: _e.mock.On("DeleteTags",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_DeleteTags_Call) Run(run func(ctx context.Context, params *ec2.DeleteTagsInput, optFns ...func(*ec2.Options))) *MockInterface_DeleteTags_Call {
@@ -514,9 +523,9 @@ type MockInterface_DescribeInstanceTypeOfferings_Call struct {
 //   - ctx context.Context
 //   - params *ec2.DescribeInstanceTypeOfferingsInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) DescribeInstanceTypeOfferings(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_DescribeInstanceTypeOfferings_Call {
+func (_e *MockInterface_Expecter) DescribeInstanceTypeOfferings(ctx any, params any, optFns ...any) *MockInterface_DescribeInstanceTypeOfferings_Call {
 	return &MockInterface_DescribeInstanceTypeOfferings_Call{Call: _e.mock.On("DescribeInstanceTypeOfferings",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_DescribeInstanceTypeOfferings_Call) Run(run func(ctx context.Context, params *ec2.DescribeInstanceTypeOfferingsInput, optFns ...func(*ec2.Options))) *MockInterface_DescribeInstanceTypeOfferings_Call {
@@ -597,9 +606,9 @@ type MockInterface_DescribeInstances_Call struct {
 //   - ctx context.Context
 //   - params *ec2.DescribeInstancesInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) DescribeInstances(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_DescribeInstances_Call {
+func (_e *MockInterface_Expecter) DescribeInstances(ctx any, params any, optFns ...any) *MockInterface_DescribeInstances_Call {
 	return &MockInterface_DescribeInstances_Call{Call: _e.mock.On("DescribeInstances",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_DescribeInstances_Call) Run(run func(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options))) *MockInterface_DescribeInstances_Call {
@@ -680,9 +689,9 @@ type MockInterface_DescribeSecurityGroups_Call struct {
 //   - ctx context.Context
 //   - params *ec2.DescribeSecurityGroupsInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) DescribeSecurityGroups(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_DescribeSecurityGroups_Call {
+func (_e *MockInterface_Expecter) DescribeSecurityGroups(ctx any, params any, optFns ...any) *MockInterface_DescribeSecurityGroups_Call {
 	return &MockInterface_DescribeSecurityGroups_Call{Call: _e.mock.On("DescribeSecurityGroups",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_DescribeSecurityGroups_Call) Run(run func(ctx context.Context, params *ec2.DescribeSecurityGroupsInput, optFns ...func(*ec2.Options))) *MockInterface_DescribeSecurityGroups_Call {
@@ -763,9 +772,9 @@ type MockInterface_DescribeSubnets_Call struct {
 //   - ctx context.Context
 //   - params *ec2.DescribeSubnetsInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) DescribeSubnets(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_DescribeSubnets_Call {
+func (_e *MockInterface_Expecter) DescribeSubnets(ctx any, params any, optFns ...any) *MockInterface_DescribeSubnets_Call {
 	return &MockInterface_DescribeSubnets_Call{Call: _e.mock.On("DescribeSubnets",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_DescribeSubnets_Call) Run(run func(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options))) *MockInterface_DescribeSubnets_Call {
@@ -846,9 +855,9 @@ type MockInterface_DescribeVpcs_Call struct {
 //   - ctx context.Context
 //   - params *ec2.DescribeVpcsInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) DescribeVpcs(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_DescribeVpcs_Call {
+func (_e *MockInterface_Expecter) DescribeVpcs(ctx any, params any, optFns ...any) *MockInterface_DescribeVpcs_Call {
 	return &MockInterface_DescribeVpcs_Call{Call: _e.mock.On("DescribeVpcs",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_DescribeVpcs_Call) Run(run func(ctx context.Context, params *ec2.DescribeVpcsInput, optFns ...func(*ec2.Options))) *MockInterface_DescribeVpcs_Call {
@@ -929,9 +938,9 @@ type MockInterface_RevokeSecurityGroupIngress_Call struct {
 //   - ctx context.Context
 //   - params *ec2.RevokeSecurityGroupIngressInput
 //   - optFns ...func(*ec2.Options)
-func (_e *MockInterface_Expecter) RevokeSecurityGroupIngress(ctx interface{}, params interface{}, optFns ...interface{}) *MockInterface_RevokeSecurityGroupIngress_Call {
+func (_e *MockInterface_Expecter) RevokeSecurityGroupIngress(ctx any, params any, optFns ...any) *MockInterface_RevokeSecurityGroupIngress_Call {
 	return &MockInterface_RevokeSecurityGroupIngress_Call{Call: _e.mock.On("RevokeSecurityGroupIngress",
-		append([]interface{}{ctx, params}, optFns...)...)}
+		append([]any{ctx, params}, optFns...)...)}
 }
 
 func (_c *MockInterface_RevokeSecurityGroupIngress_Call) Run(run func(ctx context.Context, params *ec2.RevokeSecurityGroupIngressInput, optFns ...func(*ec2.Options))) *MockInterface_RevokeSecurityGroupIngress_Call {
